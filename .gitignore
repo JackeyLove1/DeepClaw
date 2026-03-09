@@ -103,3 +103,6 @@ Thumbs.db
 # Local configuration
 *.local
 local_settings.py
+
+# uv file
+uv.lock
