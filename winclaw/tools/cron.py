@@ -1,7 +1,7 @@
 """Cron tool for scheduling reminders and tasks."""
 
 from contextvars import ContextVar
-from typing import Any
+from typing import Any, Optional
 
 from winclaw.cron.service import CronService
 from winclaw.cron.types import CronSchedule
@@ -74,11 +74,11 @@ class CronTool(Tool):
         self,
         action: str,
         message: str = "",
-        every_seconds: int | None = None,
-        cron_expr: str | None = None,
-        tz: str | None = None,
-        at: str | None = None,
-        job_id: str | None = None,
+        every_seconds: Optional[int] = None,
+        cron_expr: Optional[str] = None,
+        tz: Optional[str] = None,
+        at: Optional[str] = None,
+        job_id: Optional[str] = None,
         **kwargs: Any,
     ) -> str:
         if action == "add":

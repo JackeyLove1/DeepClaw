@@ -4,7 +4,7 @@ import hashlib
 import os
 import secrets
 import string
-from typing import Any
+from typing import Any, Optional
 
 import json_repair
 import litellm
@@ -35,11 +35,11 @@ class LiteLLMProvider(LLMProvider):
 
     def __init__(
         self,
-        api_key: str | None = None,
-        api_base: str | None = None,
+        api_key: Optional[str] = None,
+        api_base: Optional[str] = None,
         default_model: str = "anthropic/claude-opus-4-5",
-        extra_headers: dict[str, str] | None = None,
-        provider_name: str | None = None,
+        extra_headers: Optional[dict[str, str]] = None,
+        provider_name: Optional[str] = None,
     ):
         super().__init__(api_key, api_base)
         self.default_model = default_model
@@ -209,11 +209,11 @@ class LiteLLMProvider(LLMProvider):
     async def chat(
         self,
         messages: list[dict[str, Any]],
-        tools: list[dict[str, Any]] | None = None,
-        model: str | None = None,
+        tools: Optional[list[dict[str, Any]]] = None,
+        model: Optional[str] = None,
         max_tokens: int = 4096,
         temperature: float = 0.7,
-        reasoning_effort: str | None = None,
+        reasoning_effort: Optional[str] = None,
     ) -> LLMResponse:
         """
         Send a chat completion request via LiteLLM.

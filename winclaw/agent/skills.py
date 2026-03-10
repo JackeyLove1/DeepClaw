@@ -5,6 +5,9 @@ import os
 import re
 import shutil
 from pathlib import Path
+from typing import Optional
+
+from loguru import logger
 
 # Default builtin skills directory (relative to this file)
 BUILTIN_SKILLS_DIR = Path(__file__).parent.parent / "skills"
@@ -18,7 +21,7 @@ class SkillsLoader:
     specific tools or perform certain tasks.
     """
 
-    def __init__(self, workspace: Path, builtin_skills_dir: Path | None = None):
+    def __init__(self, workspace: Path, builtin_skills_dir: Optional[Path] = None):
         self.workspace = workspace
         self.workspace_skills = workspace / "skills"
         self.builtin_skills = builtin_skills_dir or BUILTIN_SKILLS_DIR
@@ -73,12 +76,14 @@ class SkillsLoader:
         # Check workspace first
         workspace_skill = self.workspace_skills / name / "SKILL.md"
         if workspace_skill.exists():
+            logger.info(f"Loading skill from workspace: {workspace_skill}")
             return workspace_skill.read_text(encoding="utf-8")
 
         # Check built-in
         if self.builtin_skills:
             builtin_skill = self.builtin_skills / name / "SKILL.md"
             if builtin_skill.exists():
+                logger.info(f"Loading skill from builtin: {builtin_skill}")
                 return builtin_skill.read_text(encoding="utf-8")
 
         return None
@@ -95,6 +100,7 @@ class SkillsLoader:
         """
         parts = []
         for name in skill_names:
+            logger.debug(f"Loading skill for context: {name}")
             content = self.load_skill(name)
             if content:
                 content = self._strip_frontmatter(content)

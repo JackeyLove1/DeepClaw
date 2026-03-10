@@ -6,7 +6,7 @@ import time
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Coroutine
+from typing import Any, Callable, Coroutine, Optional
 
 from loguru import logger
 
@@ -68,13 +68,13 @@ class CronService:
     def __init__(
         self,
         store_path: Path,
-        on_job: Callable[[CronJob], Coroutine[Any, Any, str | None]] | None = None,
+        on_job: Optional[Callable[[CronJob], Coroutine[Any, Any, str | None]]] = None,
     ):
         self.store_path = store_path
         self.on_job = on_job
-        self._store: CronStore | None = None
+        self._store: Optional[CronStore] = None
         self._last_mtime: float = 0.0
-        self._timer_task: asyncio.Task | None = None
+        self._timer_task: Optional[asyncio.Task] = None
         self._running = False
 
     def _load_store(self) -> CronStore:
@@ -297,8 +297,8 @@ class CronService:
         schedule: CronSchedule,
         message: str,
         deliver: bool = False,
-        channel: str | None = None,
-        to: str | None = None,
+        channel: Optional[str] = None,
+        to: Optional[str] = None,
         delete_after_run: bool = False,
     ) -> CronJob:
         """Add a new job."""

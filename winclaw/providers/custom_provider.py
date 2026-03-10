@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any
+from typing import Any, Optional
 
 import json_repair
 from openai import AsyncOpenAI
@@ -23,9 +23,9 @@ class CustomProvider(LLMProvider):
             default_headers={"x-session-affinity": uuid.uuid4().hex},
         )
 
-    async def chat(self, messages: list[dict[str, Any]], tools: list[dict[str, Any]] | None = None,
-                   model: str | None = None, max_tokens: int = 4096, temperature: float = 0.7,
-                   reasoning_effort: str | None = None) -> LLMResponse:
+    async def chat(self, messages: list[dict[str, Any]], tools: Optional[list[dict[str, Any]]] = None,
+                   model: Optional[str] = None, max_tokens: int = 4096, temperature: float = 0.7,
+                   reasoning_effort: Optional[str] = None) -> LLMResponse:
         kwargs: dict[str, Any] = {
             "model": model or self.default_model,
             "messages": self._sanitize_empty_content(messages),

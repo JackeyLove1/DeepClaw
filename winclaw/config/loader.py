@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+from typing import Optional
 
 from winclaw.config.schema import Config
 from loguru import logger
@@ -17,7 +18,7 @@ def get_data_dir() -> Path:
     return get_data_path()
 
 
-def load_config(config_path: Path | None = None) -> Config:
+def load_config(config_path: Optional[Path] = None) -> Config:
     """
     Load configuration from file or create default.
 
@@ -42,7 +43,7 @@ def load_config(config_path: Path | None = None) -> Config:
     return Config()
 
 
-def save_config(config: Config, config_path: Path | None = None) -> None:
+def save_config(config: Config, config_path: Optional[Path] = None) -> None:
     """
     Save configuration to file.
 

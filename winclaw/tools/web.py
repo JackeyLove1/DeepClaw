@@ -4,11 +4,12 @@ import html
 import json
 import os
 import re
-from typing import Any
+from typing import Any, Optional
 from urllib.parse import urlparse
 
 import httpx
 from loguru import logger
+from readability import Document
 
 from winclaw.tools.base import Tool
 
@@ -58,7 +59,7 @@ class WebSearchTool(Tool):
         "required": ["query"],
     }
 
-    def __init__(self, api_key: str | None = None, max_results: int = 5, proxy: str | None = None):
+    def __init__(self, api_key: Optional[str] = None, max_results: int = 5, proxy: Optional[str] = None):
         self._init_api_key = api_key
         self.max_results = max_results
         self.proxy = proxy
@@ -68,7 +69,7 @@ class WebSearchTool(Tool):
         """Resolve API key at call time so env/config changes are picked up."""
         return self._init_api_key or os.environ.get("BRAVE_API_KEY", "")
 
-    async def execute(self, query: str, count: int | None = None, **kwargs: Any) -> str:
+    async def execute(self, query: str, count: Optional[int] = None, **kwargs: Any) -> str:
         if not self.api_key:
             return (
                 "Error: Brave Search API key not configured. Set it in "
@@ -121,14 +122,13 @@ class WebFetchTool(Tool):
         "required": ["url"],
     }
 
-    def __init__(self, max_chars: int = 50000, proxy: str | None = None):
+    def __init__(self, max_chars: int = 50000, proxy: Optional[str] = None):
         self.max_chars = max_chars
         self.proxy = proxy
 
     async def execute(
-        self, url: str, extractMode: str = "markdown", maxChars: int | None = None, **kwargs: Any
+        self, url: str, extractMode: str = "markdown", maxChars: Optional[int] = None, **kwargs: Any
     ) -> str:
-        from readability import Document
 
         max_chars = maxChars or self.max_chars
         is_valid, error_msg = _validate_url(url)

@@ -20,8 +20,8 @@ class LLMResponse:
     tool_calls: list[ToolCallRequest] = field(default_factory=list)
     finish_reason: str = "stop"
     usage: dict[str, int] = field(default_factory=dict)
-    reasoning_content: str | None = None  # Kimi, DeepSeek-R1 etc.
-    thinking_blocks: list[dict] | None = None  # Anthropic extended thinking
+    reasoning_content: Optional[str] = None  # Kimi, DeepSeek-R1 etc.
+    thinking_blocks: Optional[list[dict]] = None  # Anthropic extended thinking
     
     @property
     def has_tool_calls(self) -> bool:
@@ -37,7 +37,7 @@ class LLMProvider(ABC):
     while maintaining a consistent interface.
     """
 
-    def __init__(self, api_key: str | None = None, api_base: str | None = None):
+    def __init__(self, api_key: Optional[str] = None, api_base: Optional[str] = None):
         self.api_key = api_key
         self.api_base = api_base
 
@@ -105,11 +105,11 @@ class LLMProvider(ABC):
     async def chat(
         self,
         messages: list[dict[str, Any]],
-        tools: list[dict[str, Any]] | None = None,
-        model: str | None = None,
+        tools: Optional[list[dict[str, Any]]] = None,
+        model: Optional[str] = None,
         max_tokens: int = 4096,
         temperature: float = 0.7,
-        reasoning_effort: str | None = None,
+        reasoning_effort: Optional[str] = None,
     ) -> LLMResponse:
         """
         Send a chat completion request.

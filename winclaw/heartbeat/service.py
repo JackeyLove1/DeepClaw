@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Coroutine
+from typing import TYPE_CHECKING, Any, Callable, Coroutine, Optional
 
 from loguru import logger
 
@@ -55,8 +55,8 @@ class HeartbeatService:
         workspace: Path,
         provider: LLMProvider,
         model: str,
-        on_execute: Callable[[str], Coroutine[Any, Any, str]] | None = None,
-        on_notify: Callable[[str], Coroutine[Any, Any, None]] | None = None,
+        on_execute: Optional[Callable[[str], Coroutine[Any, Any, str]]] = None,
+        on_notify: Optional[Callable[[str], Coroutine[Any, Any, None]]] = None,
         interval_s: int = 30 * 60,
         enabled: bool = True,
     ):
@@ -68,7 +68,7 @@ class HeartbeatService:
         self.interval_s = interval_s
         self.enabled = enabled
         self._running = False
-        self._task: asyncio.Task | None = None
+        self._task: Optional[asyncio.Task] = None
 
     @property
     def heartbeat_file(self) -> Path:

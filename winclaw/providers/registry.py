@@ -13,7 +13,7 @@ Every entry writes out all fields so you can copy-paste as a template.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Optional
 
 
 @dataclass(frozen=True)
@@ -377,9 +377,9 @@ def find_by_model(model: str) -> ProviderSpec | None:
 
 
 def find_gateway(
-    provider_name: str | None = None,
-    api_key: str | None = None,
-    api_base: str | None = None,
+    provider_name: Optional[str] = None,
+    api_key: Optional[str] = None,
+    api_base: Optional[str] = None,
 ) -> ProviderSpec | None:
     """Detect gateway/local provider.
 

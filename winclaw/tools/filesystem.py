@@ -31,7 +31,7 @@ class ReadFileTool(Tool):
 
     _MAX_CHARS = 128_000  # ~128 KB — prevents OOM from reading huge files into LLM context
 
-    def __init__(self, workspace: Path | None = None, allowed_dir: Path | None = None):
+    def __init__(self, workspace: Optional[Path] = None, allowed_dir: Optional[Path] = None):
         self._workspace = workspace
         self._allowed_dir = allowed_dir
 
@@ -82,7 +82,7 @@ class ReadFileTool(Tool):
 class WriteFileTool(Tool):
     """Tool to write content to a file."""
 
-    def __init__(self, workspace: Path | None = None, allowed_dir: Path | None = None):
+    def __init__(self, workspace: Optional[Path] = None, allowed_dir: Optional[Path] = None):
         self._workspace = workspace
         self._allowed_dir = allowed_dir
 
@@ -120,7 +120,7 @@ class WriteFileTool(Tool):
 class EditFileTool(Tool):
     """Tool to edit a file by replacing text."""
 
-    def __init__(self, workspace: Path | None = None, allowed_dir: Path | None = None):
+    def __init__(self, workspace: Optional[Path] = None, allowed_dir: Optional[Path] = None):
         self._workspace = workspace
         self._allowed_dir = allowed_dir
 
@@ -201,7 +201,7 @@ class EditFileTool(Tool):
 class ListDirTool(Tool):
     """Tool to list directory contents."""
 
-    def __init__(self, workspace: Path | None = None, allowed_dir: Path | None = None):
+    def __init__(self, workspace: Optional[Path] = None, allowed_dir: Optional[Path] = None):
         self._workspace = workspace
         self._allowed_dir = allowed_dir
 

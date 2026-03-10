@@ -1,6 +1,7 @@
 import re
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 
 from loguru import logger
 
@@ -30,7 +31,7 @@ def get_data_path() -> Path:
     return ensure_dir(Path.home() / ".winclaw")
 
 
-def get_workspace_path(workspace: str | None = None) -> Path:
+def get_workspace_path(workspace: Optional[str] = None) -> Path:
     """Resolve and ensure workspace path. Defaults to ~/.winclaw/workspace."""
     path = Path(workspace).expanduser() if workspace else Path.home() / ".winclaw" / "workspace"
     return ensure_dir(path)

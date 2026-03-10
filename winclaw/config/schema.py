@@ -1,7 +1,7 @@
 """Configuration schema using Pydantic."""
 
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
@@ -166,7 +166,7 @@ class AgentDefaults(Base):
     temperature: float = 0.7
     max_tool_iterations: int = 50
     memory_window: int = 100
-    reasoning_effort: str | None = None  # low / medium / high — enables LLM thinking mode
+    reasoning_effort: Optional[str] = None  # low / medium / high — enables LLM thinking mode
 
 
 class AgentsConfig(Base):
@@ -179,8 +179,8 @@ class ProviderConfig(Base):
     """LLM provider configuration."""
 
     api_key: str = ""
-    api_base: str | None = None
-    extra_headers: dict[str, str] | None = None  # Custom headers (e.g. APP-Code for AiHubMix)
+    api_base: Optional[str] = None
+    extra_headers: Optional[dict[str, str]] = None  # Custom headers (e.g. APP-Code for AiHubMix)
 
 
 class ProvidersConfig(Base):
@@ -248,7 +248,7 @@ class ExecToolConfig(Base):
 class MCPServerConfig(Base):
     """MCP server connection configuration (stdio or HTTP)."""
 
-    type: Literal["stdio", "sse", "streamableHttp"] | None = None  # auto-detected if omitted
+    type: Optional[Literal["stdio", "sse", "streamableHttp"]] = None  # auto-detected if omitted
     command: str = ""  # Stdio: command to run (e.g. "npx")
     args: list[str] = Field(default_factory=list)  # Stdio: command arguments
     env: dict[str, str] = Field(default_factory=dict)  # Stdio: extra env vars
@@ -281,7 +281,7 @@ class Config(BaseSettings):
         return Path(self.agents.defaults.workspace).expanduser()
 
     def _match_provider(
-        self, model: str | None = None
+        self, model: Optional[str] = None
     ) -> tuple["ProviderConfig | None", str | None]:
         """Match provider config and its registry name. Returns (config, spec_name)."""
         from winclaw.providers.registry import PROVIDERS
@@ -324,22 +324,22 @@ class Config(BaseSettings):
                 return p, spec.name
         return None, None
 
-    def get_provider(self, model: str | None = None) -> ProviderConfig | None:
+    def get_provider(self, model: Optional[str] = None) -> ProviderConfig | None:
         """Get matched provider config (api_key, api_base, extra_headers). Falls back to first available."""
         p, _ = self._match_provider(model)
         return p
 
-    def get_provider_name(self, model: str | None = None) -> str | None:
+    def get_provider_name(self, model: Optional[str] = None) -> str | None:
         """Get the registry name of the matched provider (e.g. "deepseek", "openrouter")."""
         _, name = self._match_provider(model)
         return name
 
-    def get_api_key(self, model: str | None = None) -> str | None:
+    def get_api_key(self, model: Optional[str] = None) -> str | None:
         """Get API key for the given model. Falls back to first available key."""
         p = self.get_provider(model)
         return p.api_key if p else None
 
-    def get_api_base(self, model: str | None = None) -> str | None:
+    def get_api_base(self, model: Optional[str] = None) -> str | None:
         """Get API base URL for the given model. Applies default URLs for known gateways."""
         from winclaw.providers.registry import find_by_name
 

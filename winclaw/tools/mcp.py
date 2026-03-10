@@ -5,7 +5,7 @@ TODO: use fastmcp wrapper
 
 import asyncio
 from contextlib import AsyncExitStack
-from typing import Any
+from typing import Any, Optional
 
 import httpx
 from loguru import logger
@@ -89,9 +89,9 @@ async def connect_mcp_servers(
             elif transport_type == "sse":
 
                 def httpx_client_factory(
-                    headers: dict[str, str] | None = None,
-                    timeout: httpx.Timeout | None = None,
-                    auth: httpx.Auth | None = None,
+                    headers: Optional[dict[str, str]] = None,
+                    timeout: Optional[httpx.Timeout] = None,
+                    auth: Optional[httpx.Auth] = None,
                 ) -> httpx.AsyncClient:
                     merged_headers = {**(cfg.headers or {}), **(headers or {})}
                     return httpx.AsyncClient(

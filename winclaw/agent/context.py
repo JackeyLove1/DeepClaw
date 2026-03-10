@@ -6,7 +6,7 @@ import platform
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from winclaw.agent.memory import MemoryStore
 from winclaw.agent.skills import SkillsLoader
@@ -24,7 +24,7 @@ class ContextBuilder:
         self.memory = MemoryStore(workspace)
         self.skills = SkillsLoader(workspace)
 
-    def build_system_prompt(self, skill_names: list[str] | None = None) -> str:
+    def build_system_prompt(self, skill_names: Optional[list[str]] = None) -> str:
         """Build the system prompt from identity, bootstrap files, memory, and skills."""
         parts = [self._get_identity()]
 
@@ -107,10 +107,10 @@ Reply directly with text for conversations. Only use the 'message' tool to send 
         self,
         history: list[dict[str, Any]],
         current_message: str,
-        skill_names: list[str] | None = None,
-        media: list[str] | None = None,
-        channel: str | None = None,
-        chat_id: str | None = None,
+        skill_names: Optional[list[str]] = None,
+        media: Optional[list[str]] = None,
+        channel: Optional[str] = None,
+        chat_id: Optional[str] = None,
     ) -> list[dict[str, Any]]:
         """Build the complete message list for an LLM call."""
         runtime_ctx = self._build_runtime_context(channel, chat_id)
@@ -168,9 +168,9 @@ Reply directly with text for conversations. Only use the 'message' tool to send 
         self,
         messages: list[dict[str, Any]],
         content: str | None,
-        tool_calls: list[dict[str, Any]] | None = None,
-        reasoning_content: str | None = None,
-        thinking_blocks: list[dict] | None = None,
+        tool_calls: Optional[list[dict[str, Any]]] = None,
+        reasoning_content: Optional[str] = None,
+        thinking_blocks: Optional[list[dict]] = None,
     ) -> list[dict[str, Any]]:
         """Add an assistant message to the message list."""
         msg: dict[str, Any] = {"role": "assistant", "content": content}

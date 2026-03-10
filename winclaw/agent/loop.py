@@ -8,7 +8,7 @@ import re
 import weakref
 from contextlib import AsyncExitStack
 from pathlib import Path
-from typing import TYPE_CHECKING, Awaitable, Callable
+from typing import TYPE_CHECKING, Awaitable, Callable, Optional
 
 from loguru import logger
 
@@ -51,20 +51,20 @@ class AgentLoop:
         bus: MessageBus,
         provider: LLMProvider,
         workspace: Path,
-        model: str | None = None,
+        model: Optional[str] = None,
         max_iterations: int = 40,
         temperature: float = 0.1,
         max_tokens: int = 4096,
         memory_window: int = 100,
-        reasoning_effort: str | None = None,
-        brave_api_key: str | None = None,
-        web_proxy: str | None = None,
-        exec_config: ExecToolConfig | None = None,
-        cron_service: CronService | None = None,
+        reasoning_effort: Optional[str] = None,
+        brave_api_key: Optional[str] = None,
+        web_proxy: Optional[str] = None,
+        exec_config: Optional[ExecToolConfig] = None,
+        cron_service: Optional[CronService] = None,
         restrict_to_workspace: bool = False,
-        session_manager: SessionManager | None = None,
-        mcp_servers: dict | None = None,
-        channels_config: ChannelsConfig | None = None,
+        session_manager: Optional[SessionManager] = None,
+        mcp_servers: Optional[dict] = None,
+        channels_config: Optional[ChannelsConfig] = None,
     ):
         from winclaw.config.schema import ExecToolConfig
 
@@ -103,7 +103,7 @@ class AgentLoop:
 
         self._running = False
         self._mcp_servers = mcp_servers or {}
-        self._mcp_stack: AsyncExitStack | None = None
+        self._mcp_stack: Optional[AsyncExitStack] = None
         self._mcp_connected = False
         self._mcp_connecting = False
         self._consolidating: set[str] = set()  # Session keys with consolidation in progress
@@ -158,7 +158,7 @@ class AgentLoop:
         finally:
             self._mcp_connecting = False
 
-    def _set_tool_context(self, channel: str, chat_id: str, message_id: str | None = None) -> None:
+    def _set_tool_context(self, channel: str, chat_id: str, message_id: Optional[str] = None) -> None:
         """Update context for all tools that need routing info."""
         for name in ("message", "spawn", "cron"):
             if tool := self.tools.get(name):
@@ -188,7 +188,7 @@ class AgentLoop:
     async def _run_agent_loop(
         self,
         initial_messages: list[dict],
-        on_progress: Callable[..., Awaitable[None]] | None = None,
+        on_progress: Optional[Callable[..., Awaitable[None]]] = None,
     ) -> tuple[str | None, list[str], list[dict]]:
         """Run the agent iteration loop. Returns (final_content, tools_used, messages)."""
         messages = initial_messages
@@ -368,8 +368,8 @@ class AgentLoop:
     async def _process_message(
         self,
         msg: InboundMessage,
-        session_key: str | None = None,
-        on_progress: Callable[[str], Awaitable[None]] | None = None,
+        session_key: Optional[str] = None,
+        on_progress: Optional[Callable[[str], Awaitable[None]]] = None,
     ) -> OutboundMessage | None:
         """Process a single inbound message and return the response."""
         # System messages: parse origin from chat_id ("channel:chat_id")
@@ -574,7 +574,7 @@ class AgentLoop:
         session_key: str = "cli:direct",
         channel: str = "cli",
         chat_id: str = "direct",
-        on_progress: Callable[[str], Awaitable[None]] | None = None,
+        on_progress: Optional[Callable[[str], Awaitable[None]]] = None,
     ) -> str:
         """Process a message directly (for CLI or cron usage)."""
         await self._connect_mcp()

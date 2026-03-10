@@ -37,7 +37,7 @@ class OutboundMessage:
     channel: str
     chat_id: str
     content: str
-    reply_to: str | None = None
+    reply_to: Optional[str] = None
     media: list[str] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
     session_id: Optional[str] = None

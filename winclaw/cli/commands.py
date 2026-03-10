@@ -6,6 +6,7 @@ import select
 import signal
 import sys
 from pathlib import Path
+from typing import Optional
 
 # Force UTF-8 encoding for Windows console
 if sys.platform == "win32":
@@ -45,7 +46,7 @@ EXIT_COMMANDS = {"exit", "quit", "/exit", "/quit", ":q"}
 # CLI input: prompt_toolkit for editing, paste, history, and display
 # ---------------------------------------------------------------------------
 
-_PROMPT_SESSION: PromptSession | None = None
+_PROMPT_SESSION: Optional[PromptSession] = None
 _SAVED_TERM_ATTRS = None  # original termios settings, restored on exit
 
 
