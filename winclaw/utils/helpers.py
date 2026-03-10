@@ -1,7 +1,9 @@
 import re
 from datetime import datetime
 from pathlib import Path
+
 from loguru import logger
+
 
 def detect_image_mime(data: bytes) -> str | None:
     """Detect image MIME type from magic bytes, ignoring file extension."""
@@ -15,21 +17,27 @@ def detect_image_mime(data: bytes) -> str | None:
         return "image/webp"
     return None
 
+
 def ensure_dir(path: Path) -> Path:
+    if not path.exists():
+        logger.info(f"Creating directory: {path}")
     path.mkdir(parents=True, exist_ok=True)
     return path
+
 
 def get_data_path() -> Path:
     """~/.winclaw data directory."""
     return ensure_dir(Path.home() / ".winclaw")
 
+
 def get_workspace_path(workspace: str | None = None) -> Path:
     """Resolve and ensure workspace path. Defaults to ~/.winclaw/workspace."""
-    path = Path(workspace).expanduser() if workspace else Path.home() / ".nanobot" / "workspace"
+    path = Path(workspace).expanduser() if workspace else Path.home() / ".winclaw" / "workspace"
     return ensure_dir(path)
 
-def get_temp_path(workspace: str | None = None) -> Path:
-    pass
+
+def get_temp_path() -> Path:
+    return ensure_dir(get_data_path() / "tmp")
 
 
 def timestamp() -> str:
@@ -38,6 +46,7 @@ def timestamp() -> str:
 
 
 _UNSAFE_CHARS = re.compile(r'[<>:"/\\|?*]')
+
 
 def safe_filename(name: str) -> str:
     """Replace unsafe path characters with underscores."""
@@ -66,9 +75,9 @@ def split_message(content: str, max_len: int = 2000) -> list[str]:
             break
         cut = content[:max_len]
         # Try to break at newline first, then space, then hard break
-        pos = cut.rfind('\n')
+        pos = cut.rfind("\n")
         if pos <= 0:
-            pos = cut.rfind(' ')
+            pos = cut.rfind(" ")
         if pos <= 0:
             pos = max_len
         chunks.append(content[:pos])
@@ -79,13 +88,14 @@ def split_message(content: str, max_len: int = 2000) -> list[str]:
 def sync_workspace_templates(workspace: Path, silent: bool = False) -> list[str]:
     """Sync bundled templates to workspace. Only creates missing files."""
     from importlib.resources import files as pkg_files
+
     try:
         tpl = pkg_files("myclaw") / "templates"
-    except Exception:
-        logger.error(f"Failed to get templates directory, tpl={tpl}")
+    except Exception as e:
+        logger.error(f"Failed to get templates directory: {'myclaw/templates'}, error={e}")
         return []
     if not tpl.is_dir():
-        logger.error(f"Templates directory is not a directory, tpl={tpl}")
+        logger.error(f"Templates directory is not a directory, tpl={tpl}, error={e}")
         return []
 
     added: list[str] = []
@@ -106,6 +116,7 @@ def sync_workspace_templates(workspace: Path, silent: bool = False) -> list[str]
 
     if added and not silent:
         from rich.console import Console
+
         for name in added:
             Console().print(f"  [dim]Created {name}[/dim]")
     return added

@@ -5,11 +5,40 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "chardet>=7.0.1",
+    "croniter>=6.0.0",
+    "dingtalk-stream>=0.24.3",
+    "fastmcp>=3.1.0",
+    "httpx>=0.28.1",
+    "json-repair>=0.58.5",
+    "lark-oapi>=1.5.3",
+    "litellm>=1.82.0",
+    "mcp>=1.26.0",
+    "msgpack>=1.1.2",
+    "openai>=2.26.0",
+    "prompt-toolkit>=3.0.52",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.13.1",
     "pytest>=9.0.2",
+    "python-socks[asyncio]>=2.8.1",
     "pywinauto>=0.6.9",
+    "qq-botpy>=1.2.1",
+    "readability>=0.3.2",
+    "readability-lxml>=0.8.4.1",
+    "ruff>=0.15.5",
+    "sqlite-vec>=0.1.6",
+    "typer>=0.24.1",
+    "websockets>=16.0",
 ]
 
-[tool.uv]
-index-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
