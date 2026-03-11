@@ -18,7 +18,7 @@ class ExecTool(Tool):
 
     def __init__(
         self,
-        timeout: int = 60,
+        timeout: int = 120,
         working_dir: Optional[str] = None,
         deny_patterns: Optional[List[str]] = None,
         allow_patterns: Optional[List[str]] = None,

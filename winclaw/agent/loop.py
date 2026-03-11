@@ -25,6 +25,7 @@ from winclaw.tools.message import MessageTool
 from winclaw.tools.registry import ToolRegistry
 from winclaw.tools.shell import ExecTool
 from winclaw.tools.spawn import SpawnTool
+from winclaw.tools.todo import TodoTool
 from winclaw.tools.web import WebFetchTool, WebSearchTool
 from winclaw.utils.helpers import get_new_session_id
 
@@ -137,6 +138,7 @@ class AgentLoop:
         self.tools.register(SpawnTool(manager=self.subagents))
         if self.cron_service:
             self.tools.register(CronTool(self.cron_service))
+        self.tools.register(TodoTool())
 
     async def _connect_mcp(self) -> None:
         """Connect to configured MCP servers (one-time, lazy)."""

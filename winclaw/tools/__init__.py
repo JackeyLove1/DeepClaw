@@ -5,6 +5,7 @@ from winclaw.tools.cron import CronTool
 from winclaw.tools.filesystem import EditFileTool, ListDirTool, ReadFileTool, WriteFileTool
 from winclaw.tools.mcp import MCPToolWrapper
 from winclaw.tools.registry import ToolRegistry
+from winclaw.tools.todo import TodoTool
 
 __all__ = [
     "Tool",
@@ -15,4 +16,5 @@ __all__ = [
     "ListDirTool",
     "MCPToolWrapper",
     "CronTool",
+    "TodoTool",
 ]
