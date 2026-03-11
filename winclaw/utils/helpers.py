@@ -1,4 +1,5 @@
 import re
+import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -32,8 +33,8 @@ def get_data_path() -> Path:
 
 
 def get_workspace_path(workspace: Optional[str] = None) -> Path:
-    """Resolve and ensure workspace path. Defaults to ~/.winclaw/workspace."""
-    path = Path(workspace).expanduser() if workspace else Path.home() / ".winclaw" / "workspace"
+    """Resolve and ensure workspace path. Defaults to ~/.winclaw."""
+    path = Path(workspace).expanduser() if workspace else Path.home() / ".winclaw"
     return ensure_dir(path)
 
 
@@ -91,9 +92,9 @@ def sync_workspace_templates(workspace: Path, silent: bool = False) -> list[str]
     from importlib.resources import files as pkg_files
 
     try:
-        tpl = pkg_files("myclaw") / "templates"
+        tpl = pkg_files("winclaw") / "templates"
     except Exception as e:
-        logger.error(f"Failed to get templates directory: {'myclaw/templates'}, error={e}")
+        logger.error(f"Failed to get templates directory: {'winclaw/templates'}, error={e}")
         return []
     if not tpl.is_dir():
         logger.error(f"Templates directory is not a directory, tpl={tpl}, error={e}")
@@ -121,3 +122,7 @@ def sync_workspace_templates(workspace: Path, silent: bool = False) -> list[str]
         for name in added:
             Console().print(f"  [dim]Created {name}[/dim]")
     return added
+
+
+def get_new_session_id() -> str:
+    return str(uuid.uuid4())

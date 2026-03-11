@@ -9,7 +9,7 @@ from urllib.parse import urlparse
 
 import httpx
 from loguru import logger
-from readability import Document
+from markdownify import markdownify as md
 
 from winclaw.config.loader import get_config_path
 from winclaw.tools.base import Tool
@@ -31,6 +31,18 @@ def _normalize(text: str) -> str:
     """Normalize whitespace."""
     text = re.sub(r"[ \t]+", " ", text)
     return re.sub(r"\n{3,}", "\n\n", text).strip()
+
+
+def _clean_html(html_content: str) -> str:
+    """Remove non-content tags before extraction."""
+    html_content = re.sub(r"<script[\s\S]*?</script>", "", html_content, flags=re.I)
+    return re.sub(r"<style[\s\S]*?</style>", "", html_content, flags=re.I)
+
+
+def _extract_title(html_content: str) -> str:
+    """Extract document title from HTML."""
+    match = re.search(r"<title[^>]*>([\s\S]*?)</title>", html_content, flags=re.I)
+    return _normalize(_strip_tags(match.group(1))) if match else ""
 
 
 def _validate_url(url: str) -> tuple[bool, str]:
@@ -111,7 +123,7 @@ class WebSearchTool(Tool):
 
 
 class WebFetchTool(Tool):
-    """Fetch and extract content from a URL using Readability."""
+    """Fetch and extract content from a URL using markdownify."""
 
     name = "web_fetch"
     description = "Fetch URL and extract readable content (HTML → markdown/text)."
@@ -130,10 +142,15 @@ class WebFetchTool(Tool):
         self.proxy = proxy
 
     async def execute(
-        self, url: str, extractMode: str = "markdown", maxChars: Optional[int] = None, **kwargs: Any
+        self,
+        url: str,
+        extract_mode: str = "markdown",
+        max_chars_arg: Optional[int] = None,
+        **kwargs: Any,
     ) -> str:
-
-        max_chars = maxChars or self.max_chars
+        extract_mode = kwargs.get("extractMode", extract_mode)
+        max_chars_arg = kwargs.get("maxChars", max_chars_arg)
+        max_chars = max_chars_arg or self.max_chars
         is_valid, error_msg = _validate_url(url)
         if not is_valid:
             return json.dumps(
@@ -156,14 +173,15 @@ class WebFetchTool(Tool):
             if "application/json" in ctype:
                 text, extractor = json.dumps(r.json(), indent=2, ensure_ascii=False), "json"
             elif "text/html" in ctype or r.text[:256].lower().startswith(("<!doctype", "<html")):
-                doc = Document(r.text)
+                clean_html = _clean_html(r.text)
                 content = (
-                    self._to_markdown(doc.summary())
-                    if extractMode == "markdown"
-                    else _strip_tags(doc.summary())
+                    _normalize(md(clean_html, heading_style="ATX"))
+                    if extract_mode == "markdown"
+                    else _normalize(_strip_tags(clean_html))
                 )
-                text = f"# {doc.title()}\n\n{content}" if doc.title() else content
-                extractor = "readability"
+                title = _extract_title(r.text)
+                text = f"# {title}\n\n{content}" if title and content else content or f"# {title}"
+                extractor = "markdownify"
             else:
                 text, extractor = r.text, "raw"
 
@@ -189,25 +207,3 @@ class WebFetchTool(Tool):
         except Exception as e:
             logger.error("WebFetch error for {}: {}", url, e)
             return json.dumps({"error": str(e), "url": url}, ensure_ascii=False)
-
-    def _to_markdown(self, html: str) -> str:
-        """Convert HTML to markdown."""
-        # Convert links, headings, lists before stripping tags
-        text = re.sub(
-            r'<a\s+[^>]*href=["\']([^"\']+)["\'][^>]*>([\s\S]*?)</a>',
-            lambda m: f"[{_strip_tags(m[2])}]({m[1]})",
-            html,
-            flags=re.I,
-        )
-        text = re.sub(
-            r"<h([1-6])[^>]*>([\s\S]*?)</h\1>",
-            lambda m: f"\n{'#' * int(m[1])} {_strip_tags(m[2])}\n",
-            text,
-            flags=re.I,
-        )
-        text = re.sub(
-            r"<li[^>]*>([\s\S]*?)</li>", lambda m: f"\n- {_strip_tags(m[1])}", text, flags=re.I
-        )
-        text = re.sub(r"</(p|div|section|article)>", "\n\n", text, flags=re.I)
-        text = re.sub(r"<(br|hr)\s*/?>", "\n", text, flags=re.I)
-        return _normalize(_strip_tags(text))

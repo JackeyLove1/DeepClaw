@@ -14,6 +14,7 @@ dependencies = [
     "lark-oapi>=1.5.3",
     "litellm>=1.82.0",
     "loguru>=0.7.3",
+    "markdownify>=1.2.2",
     "mcp>=1.26.0",
     "msgpack>=1.1.2",
     "openai>=2.26.0",
@@ -26,8 +27,6 @@ dependencies = [
     "python-socks[asyncio]>=2.8.1",
     "pywinauto>=0.6.9",
     "qq-botpy>=1.2.1",
-    "readability>=0.3.2",
-    "readability-lxml>=0.8.4.1",
     "ruff>=0.15.5",
     "sqlite-vec>=0.1.6",
     "typer>=0.24.1",
@@ -52,4 +51,4 @@ build-backend = "hatchling.build"
 
 
 [project.scripts]
-nanobot = "winclaw.cli.commands:app"
+winclaw = "winclaw.cli.commands:app"

@@ -29,13 +29,14 @@ from rich.markdown import Markdown
 from rich.table import Table
 from rich.text import Text
 
-from winclaw import __logo__, __version__
+from winclaw import __author__, __logo__, __version__
+from winclaw.channels.manager import ChannelManager
 from winclaw.config.schema import Config
-from winclaw.utils.helpers import sync_workspace_templates
+from winclaw.utils.helpers import get_new_session_id, sync_workspace_templates
 
 app = typer.Typer(
     name="winclaw",
-    help=f"{__logo__} winclaw - Personal AI Assistant",
+    help=f"{__logo__} winclaw - Personal Agent Assistant For Windows",
     no_args_is_help=True,
 )
 
@@ -144,9 +145,16 @@ def version_callback(value: bool):
         raise typer.Exit()
 
 
+def author_callback(value: bool):
+    if value:
+        console.print(f"Author: {__author__}")
+        raise typer.Exit()
+
+
 @app.callback()
 def main(
     version: bool = typer.Option(None, "--version", "-v", callback=version_callback, is_eager=True),
+    author: bool = typer.Option(None, "--author", "-a", callback=author_callback, is_eager=True),
 ):
     """winclaw - Personal AI Assistant."""
     pass
@@ -198,7 +206,6 @@ def onboard():
     console.print(f"\n{__logo__} winclaw is ready!")
     console.print("\nNext steps:")
     console.print("  1. Add your API key to [cyan]~/.winclaw/config.json[/cyan]")
-    console.print("     Get one at: https://openrouter.ai/keys")
     console.print('  2. Chat: [cyan]winclaw agent -m "Hello!"[/cyan]')
     console.print(
         "\n[dim]Want Telegram/WhatsApp? See: https://github.com/HKUDS/winclaw#-chat-apps[/dim]"
@@ -347,6 +354,7 @@ def gateway(
     cron.on_job = on_cron_job
 
     # Create channel manager
+
     channels = ChannelManager(config, bus)
 
     def _pick_heartbeat_target() -> tuple[str, str]:
@@ -442,7 +450,7 @@ def gateway(
 @app.command()
 def agent(
     message: str = typer.Option(None, "--message", "-m", help="Message to send to the agent"),
-    session_id: str = typer.Option("cli:direct", "--session", "-s", help="Session ID"),
+    session_id: str = typer.Option(None, "--session", "-s", help="Session ID"),
     markdown: bool = typer.Option(
         True, "--markdown/--no-markdown", help="Render assistant output as Markdown"
     ),
@@ -467,6 +475,10 @@ def agent(
     # Create cron service for tool usage (no callback needed for CLI unless running)
     cron_store_path = get_data_dir() / "cron" / "jobs.json"
     cron = CronService(cron_store_path)
+
+    if session_id is None:
+        session_id = get_new_session_id()
+        logger.debug(f"New session ID: {session_id}")
 
     if logs:
         logger.enable("winclaw")
@@ -512,9 +524,10 @@ def agent(
     if message:
         # Single message mode — direct call, no bus needed
         async def run_once():
+            logger.debug(f"Running once,session_id:{session_id} message:{message}")
             with _thinking_ctx():
                 response = await agent_loop.process_direct(
-                    message, session_id, on_progress=_cli_progress
+                    content=message, on_progress=_cli_progress
                 )
             _print_agent_response(response, render_markdown=markdown)
             await agent_loop.close_mcp()
@@ -828,100 +841,6 @@ def status():
                 console.print(
                     f"{spec.label}: {'[green]✓[/green]' if has_key else '[dim]not set[/dim]'}"
                 )
-
-
-# ============================================================================
-# OAuth Login
-# ============================================================================
-
-provider_app = typer.Typer(help="Manage providers")
-app.add_typer(provider_app, name="provider")
-
-
-_LOGIN_HANDLERS: dict[str, callable] = {}
-
-
-def _register_login(name: str):
-    def decorator(fn):
-        _LOGIN_HANDLERS[name] = fn
-        return fn
-
-    return decorator
-
-
-@provider_app.command("login")
-def provider_login(
-    provider: str = typer.Argument(
-        ..., help="OAuth provider (e.g. 'openai-codex', 'github-copilot')"
-    ),
-):
-    """Authenticate with an OAuth provider."""
-    from winclaw.providers.registry import PROVIDERS
-
-    key = provider.replace("-", "_")
-    spec = next((s for s in PROVIDERS if s.name == key and s.is_oauth), None)
-    if not spec:
-        names = ", ".join(s.name.replace("_", "-") for s in PROVIDERS if s.is_oauth)
-        console.print(f"[red]Unknown OAuth provider: {provider}[/red]  Supported: {names}")
-        raise typer.Exit(1)
-
-    handler = _LOGIN_HANDLERS.get(spec.name)
-    if not handler:
-        console.print(f"[red]Login not implemented for {spec.label}[/red]")
-        raise typer.Exit(1)
-
-    console.print(f"{__logo__} OAuth Login - {spec.label}\n")
-    handler()
-
-
-@_register_login("openai_codex")
-def _login_openai_codex() -> None:
-    try:
-        from oauth_cli_kit import get_token, login_oauth_interactive
-
-        token = None
-        try:
-            token = get_token()
-        except Exception:
-            pass
-        if not (token and token.access):
-            console.print("[cyan]Starting interactive OAuth login...[/cyan]\n")
-            token = login_oauth_interactive(
-                print_fn=lambda s: console.print(s),
-                prompt_fn=lambda s: typer.prompt(s),
-            )
-        if not (token and token.access):
-            console.print("[red]✗ Authentication failed[/red]")
-            raise typer.Exit(1)
-        console.print(
-            f"[green]✓ Authenticated with OpenAI Codex[/green]  [dim]{token.account_id}[/dim]"
-        )
-    except ImportError:
-        console.print("[red]oauth_cli_kit not installed. Run: pip install oauth-cli-kit[/red]")
-        raise typer.Exit(1)
-
-
-@_register_login("github_copilot")
-def _login_github_copilot() -> None:
-    import asyncio
-
-    console.print("[cyan]Starting GitHub Copilot device flow...[/cyan]\n")
-
-    async def _trigger():
-        from litellm import acompletion
-
-        await acompletion(
-            model="github_copilot/gpt-4o",
-            messages=[{"role": "user", "content": "hi"}],
-            max_tokens=1,
-        )
-
-    try:
-        asyncio.run(_trigger())
-        console.print("[green]✓ Authenticated with GitHub Copilot[/green]")
-    except Exception as e:
-        console.print(f"[red]Authentication error: {e}[/red]")
-        raise typer.Exit(1)
 
 
 if __name__ == "__main__":

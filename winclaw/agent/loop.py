@@ -26,6 +26,7 @@ from winclaw.tools.registry import ToolRegistry
 from winclaw.tools.shell import ExecTool
 from winclaw.tools.spawn import SpawnTool
 from winclaw.tools.web import WebFetchTool, WebSearchTool
+from winclaw.utils.helpers import get_new_session_id
 
 if TYPE_CHECKING:
     from winclaw.config.schema import ChannelsConfig, ExecToolConfig
@@ -158,7 +159,9 @@ class AgentLoop:
         finally:
             self._mcp_connecting = False
 
-    def _set_tool_context(self, channel: str, chat_id: str, message_id: Optional[str] = None) -> None:
+    def _set_tool_context(
+        self, channel: str, chat_id: str, message_id: Optional[str] = None
+    ) -> None:
         """Update context for all tools that need routing info."""
         for name in ("message", "spawn", "cron"):
             if tool := self.tools.get(name):
@@ -368,9 +371,8 @@ class AgentLoop:
     async def _process_message(
         self,
         msg: InboundMessage,
-        session_key: Optional[str] = None,
         on_progress: Optional[Callable[[str], Awaitable[None]]] = None,
-    ) -> OutboundMessage | None:
+    ) -> Optional[OutboundMessage]:
         """Process a single inbound message and return the response."""
         # System messages: parse origin from chat_id ("channel:chat_id")
         if msg.channel == "system":
@@ -392,6 +394,7 @@ class AgentLoop:
             self._save_turn(session, all_msgs, 1 + len(history))
             self.sessions.save(session)
             return OutboundMessage(
+                session_id=msg.session_id,
                 channel=channel,
                 chat_id=chat_id,
                 content=final_content or "Background task completed.",
@@ -400,8 +403,7 @@ class AgentLoop:
         preview = msg.content[:80] + "..." if len(msg.content) > 80 else msg.content
         logger.info("Processing message from {}:{}: {}", msg.channel, msg.sender_id, preview)
 
-        key = session_key or msg.session_key
-        session = self.sessions.get_or_create(key)
+        session = self.sessions.get_or_create(msg.session_key)
 
         # Slash commands
         cmd = msg.content.strip().lower()
@@ -416,6 +418,7 @@ class AgentLoop:
                         temp.messages = list(snapshot)
                         if not await self._consolidate_memory(temp, archive_all=True):
                             return OutboundMessage(
+                                session_id=msg.session_id,
                                 channel=msg.channel,
                                 chat_id=msg.chat_id,
                                 content="Memory archival failed, session not cleared. Please try again.",
@@ -423,6 +426,7 @@ class AgentLoop:
             except Exception:
                 logger.exception("/new archival failed for {}", session.key)
                 return OutboundMessage(
+                    session_id=msg.session_id,
                     channel=msg.channel,
                     chat_id=msg.chat_id,
                     content="Memory archival failed, session not cleared. Please try again.",
@@ -434,10 +438,14 @@ class AgentLoop:
             self.sessions.save(session)
             self.sessions.invalidate(session.key)
             return OutboundMessage(
-                channel=msg.channel, chat_id=msg.chat_id, content="New session started."
+                session_id=msg.session_id,
+                channel=msg.channel,
+                chat_id=msg.chat_id,
+                content="New session started.",
             )
         if cmd == "/help":
             return OutboundMessage(
+                session_id=msg.session_id,
                 channel=msg.channel,
                 chat_id=msg.chat_id,
                 content="🐈 winclaw commands:\n/new — Start a new conversation\n/stop — Stop the current task\n/help — Show available commands",
@@ -481,6 +489,7 @@ class AgentLoop:
             meta["_tool_hint"] = tool_hint
             await self.bus.publish_outbound(
                 OutboundMessage(
+                    session_id=msg.session_id,
                     channel=msg.channel,
                     chat_id=msg.chat_id,
                     content=content,
@@ -505,6 +514,7 @@ class AgentLoop:
         preview = final_content[:120] + "..." if len(final_content) > 120 else final_content
         logger.info("Response to {}:{}: {}", msg.channel, msg.sender_id, preview)
         return OutboundMessage(
+            session_id=msg.session_id,
             channel=msg.channel,
             chat_id=msg.chat_id,
             content=final_content,
@@ -571,15 +581,20 @@ class AgentLoop:
     async def process_direct(
         self,
         content: str,
-        session_key: str = "cli:direct",
-        channel: str = "cli",
-        chat_id: str = "direct",
+        session_id: Optional[str] = None,
+        channel: Optional[str] = None,
+        chat_id: Optional[str] = None,
         on_progress: Optional[Callable[[str], Awaitable[None]]] = None,
     ) -> str:
         """Process a message directly (for CLI or cron usage)."""
         await self._connect_mcp()
-        msg = InboundMessage(channel=channel, sender_id="user", chat_id=chat_id, content=content)
-        response = await self._process_message(
-            msg, session_key=session_key, on_progress=on_progress
+        session_id = session_id or get_new_session_id()
+        msg = InboundMessage(
+            session_id=session_id,
+            channel=channel,
+            sender_id=None,
+            chat_id=chat_id,
+            content=content,
         )
+        response = await self._process_message(msg, on_progress=on_progress)
         return response.content if response else ""
