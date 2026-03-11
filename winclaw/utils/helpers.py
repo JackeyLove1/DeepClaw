@@ -1,8 +1,11 @@
 import re
+import shutil
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+from importlib.resources import as_file
+from importlib.resources import files as pkg_files
 from pathlib import Path
-from typing import Optional
 
 from loguru import logger
 
@@ -32,14 +35,76 @@ def get_data_path() -> Path:
     return ensure_dir(Path.home() / ".winclaw")
 
 
-def get_workspace_path(workspace: Optional[str] = None) -> Path:
+def get_workspace_path() -> Path:
     """Resolve and ensure workspace path. Defaults to ~/.winclaw."""
-    path = Path(workspace).expanduser() if workspace else Path.home() / ".winclaw"
+    path = Path.home() / ".winclaw"
     return ensure_dir(path)
 
 
 def get_temp_path() -> Path:
     return ensure_dir(get_data_path() / "tmp")
+
+
+def get_bin_path(workspace: Path | None = None) -> Path:
+    """Get the bin directory in data dir or the provided workspace."""
+    root = ensure_dir(workspace) if workspace is not None else get_data_path()
+    return ensure_dir(root / "bin")
+
+
+def _copy_binary_resource(src, dest: Path) -> None:
+    with as_file(src) as src_path:
+        shutil.copy(src_path, dest)
+
+
+def _copy_text_resource(src, dest: Path) -> None:
+    dest.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+
+
+def _sync_missing_dir(
+    src_dir,
+    dest_dir: Path,
+    *,
+    relative_to: Path,
+    copy_file,
+    should_include=None,
+    silent: bool = True,
+    log_message: str = "Created {}",
+) -> list[str]:
+    """Sync missing files from a source tree into a destination tree."""
+    added: list[str] = []
+    pending: list[tuple[object, Path, str]] = []
+
+    def _sync(src_current, rel_parts: tuple[str, ...] = ()) -> None:
+        for entry in src_current.iterdir():
+            rel_path = Path(*rel_parts, entry.name)
+            if entry.is_dir():
+                _sync(entry, (*rel_parts, entry.name))
+                continue
+            if should_include is not None and not should_include(rel_path):
+                continue
+
+            dest = dest_dir / rel_path
+            if dest.exists():
+                continue
+
+            pending.append((entry, dest, str(dest.relative_to(relative_to))))
+
+    _sync(src_dir)
+
+    def _copy_pending(item: tuple[object, Path, str]) -> str:
+        entry, dest, rel_dest = item
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        copy_file(entry, dest)
+        logger.debug(log_message, dest)
+        if not silent:
+            logger.info(log_message, dest)
+        return rel_dest
+
+    if pending:
+        with ThreadPoolExecutor(max_workers=min(32, len(pending))) as executor:
+            added.extend(executor.map(_copy_pending, pending))
+
+    return added
 
 
 def timestamp() -> str:
@@ -87,34 +152,52 @@ def split_message(content: str, max_len: int = 2000) -> list[str]:
     return chunks
 
 
-def sync_workspace_templates(workspace: Path, silent: bool = False) -> list[str]:
-    """Sync bundled templates to workspace. Only creates missing files."""
-    from importlib.resources import files as pkg_files
+def sync_bin_tools(workspace: Path | None = None, silent: bool = True) -> list[str]:
+    """Sync bundled executable tools to the data dir or provided workspace."""
+    bin_path = get_bin_path(workspace)
+    src_root = pkg_files("winclaw") / "bin"
+    return _sync_missing_dir(
+        src_root,
+        bin_path,
+        relative_to=bin_path,
+        copy_file=_copy_binary_resource,
+        silent=silent,
+        log_message="Copied executable tool: {}",
+    )
 
+
+def sync_workspace_templates(workspace: Path | None = None, silent: bool = False) -> list[str]:
+    """Sync bundled templates to workspace. Only creates missing files."""
+    workspace = ensure_dir(workspace or get_workspace_path())
     try:
         tpl = pkg_files("winclaw") / "templates"
     except Exception as e:
         logger.error(f"Failed to get templates directory: {'winclaw/templates'}, error={e}")
         return []
     if not tpl.is_dir():
-        logger.error(f"Templates directory is not a directory, tpl={tpl}, error={e}")
+        logger.error(f"Templates directory is not a directory, tpl={tpl}")
         return []
 
-    added: list[str] = []
+    def _should_include_template(rel_path: Path) -> bool:
+        return (len(rel_path.parts) == 1 and rel_path.suffix == ".md") or rel_path == Path(
+            "memory", "MEMORY.md"
+        )
 
-    def _write(src, dest: Path):
-        if dest.exists():
-            return
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_text(src.read_text(encoding="utf-8") if src else "", encoding="utf-8")
-        added.append(str(dest.relative_to(workspace)))
+    added = _sync_missing_dir(
+        tpl,
+        workspace,
+        relative_to=workspace,
+        copy_file=_copy_text_resource,
+        should_include=_should_include_template,
+        silent=silent,
+    )
 
-    for item in tpl.iterdir():
-        if item.name.endswith(".md"):
-            _write(item, workspace / item.name)
-    _write(tpl / "memory" / "MEMORY.md", workspace / "memory" / "MEMORY.md")
-    _write(None, workspace / "memory" / "HISTORY.md")
-    (workspace / "skills").mkdir(exist_ok=True)
+    history_path = workspace / "memory" / "HISTORY.md"
+    if not history_path.exists():
+        history_path.parent.mkdir(parents=True, exist_ok=True)
+        history_path.write_text("", encoding="utf-8")
+        added.append(str(history_path.relative_to(workspace)))
+    (workspace / "skills").mkdir(parents=True, exist_ok=True)
 
     if added and not silent:
         from rich.console import Console

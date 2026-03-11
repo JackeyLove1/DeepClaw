@@ -32,7 +32,7 @@ from rich.text import Text
 from winclaw import __author__, __logo__, __version__
 from winclaw.channels.manager import ChannelManager
 from winclaw.config.schema import Config
-from winclaw.utils.helpers import get_new_session_id, sync_workspace_templates
+from winclaw.utils.helpers import get_new_session_id, sync_bin_tools, sync_workspace_templates
 
 app = typer.Typer(
     name="winclaw",
@@ -201,7 +201,7 @@ def onboard():
         workspace.mkdir(parents=True, exist_ok=True)
         console.print(f"[green]✓[/green] Created workspace at {workspace}")
 
-    sync_workspace_templates(workspace)
+    _run_cli_startup(workspace=workspace, sync_bin=True)
 
     console.print(f"\n{__logo__} winclaw is ready!")
     console.print("\nNext steps:")
@@ -232,7 +232,7 @@ def _make_provider(config: Config):
     from winclaw.providers.registry import find_by_name
 
     spec = find_by_name(provider_name)
-    if not model.startswith("bedrock/") and not (p and p.api_key) and not (spec and spec.is_oauth):
+    if not (p and p.api_key) and not (spec and spec.is_oauth):
         console.print("[red]Error: No API key configured.[/red]")
         console.print("Set one in ~/.winclaw/config.json under providers section")
         raise typer.Exit(1)
@@ -244,6 +244,37 @@ def _make_provider(config: Config):
         extra_headers=p.extra_headers if p else None,
         provider_name=provider_name,
     )
+
+
+def _run_cli_startup(*, workspace: Optional[Path] = None, sync_bin: bool = True) -> None:
+    """Run the default startup steps shared by CLI commands."""
+    # sync jobs
+    sync_workspace_templates(workspace=workspace)
+    if sync_bin:
+        sync_bin_tools(workspace=workspace)
+
+
+def _load_cli_config(
+    *,
+    config_path: Optional[Path] = None,
+    workspace: Optional[str] = None,
+    sync_bin: bool = True,
+) -> Config:
+    """Load config and apply the shared CLI startup workflow."""
+    from winclaw.config.loader import get_config_path, load_config, save_config
+
+    resolved_config_path = config_path or get_config_path()
+    created_default_config = not resolved_config_path.exists()
+
+    config = load_config(resolved_config_path)
+    if workspace is not None:
+        config.agents.defaults.workspace = workspace
+
+    if created_default_config:
+        save_config(config, resolved_config_path)
+
+    _run_cli_startup(workspace=config.workspace_path, sync_bin=sync_bin)
+    return config
 
 
 # ============================================================================
@@ -261,7 +292,6 @@ def gateway(
     """Start the winclaw gateway."""
     from winclaw.agent.loop import AgentLoop
     from winclaw.bus.queue import MessageBus
-    from winclaw.config.loader import load_config
     from winclaw.cron.service import CronService
     from winclaw.cron.types import CronJob
     from winclaw.heartbeat.service import HeartbeatService
@@ -273,12 +303,9 @@ def gateway(
         logging.basicConfig(level=logging.DEBUG)
 
     config_path = Path(config) if config else None
-    config = load_config(config_path)
-    if workspace:
-        config.agents.defaults.workspace = workspace
+    config = _load_cli_config(config_path=config_path, workspace=workspace)
 
     console.print(f"{__logo__} Starting winclaw gateway on port {port}...")
-    sync_workspace_templates(config.workspace_path)
     bus = MessageBus()
     provider = _make_provider(config)
     session_manager = SessionManager(config.workspace_path)
@@ -347,7 +374,9 @@ def gateway(
             await bus.publish_outbound(
                 OutboundMessage(
                     session_id=f"{job.payload.channel or 'cli'}:{job.payload.to}",
-                    channel=job.payload.channel or "cli", chat_id=job.payload.to, content=response
+                    channel=job.payload.channel or "cli",
+                    chat_id=job.payload.to,
+                    content=response,
                 )
             )
         return response
@@ -453,6 +482,7 @@ def gateway(
 # ============================================================================
 
 
+# TODO: add log level
 @app.command()
 def agent(
     message: str = typer.Option(None, "--message", "-m", help="Message to send to the agent"),
@@ -461,7 +491,7 @@ def agent(
         True, "--markdown/--no-markdown", help="Render assistant output as Markdown"
     ),
     logs: bool = typer.Option(
-        False, "--logs/--no-logs", help="Show winclaw runtime logs during chat"
+        True, "--logs/--no-logs", help="Show winclaw runtime logs during chat"
     ),
 ):
     """Interact with the agent directly."""
@@ -469,11 +499,10 @@ def agent(
 
     from winclaw.agent.loop import AgentLoop
     from winclaw.bus.queue import MessageBus
-    from winclaw.config.loader import get_data_dir, load_config
+    from winclaw.config.loader import get_data_dir
     from winclaw.cron.service import CronService
 
-    config = load_config()
-    sync_workspace_templates(config.workspace_path)
+    config = _load_cli_config()
 
     bus = MessageBus()
     provider = _make_provider(config)

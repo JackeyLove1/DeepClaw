@@ -8,6 +8,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
+from loguru import logger
+
 from winclaw.agent.memory import MemoryStore
 from winclaw.agent.skills import SkillsLoader
 from winclaw.utils.helpers import detect_image_mime
@@ -55,31 +57,42 @@ Skills with available="false" need dependencies installed first - you can try in
 
     def _get_identity(self) -> str:
         """Get the core identity section."""
-        workspace_path = str(self.workspace.expanduser().resolve())
+        workspace_path = self.workspace.expanduser().resolve()
         system = platform.system()
         runtime = f"{'macOS' if system == 'Darwin' else system} {platform.machine()}, Python {platform.python_version()}"
+        long_term_memory_path = workspace_path / "memory" / "MEMORY.md"
+        history_memory_path = workspace_path / "memory" / "HISTORY.md"
+        skills_dir_path = workspace_path / "skills"
+        bin_tool_directory_path = workspace_path / "bin"
+        bin_tool_usage_path = workspace_path / "bin" / "USAGE.md"
 
-        return f"""# nanobot 🐈
+        return f"""# winclaw 🦞
 
-You are nanobot, a helpful AI assistant.
+You are winclaw, a helpful AI assistant working on windows system.
 
 ## Runtime
 {runtime}
 
 ## Workspace
-Your workspace is at: {workspace_path}
-- Long-term memory: {workspace_path}/memory/MEMORY.md (write important facts here)
-- History log: {workspace_path}/memory/HISTORY.md (grep-searchable). Each entry starts with [YYYY-MM-DD HH:MM].
-- Custom skills: {workspace_path}/skills/{{skill-name}}/SKILL.md
+Your workspace is at: {str(workspace_path)}
+- Long-term memory: {str(long_term_memory_path)} (write important facts here)
+- History log: {str(history_memory_path)} (grep-searchable). Each entry starts with [YYYY-MM-DD HH:MM].
+- Custom skills directory path: {str(skills_dir_path)}
+- Executable tools directory path: {str(bin_tool_directory_path)}
 
-## nanobot Guidelines
-- State intent before tool calls, but NEVER predict or claim results before receiving them.
-- Before modifying a file, read it first. Do not assume files or directories exist.
+## winclaw Guidelines
+- State intent before tool calls, but **NEVER** predict or claim results before receiving them.
+- Before modifying a file, read it first. **Do not assume files or directories exist.**
 - After writing or editing a file, re-read it if accuracy matters.
 - If a tool call fails, analyze the error before retrying with a different approach.
 - Ask for clarification when the request is ambiguous.
+- You can use any tool and method to implement user's requirement, includes: python, powershell and other tools in your toolset.
 
-Reply directly with text for conversations. Only use the 'message' tool to send to a specific chat channel."""
+## executable tools
+**USE IT WHEN THE EXECUTABLE TOOL YOU WANT NOT IN USER PATH OR SYSTEM PATH**
+**WHEN YOU NEED USE yt-dlp, YOU NEED RUN EXE {str(bin_tool_directory_path / "yt-dlp.exe")}**
+{bin_tool_usage_path.read_text(encoding="utf-8")}
+"""
 
     @staticmethod
     def _build_runtime_context(channel: str | None, chat_id: str | None) -> str:
@@ -89,7 +102,9 @@ Reply directly with text for conversations. Only use the 'message' tool to send 
         lines = [f"Current Time: {now} ({tz})"]
         if channel and chat_id:
             lines += [f"Channel: {channel}", f"Chat ID: {chat_id}"]
-        return ContextBuilder._RUNTIME_CONTEXT_TAG + "\n" + "\n".join(lines)
+        result = ContextBuilder._RUNTIME_CONTEXT_TAG + "\n" + "\n".join(lines)
+        logger.debug("Runtime context: {}", result)
+        return result
 
     def _load_bootstrap_files(self) -> str:
         """Load all bootstrap files from workspace."""

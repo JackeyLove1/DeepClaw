@@ -106,3 +106,7 @@ local_settings.py
 
 # uv file
 uv.lock
+
+# executable files
+*.exe
+python/

@@ -1,6 +1,6 @@
 """
 File system tools: read, write, edit.
-TODO: Grep tool(use rgrep tool)
+TODO: disable filesystem tools by default, use powershell for more flexibility.
 """
 
 import difflib

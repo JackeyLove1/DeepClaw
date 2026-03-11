@@ -1,10 +1,14 @@
 """Shell execution tool."""
 
 import asyncio
+import locale
 import os
 import re
+import sys
 from pathlib import Path
 from typing import Any, List, Optional
+
+from loguru import logger
 
 from winclaw.tools.base import Tool
 
@@ -23,11 +27,7 @@ class ExecTool(Tool):
     ):
         self.timeout = timeout
         self.working_dir = working_dir
-        self.deny_patterns = deny_patterns or [
-            r"\brm\s+-[rf]{1,2}\b",  # rm -r, rm -rf, rm -fr
-            r"\bdel\s+/[fq]\b",  # del /f, del /q
-            r"\brmdir\s+/s\b",  # rmdir /s
-        ]
+        self.deny_patterns = deny_patterns or []
         self.allow_patterns = allow_patterns or []
         self.restrict_to_workspace = restrict_to_workspace
         self.path_append = path_append
@@ -47,7 +47,7 @@ class ExecTool(Tool):
             "properties": {
                 "command": {
                     "type": "string",
-                    "description": "The Linux bash/ Windows PowerShell command to execute",
+                    "description": "The Windows PowerShell command to execute",
                 },
                 "working_dir": {
                     "type": "string",
@@ -67,8 +67,15 @@ class ExecTool(Tool):
         if self.path_append:
             env["PATH"] = env.get("PATH", "") + os.pathsep + self.path_append
 
+        decode_encoding = self._best_effort_output_encoding()
+
         try:
-            process = await asyncio.create_subprocess_shell(
+            process = await asyncio.create_subprocess_exec(
+                "powershell.exe",
+                "-NoLogo",
+                "-NoProfile",
+                "-NonInteractive",
+                "-Command",
                 command,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
@@ -91,10 +98,10 @@ class ExecTool(Tool):
             output_parts = []
 
             if stdout:
-                output_parts.append(stdout.decode("utf-8", errors="replace"))
+                output_parts.append(self._decode_output(stdout, decode_encoding))
 
             if stderr:
-                stderr_text = stderr.decode("utf-8", errors="replace")
+                stderr_text = self._decode_output(stderr, decode_encoding)
                 if stderr_text.strip():
                     output_parts.append(f"STDERR:\n{stderr_text}")
 
@@ -102,6 +109,7 @@ class ExecTool(Tool):
                 output_parts.append(f"\nExit code: {process.returncode}")
 
             result = "\n".join(output_parts) if output_parts else "(no output)"
+            logger.debug("Execute Commend: {} Result: {}", command, result)
 
             # Truncate very long output
             max_len = 10000
@@ -112,6 +120,36 @@ class ExecTool(Tool):
 
         except Exception as e:
             return f"Error executing command: {str(e)}"
+
+    @staticmethod
+    def _best_effort_output_encoding() -> str:
+        """
+        Pick an encoding that matches how PowerShell most commonly prints text.
+        """
+        if os.name != "nt":
+            return "utf-8"
+
+        # Windows PowerShell commonly follows the active console/OEM code page when
+        # stdout/stderr are redirected.
+        try:
+            import ctypes  # type: ignore
+
+            oem_cp = ctypes.windll.kernel32.GetOEMCP()
+            if oem_cp:
+                return f"cp{oem_cp}"
+        except Exception:
+            pass
+
+        # Fallbacks (ANSI code page / locale preferred encoding).
+        return locale.getpreferredencoding(False) or sys.getdefaultencoding()
+
+    @staticmethod
+    def _decode_output(data: bytes, encoding: str) -> str:
+        # Try chosen encoding first; fall back to UTF-8 if needed.
+        try:
+            return data.decode(encoding)
+        except Exception:
+            return data.decode("utf-8", errors="replace")
 
     def _guard_command(self, command: str, cwd: str) -> Optional[str]:
         """Best-effort safety guard for potentially destructive commands."""

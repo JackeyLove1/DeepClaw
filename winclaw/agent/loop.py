@@ -20,7 +20,7 @@ from winclaw.bus.queue import MessageBus
 from winclaw.providers.base import LLMProvider
 from winclaw.session.manager import Session, SessionManager
 from winclaw.tools.cron import CronTool
-from winclaw.tools.filesystem import EditFileTool, ListDirTool, ReadFileTool, WriteFileTool
+from winclaw.tools.mcp import connect_mcp_servers
 from winclaw.tools.message import MessageTool
 from winclaw.tools.registry import ToolRegistry
 from winclaw.tools.shell import ExecTool
@@ -118,9 +118,10 @@ class AgentLoop:
 
     def _register_default_tools(self) -> None:
         """Register the default set of tools."""
-        allowed_dir = self.workspace if self.restrict_to_workspace else None
-        for cls in (ReadFileTool, WriteFileTool, EditFileTool, ListDirTool):
-            self.tools.register(cls(workspace=self.workspace, allowed_dir=allowed_dir))
+        # use shell commend to read/write files
+        # allowed_dir = self.workspace if self.restrict_to_workspace else None
+        # for cls in (ReadFileTool, WriteFileTool, EditFileTool, ListDirTool):
+        #     self.tools.register(cls(workspace=self.workspace, allowed_dir=allowed_dir))
         self.tools.register(
             ExecTool(
                 working_dir=str(self.workspace),
@@ -131,7 +132,8 @@ class AgentLoop:
         )
         self.tools.register(WebSearchTool(api_key=self.brave_api_key, proxy=self.web_proxy))
         self.tools.register(WebFetchTool(proxy=self.web_proxy))
-        self.tools.register(MessageTool(send_callback=self.bus.publish_outbound))
+        # TODO: support message tool
+        # self.tools.register(MessageTool(send_callback=self.bus.publish_outbound))
         self.tools.register(SpawnTool(manager=self.subagents))
         if self.cron_service:
             self.tools.register(CronTool(self.cron_service))
@@ -141,8 +143,6 @@ class AgentLoop:
         if self._mcp_connected or self._mcp_connecting or not self._mcp_servers:
             return
         self._mcp_connecting = True
-        from winclaw.agent.tools.mcp import connect_mcp_servers
-
         try:
             self._mcp_stack = AsyncExitStack()
             await self._mcp_stack.__aenter__()
@@ -188,6 +188,7 @@ class AgentLoop:
 
         return ", ".join(_fmt(tc) for tc in tool_calls)
 
+    # TODO: 1. add compaction history before send message
     async def _run_agent_loop(
         self,
         initial_messages: list[dict],
@@ -199,6 +200,7 @@ class AgentLoop:
         final_content = None
         tools_used: list[str] = []
 
+        logger.debug("initial_messages: {}", messages)
         while iteration < self.max_iterations:
             iteration += 1
 
@@ -210,6 +212,9 @@ class AgentLoop:
                 max_tokens=self.max_tokens,
                 reasoning_effort=self.reasoning_effort,
             )
+
+            logger.debug("Response: {}", response.content)
+            logger.debug("Tool calls: {}", response.tool_calls)
 
             if response.has_tool_calls:
                 if on_progress:
@@ -514,7 +519,7 @@ class AgentLoop:
             return None
 
         preview = final_content[:120] + "..." if len(final_content) > 120 else final_content
-        logger.info("Response to {}:{}: {}", msg.channel, msg.sender_id, preview)
+        # logger.debug("final_content: {}", final_content)
         return OutboundMessage(
             session_id=msg.session_id,
             channel=msg.channel,
