@@ -187,12 +187,13 @@ def sync_workspace_templates(workspace: Path | None = None, silent: bool = False
         return []
 
     def _should_include_template(rel_path: Path) -> bool:
+        copy_dir = ["prompts", "skills"]
         # Root-level .md, memory/MEMORY.md, or any file under prompts/
         if len(rel_path.parts) == 1 and rel_path.suffix == ".md":
             return True
         if rel_path == Path("memory", "MEMORY.md"):
             return True
-        if len(rel_path.parts) >= 1 and rel_path.parts[0] == "prompts":
+        if len(rel_path.parts) >= 1 and rel_path.parts[0] in copy_dir:
             return True
         return False
 

@@ -1,0 +1,33 @@
+---
+name: use-weixin
+version: 1.0.0
+description: use weixin in windows platform for send messages and complete work
+author: JackyFan
+---
+
+# use-weixin agent
+
+use python tools and powsershell script for send weixin messages and complete job
+
+## references
+references code in ~/.winclaw/skills/references
+
+```
+use-weixin/
+├── SKILL.md              # use-weixin skill file
+└── references/
+    ├── send_message.py  # use python pywinauto to operate weixin and send messages to target people
+    └── search_weixin.ps1 # find weixin exe powershell script
+└── scripts/              # more scripts you can store it for next quick use
+
+```
+
+
+## process
+
+1. you can **record your experiences in the `lessons` chapter**, like weixin exe path: C:\Program Files\Tencent\WeChat\WeChat.exe for next time to quickly to run it.
+2. use **append only** on the SKILL.md for minimal modify.
+3. before every job, **you need use powershell snapshot to read the weixin window** get more infomations 
+4. write down the scripts what you think is useful under scripts directory 
+
+## lessons

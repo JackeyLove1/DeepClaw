@@ -107,7 +107,7 @@ def estimate_tokens(messages: MessageListType) -> int:
 
 def micro_compaction(
     messages: MessageListType,
-    max_tool_keep_count: int = 3,
+    max_tool_keep_count: int = 10,
 ) -> MessageListType:
     """Replace older tool results with short placeholders."""
     tool_results = [

@@ -60,7 +60,7 @@ class AgentLoop:
         model: Optional[str] = None,
         max_iterations: int = 40,
         temperature: float = 0.1,
-        max_tokens: int = 4096,
+        max_tokens: int = 128 * 1024,
         memory_window: int = 100,
         reasoning_effort: Optional[str] = None,
         brave_api_key: Optional[str] = None,

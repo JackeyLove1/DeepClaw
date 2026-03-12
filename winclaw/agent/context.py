@@ -90,8 +90,8 @@ Your workspace is at: {str(workspace_path)}
 - You can use any tool and method to implement user's requirement, includes: python, powershell and other tools in your toolset.
 
 ## executable tools
-**USE IT WHEN THE EXECUTABLE TOOL YOU WANT NOT IN USER PATH OR SYSTEM PATH**
-**WHEN YOU NEED USE yt-dlp, YOU NEED RUN EXE {str(bin_tool_directory_path / "yt-dlp.exe")}**
+**IMPORTANT! USE IT WHEN THE EXECUTABLE TOOL YOU WANT NOT IN USER PATH OR SYSTEM PATH**
+HINT:WHEN YOU NEED USE yt-dlp, YOU NEED RUN EXE {str(bin_tool_directory_path / "yt-dlp.exe")}
 {bin_tool_usage_path.read_text(encoding="utf-8")}
 
 """
