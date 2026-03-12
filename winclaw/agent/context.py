@@ -258,7 +258,7 @@ Your workspace is at: {str(workspace_path)}
         attachment, summary = parts
         messages.append(
             {
-                "role": "user",
+                "role": "assistant",
                 "content": [
                     {
                         "type": "text",

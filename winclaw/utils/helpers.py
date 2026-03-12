@@ -45,6 +45,14 @@ def get_temp_path() -> Path:
     return ensure_dir(get_data_path() / "tmp")
 
 
+def get_prompt_path() -> Path:
+    return ensure_dir(get_data_path() / "prompts")
+
+
+def get_memory_path() -> Path:
+    return ensure_dir(get_data_path() / "memory")
+
+
 def get_bin_path(workspace: Path | None = None) -> Path:
     """Get the bin directory in data dir or the provided workspace."""
     root = ensure_dir(workspace) if workspace is not None else get_data_path()
@@ -179,9 +187,14 @@ def sync_workspace_templates(workspace: Path | None = None, silent: bool = False
         return []
 
     def _should_include_template(rel_path: Path) -> bool:
-        return (len(rel_path.parts) == 1 and rel_path.suffix == ".md") or rel_path == Path(
-            "memory", "MEMORY.md"
-        )
+        # Root-level .md, memory/MEMORY.md, or any file under prompts/
+        if len(rel_path.parts) == 1 and rel_path.suffix == ".md":
+            return True
+        if rel_path == Path("memory", "MEMORY.md"):
+            return True
+        if len(rel_path.parts) >= 1 and rel_path.parts[0] == "prompts":
+            return True
+        return False
 
     added = _sync_missing_dir(
         tpl,

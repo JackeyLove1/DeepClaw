@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Awaitable, Callable, Optional
 
 from loguru import logger
 
+from winclaw.agent.compact import compact_messages
 from winclaw.agent.context import ContextBuilder
 from winclaw.agent.memory import MemoryStore
 from winclaw.agent.subagent import SubagentManager
@@ -207,13 +208,30 @@ class AgentLoop:
         iteration = 0
         final_content = None
         tools_used: list[str] = []
+        compaction_summary_cache: dict[str, str] = {}
 
         logger.debug("initial_messages: {}", messages)
         while iteration < self.max_iterations:
             iteration += 1
 
+            request_messages = await compact_messages(
+                messages,
+                provider=self.provider,
+                model=self.model,
+                max_tokens=self.max_tokens,
+                workspace=self.workspace,
+                summary_cache=compaction_summary_cache,
+            )
+            if len(request_messages) != len(messages):
+                logger.info(
+                    "Compaction reduced request messages: {} -> {}",
+                    len(messages),
+                    len(request_messages),
+                )
+            else:
+                logger.debug("Compaction kept request message count at {}", len(messages))
             response = await self.provider.chat(
-                messages=messages,
+                messages=request_messages,
                 tools=self.tools.get_definitions(),
                 model=self.model,
                 temperature=self.temperature,
