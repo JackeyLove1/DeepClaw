@@ -1,5 +1,5 @@
 """
-agent7: agent loop + mcp + sub-agent + skills + context compaction
+agent7: agent loop + mcp + sub-agent + skills + context compaction + permission check
 
 Run
     uv run python examples/agent7.py
