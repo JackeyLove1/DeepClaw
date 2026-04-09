@@ -1,8 +1,13 @@
 """
-agent7: agent loop + mcp + sub-agent + skills + context compaction + permission check
+agent8: agent loop + mcp + sub-agent + skills + context compaction + permission governance
+
+Permission pipeline (see examples/permissions.py):
+  bash pattern scan -> deny rules -> mode (default / plan / auto) -> allow rules -> ask user
+
+Set WINCLAW_PERMISSION_MODE to default, plan, auto and dangerous (default: dangerous).
 
 Run
-    uv run python examples/agent7.py
+    uv run python examples/agent8.py
 """
 
 import asyncio
@@ -26,6 +31,7 @@ from examples.constants import (
     SUBAGENT_TOOL_LOOP_MAX,
 )
 from examples.mcp_loader import cleanup_mcp_connections, load_mcp_tools_async
+from examples.permissions import MODES, PermissionManager
 from examples.skill_loader import SkillLoader
 from examples.tools import (
     BashTool,
@@ -36,7 +42,12 @@ from examples.tools import (
     LoadSkillTool,
     TaskTool,
 )
-from examples.utils import estimate_context_usage, get_skill_dir, get_work_dir
+from examples.utils import (
+    estimate_context_usage,
+    get_platform,
+    get_skill_dir,
+    get_work_dir,
+)
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(_REPO_ROOT / ".env", override=True)
@@ -55,16 +66,23 @@ client = Anthropic(
 )
 MODEL = os.environ["MODEL_ID"]
 WORKDIR = get_work_dir(__file__)
+PLATFORM = get_platform()
 SKILLS_DIR = get_skill_dir()
 SKILL_LOADER = SkillLoader(SKILLS_DIR)
 print(f"WORK DIR: {WORKDIR}")
+
+_perm_mode = os.getenv("WINCLAW_PERMISSION_MODE", "dangerous").strip().lower()
+if _perm_mode not in MODES:
+    raise ValueError(f"WINCLAW_PERMISSION_MODE must be one of {MODES}, got {_perm_mode!r}")
+PERMISSION_MANAGER = PermissionManager(mode=_perm_mode)
+print(f"Permission mode: {_perm_mode}")
 
 _SYSTEM_SKILLS_BLOCK = (
     f"Use load_skill to access specialized knowledge before tackling unfamiliar topics.\n\n"
     f"Skills available:\n{SKILL_LOADER.get_descriptions()}"
 )
 SYSTEM = (
-    f"You are a coding agent at {WORKDIR}. Use bash and workspace tools to solve tasks. "
+    f"You are a coding agent at {WORKDIR} on {PLATFORM}. Use bash and workspace tools to solve tasks. "
     "MCP tools from configured servers are prefixed SERVER_NAME__ (see tool list). "
     "Use task for isolated subtasks with fresh context; use fork when the subtask needs prior "
     "conversation context. Act, don't explain.\n\n" + _SYSTEM_SKILLS_BLOCK
@@ -108,6 +126,14 @@ def _response_text(blocks: list[Any]) -> str:
     return "".join(text_parts).strip()
 
 
+def _tool_input_dict(inp: Any) -> dict[str, Any]:
+    if isinstance(inp, dict):
+        return dict(inp)
+    if hasattr(inp, "model_dump"):
+        return inp.model_dump()
+    return {}
+
+
 def _prepare_messages(messages: list[Any]) -> list[Any]:
     messages = micro_compact(messages)
     usage = estimate_context_usage(messages)
@@ -120,11 +146,19 @@ def _prepare_messages(messages: list[Any]) -> list[Any]:
 async def _execute_tool_block(
     block: Any, tool_by_name: dict[str, Tool], log_prefix: str = ""
 ) -> str:
-    inp = block.input
+    inp_raw = block.input
+    inp = _tool_input_dict(inp_raw)
+    decision = PERMISSION_MANAGER.check(block.name, inp)
+    if decision["behavior"] == "deny":
+        return f"Error: {decision['reason']}"
+    if decision["behavior"] == "ask":
+        if not PERMISSION_MANAGER.ask_user(block.name, inp):
+            return f"Error: permission denied — {decision['reason']}"
+
     if block.name == "bash":
         print(f"\033[33m{log_prefix}$ {inp.get('command', '')}\033[0m")
     else:
-        print(f"\033[33m{log_prefix}{block.name} {inp}\033[0m")
+        print(f"\033[33m{log_prefix}{block.name} {inp_raw}\033[0m")
 
     agent_tool = tool_by_name.get(block.name)
     if agent_tool is None:
@@ -306,7 +340,7 @@ async def async_main() -> None:
     try:
         while True:
             try:
-                query = input("\033[36magent7 >> \033[0m")
+                query = input("\033[36magent8 >> \033[0m")
             except (EOFError, KeyboardInterrupt):
                 break
             if query.strip().lower() in ("q", "exit", ""):

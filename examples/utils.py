@@ -1,9 +1,19 @@
 import json
+import platform
+from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 from examples.constants import MAX_MODEL_CONTENT_TOKENS, PERSIST_THRESHOLD, PREVIEW_CHARS
+
+
+def get_platform() -> str:
+    return platform.system().lower()
+
+
+def get_timestamp() -> str:
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
 @lru_cache
