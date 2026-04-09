@@ -13,10 +13,10 @@ from typing import Any
 # rule-based deny/ask paths auto-allow. Use with care.
 MODES = ("default", "plan", "auto", "dangerous")
 
-READ_ONLY_TOOLS = {"read_file", "bash_readonly"}
+READ_ONLY_TOOLS = {"read_file", "bash_readonly", "task_list", "task_get"}
 
 # Tools that modify state (aligned with examples/tools names)
-WRITE_TOOLS = {"write_file", "edit_file", "bash", "save_memory"}
+WRITE_TOOLS = {"write_file", "edit_file", "bash", "save_memory", "task_create", "task_update"}
 
 
 # -- Bash security validation --

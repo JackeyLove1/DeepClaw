@@ -7,7 +7,14 @@ from examples.tools.FileWriteTool import FileWriteTool
 from examples.tools.ForkTool import ForkTool
 from examples.tools.LoadSkillTool import LoadSkillTool
 from examples.tools.SaveMemoryTool import SaveMemoryTool
-from examples.tools.TaskTool import TaskTool
+from examples.tools.SubagentTool import SubagentTool
+from examples.tools.task_tools import (
+    TaskCreateTool,
+    TaskGetTool,
+    TaskListTool,
+    TaskManager,
+    TaskUpdateTool,
+)
 
 __all__ = [
     "BashTool",
@@ -17,6 +24,11 @@ __all__ = [
     "ForkTool",
     "LoadSkillTool",
     "SaveMemoryTool",
-    "TaskTool",
+    "SubagentTool",
+    "TaskCreateTool",
+    "TaskGetTool",
+    "TaskListTool",
+    "TaskManager",
+    "TaskUpdateTool",
 ]
 

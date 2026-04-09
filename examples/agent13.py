@@ -1,12 +1,11 @@
 """
-agent12: agent loop + mcp + sub-agent + skills + context compaction
-        + permission governance + Hook + memory system
-        + SystemPromptBuilder (sectioned system prompt + dynamic boundary)
-        + Error Recovery
+agent13: agent12 feature stack + persistent Task System (DAG on disk under .tasks/).
 
+Tasks are durable work graph nodes (blockedBy / blocks), not runtime worker slots.
+They survive context compaction because state lives in JSON files.
 
 Run
-    uv run python examples/agent12.py
+    uv run python examples/agent13.py
 """
 
 from __future__ import annotations
@@ -55,6 +54,11 @@ from examples.tools import (
     LoadSkillTool,
     SaveMemoryTool,
     SubagentTool,
+    TaskCreateTool,
+    TaskGetTool,
+    TaskListTool,
+    TaskManager,
+    TaskUpdateTool,
 )
 from examples.utils import (
     estimate_context_usage,
@@ -86,6 +90,7 @@ WORKDIR = get_work_dir(__file__)
 SKILLS_DIR = get_skill_dir()
 SKILL_LOADER = SkillLoader(SKILLS_DIR)
 MEMORY_MANAGER = create_memory_manager(WORKDIR)
+TASK_MANAGER = TaskManager(WORKDIR / ".tasks")
 print(f"WORK DIR: {WORKDIR}")
 
 _perm_mode = os.getenv("WINCLAW_PERMISSION_MODE", "dangerous").strip().lower()
@@ -246,6 +251,9 @@ SYSTEM_PROMPT_BUILDER = SystemPromptBuilder(WORKDIR, SKILL_LOADER, MEMORY_MANAGE
 SYSTEM_CORE = (
     f"You are a coding agent operating in {WORKDIR}.\n"
     "Use bash and workspace tools to explore, read, write, and edit files.\n"
+    "Persistent work planning: use task_create, task_update, task_list, and task_get. Tasks are "
+    "stored under .tasks/ as JSON with blockedBy/blocks forming a dependency DAG; completing a task "
+    "clears it from others' blockedBy lists.\n"
     "MCP tools from configured servers are prefixed SERVER_NAME__ (see tool list).\n"
     "Use subagent for isolated subtasks with fresh context; use fork when the subtask needs prior "
     "conversation context. Act, don't explain; verify by reading files rather than guessing."
@@ -283,6 +291,10 @@ _BASE_TOOLS: list[Tool] = [
     FileEditTool(WORKDIR),
     LoadSkillTool(SKILL_LOADER),
     SaveMemoryTool(MEMORY_MANAGER),
+    TaskCreateTool(TASK_MANAGER),
+    TaskUpdateTool(TASK_MANAGER),
+    TaskListTool(TASK_MANAGER),
+    TaskGetTool(TASK_MANAGER),
 ]
 # Filled when MCP servers connect (list_tools); keeps Tool instances alive for the session.
 MCP_TOOLS_CACHE: list[Tool] = []
@@ -578,9 +590,7 @@ async def agent_loop(messages: list) -> None:
                 )
                 messages.append({"role": "user", "content": CONTINUATION_MESSAGE})
                 continue
-            print(
-                f"[Error] max_tokens recovery exhausted ({MAX_OUTPUT_RECOVERY_ATTEMPTS})."
-            )
+            print(f"[Error] max_tokens recovery exhausted ({MAX_OUTPUT_RECOVERY_ATTEMPTS}).")
             return
 
         max_output_recovery_count = 0
@@ -659,7 +669,7 @@ async def async_main() -> None:
     try:
         while True:
             try:
-                query = input("\033[36magent12 >> \033[0m")
+                query = input("\033[36magent13 >> \033[0m")
             except (EOFError, KeyboardInterrupt):
                 break
             if query.strip().lower() in ("q", "exit", ""):

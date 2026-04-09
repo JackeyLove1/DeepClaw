@@ -4,13 +4,13 @@ from typing import Any
 from examples.base import Tool, ToolResult
 
 
-class TaskTool(Tool):
+class SubagentTool(Tool):
     def __init__(self, run_subagent: Callable[[str], Awaitable[str]]) -> None:
         self._run_subagent = run_subagent
 
     @property
     def name(self) -> str:
-        return "task"
+        return "subagent"
 
     @property
     def description(self) -> str:

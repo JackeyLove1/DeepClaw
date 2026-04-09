@@ -34,7 +34,7 @@ from examples.tools import (
     FileWriteTool,
     ForkTool,
     LoadSkillTool,
-    TaskTool,
+    SubagentTool,
 )
 from examples.utils import estimate_context_usage, get_skill_dir, get_work_dir
 
@@ -66,7 +66,7 @@ _SYSTEM_SKILLS_BLOCK = (
 SYSTEM = (
     f"You are a coding agent at {WORKDIR}. Use bash and workspace tools to solve tasks. "
     "MCP tools from configured servers are prefixed SERVER_NAME__ (see tool list). "
-    "Use task for isolated subtasks with fresh context; use fork when the subtask needs prior "
+    "Use subagent for isolated subtasks with fresh context; use fork when the subtask needs prior "
     "conversation context. Act, don't explain.\n\n" + _SYSTEM_SKILLS_BLOCK
 )
 SUBAGENT_SYSTEM = (
@@ -235,12 +235,12 @@ async def run_fork_agent(parent_messages: list[Any], prompt: str) -> str:
     return _response_text(response.content) or "(no summary)"
 
 
-TASK_TOOL = TaskTool(run_subagent)
+SUBAGENT_TOOL = SubagentTool(run_subagent)
 FORK_TOOL = ForkTool(run_fork_agent, lambda: _parent_messages_ctx.get())
-TOOLS = [*CHILD_TOOLS, TASK_TOOL.to_schema(), FORK_TOOL.to_schema()]
+TOOLS = [*CHILD_TOOLS, SUBAGENT_TOOL.to_schema(), FORK_TOOL.to_schema()]
 TOOL_BY_NAME: dict[str, Tool] = {
     **CHILD_TOOL_BY_NAME,
-    TASK_TOOL.name: TASK_TOOL,
+    SUBAGENT_TOOL.name: SUBAGENT_TOOL,
     FORK_TOOL.name: FORK_TOOL,
 }
 
@@ -290,10 +290,10 @@ def _register_all_tools(mcp_tools: list[Tool]) -> None:
     merged_child = _BASE_TOOLS + MCP_TOOLS_CACHE
     CHILD_TOOLS = [t.to_schema() for t in merged_child]
     CHILD_TOOL_BY_NAME = {t.name: t for t in merged_child}
-    TOOLS = [*CHILD_TOOLS, TASK_TOOL.to_schema(), FORK_TOOL.to_schema()]
+    TOOLS = [*CHILD_TOOLS, SUBAGENT_TOOL.to_schema(), FORK_TOOL.to_schema()]
     TOOL_BY_NAME = {
         **CHILD_TOOL_BY_NAME,
-        TASK_TOOL.name: TASK_TOOL,
+        SUBAGENT_TOOL.name: SUBAGENT_TOOL,
         FORK_TOOL.name: FORK_TOOL,
     }
 
