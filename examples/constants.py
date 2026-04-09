@@ -22,3 +22,7 @@ SUBAGENT_TOOL_LOOP_MAX = 30
 CONSOLE_TOOL_OUTPUT_MAX_CHARS = 200
 # Max tool call result preview
 PREVIEW_CHARS = 2000
+
+# hooks (examples/hook.py)
+HOOK_TIMEOUT = 30  # seconds
+HOOK_ENV_PAYLOAD_MAX_CHARS = 10000
