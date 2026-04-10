@@ -1,6 +1,6 @@
-# 🦞 WinClaw — Personal AI Assistant For Windows
+# DeepClaw — Personal AI Assistant For Windows
 
-**WinClaw** 是一个面向 Windows 的本地 AI 助手项目，专注于**软件工程与知识工作自动化**。  
+**DeepClaw** 是一个面向 Windows 的本地 AI 助手项目，专注于**软件工程与知识工作自动化**。  
 它提供命令行交互、长驻后台的 ACP server（便于 IDE / 编辑器集成），并支持加载多种 MCP / 自定义技能，让你的本地环境变成一套可组合的自动化工具箱。
 
 > 本项目使用 Python 3.12+，基于 Typer CLI、asyncio、`kosong` LLM 框架与 `fastmcp` 等组件构建。
@@ -10,7 +10,7 @@
 ## 功能概览
 
 - **多模式运行**
-  - **CLI 交互模式**：在终端直接与 WinClaw 对话，完成编程、文档整理、调试等任务。
+  - **CLI 交互模式**：在终端直接与 DeepClaw 对话，完成编程、文档整理、调试等任务。
   - **ACP server 模式**：作为长期运行的后端服务，为 IDE（如 Cursor / VSCode 等）提供智能代理能力。
 - **技能（Skills）系统**
   - 支持加载自定义技能（如本地脚本、MCP 工具、第三方 API 封装）。
@@ -39,8 +39,8 @@
 ### 1. 克隆仓库
 
 ```bash
-git clone https://github.com/your-username/WinClaw.git
-cd WinClaw
+git clone git@github.com:JackeyLove1/DeepClaw.git
+cd DeepClaw
 ```
 
 > 如果你已经在本地打开本仓库，可忽略本步骤。
@@ -55,11 +55,11 @@ uv sync
 
 ### 3. 运行 CLI
 
-WinClaw 的 CLI 入口一般位于 `winclaw` 包下（例如 `winclaw.__main__` 或 `winclaw.cli`）。  
+DeepClaw 的 CLI 入口一般位于 `DeepClaw` 包下（例如 `DeepClaw.__main__` 或 `DeepClaw.cli`）。  
 根据实际入口脚本，命令大致如下（示例）：
 
 ```bash
-python -m winclaw --help
+python -m DeepClaw --help
 ```
 
 或运行项目提供的可执行脚本（如已打包为 exe 时）。
@@ -73,17 +73,17 @@ python -m winclaw --help
 - **查看帮助**
 
 ```bash
-python -m winclaw --help
+python -m DeepClaw --help
 ```
 
 - **启动交互式对话**
 
 ```bash
-python -m winclaw chat
+python -m DeepClaw chat
 ```- **以 ACP server 模式运行**
 
 ```bash
-python -m winclaw server
+python -m DeepClaw server
 ```
 
 启动后，可在 IDE / 其他客户端中连接该 server，实现自动补全、代码分析和自动化操作等能力。
@@ -94,13 +94,13 @@ python -m winclaw server
 
 项目的技能定义与加载逻辑主要集中在：
 
-- `winclaw/agent/skills.py`
-- `winclaw/skills/**` 目录
+- `DeepClaw/agent/skills.py`
+- `DeepClaw/skills/**` 目录
 
 你可以：
 
-- 在 `winclaw/skills/` 下新增子目录与 `SKILL.md`，定义新的技能（如对接某个工具、网站或工作流）。
-- 在 `winclaw/agent/skills.py` 中注册或扩展技能加载逻辑。
+- 在 `DeepClaw/skills/` 下新增子目录与 `SKILL.md`，定义新的技能（如对接某个工具、网站或工作流）。
+- 在 `DeepClaw/agent/skills.py` 中注册或扩展技能加载逻辑。
 
 一般而言，一个技能可以：
 
@@ -114,9 +114,9 @@ python -m winclaw server
 
 ### 项目结构（简要）
 
-- `winclaw/agent/`：
+- `DeepClaw/agent/`：
   - 核心代理逻辑，包括主循环、子代理、技能管理等。
-- `winclaw/skills/`：
+- `DeepClaw/skills/`：
   - 各类技能的实现与说明（`SKILL.md`）。
 - `refrence.md`：
   - 项目开发相关的参考链接与资料。
@@ -160,4 +160,4 @@ python -m winclaw server
 
 项目许可证以仓库根目录中的 `LICENSE` 文件为准（如果尚未添加，可根据需要补充）。
 
-若你有任何问题或建议，欢迎提交 Issue 或 PR，一起完善 WinClaw。🦞
+若你有任何问题或建议，欢迎提交 Issue 或 PR，一起完善 DeepClaw。

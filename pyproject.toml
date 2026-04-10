@@ -12,6 +12,7 @@ dependencies = [
     "fastmcp>=3.1.0",
     "httpx>=0.28.1",
     "json-repair>=0.58.5",
+    "jsonschema>=4.20.0",
     "lark-oapi>=1.5.3",
     "litellm>=1.82.0",
     "loguru>=0.7.3",
