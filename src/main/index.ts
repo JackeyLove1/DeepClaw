@@ -15,7 +15,7 @@ function createWindow(): void {
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
     center: true,
-    title: 'NoteMark',
+    title: 'DeepClaw',
     frame: false,
     vibrancy: 'under-window',
     visualEffectState: 'active',
@@ -24,9 +24,14 @@ function createWindow(): void {
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: true,
-      contextIsolation: true
+      contextIsolation: true,
+      nodeIntegration: true
     }
   })
+
+  if (is.dev) {
+    mainWindow.webContents.openDevTools({ mode: 'detach' })
+  }
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()

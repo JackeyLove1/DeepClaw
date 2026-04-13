@@ -48,7 +48,7 @@ function App(): JSX.Element {
                 <BlockEditor />
               </div>
             ) : (
-              <div className="flex h-full items-center justify-center">
+              <div className="flex h-full items-center justify-center border-4">
                 <div className="text-center space-y-4">
                   <div className="text-6xl">📝</div>
                   <h2 className="text-2xl font-bold text-notion-text">Welcome to NoteMark</h2>
