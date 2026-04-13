@@ -3,6 +3,29 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 220 9% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 9% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 9% 12%;
+    --primary: 220 9% 12%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 7% 96%;
+    --secondary-foreground: 220 9% 12%;
+    --muted: 220 7% 96%;
+    --muted-foreground: 220 1% 45%;
+    --accent: 220 7% 96%;
+    --accent-foreground: 220 9% 12%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 6% 90%;
+    --input: 220 6% 90%;
+    --ring: 220 9% 12%;
+    --radius: 0.5rem;
+  }
+}
   #root {
     @apply h-full;
   }
@@ -40,10 +63,9 @@
   ::-webkit-scrollbar-thumb:hover {
     @apply bg-notion-hover-secondary;
   }
-}
 
-/* Notion prose styles */
-.prose-notion {
+  /* Notion prose styles */
+  .prose-notion {
   @apply text-notion-text font-sans;
   font-size: 16px;
   line-height: 1.6;
