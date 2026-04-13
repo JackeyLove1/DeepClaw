@@ -1,6 +1,7 @@
 import { appDirectoryName, fileEncoding, welcomeNoteFilename } from '@shared/constants'
 import { NoteInfo } from '@shared/models'
 import { CreateNote, DeleteNote, GetNotes, ReadNote, WriteNote } from '@shared/types'
+import { deleteNoteByTitle, getAllNotes, insertNote, updateNoteTimestamp } from './database'
 import { dialog } from 'electron'
 import { ensureDir, readFile, readdir, remove, stat, writeFile } from 'fs-extra'
 import { isEmpty } from 'lodash'
@@ -17,25 +18,45 @@ export const getNotes: GetNotes = async () => {
 
   await ensureDir(rootDir)
 
-  const notesFileNames = await readdir(rootDir, {
-    encoding: fileEncoding,
-    withFileTypes: false
-  })
+  // Try to get notes from database first
+  let notes = getAllNotes()
 
-  const notes = notesFileNames.filter((fileName) => fileName.endsWith('.md'))
-
+  // If database is empty (first run), scan file system and populate database
   if (isEmpty(notes)) {
-    console.info('No notes found, creating a welcome note')
+    console.info('[Notes] Database empty, scanning file system')
 
-    const content = await readFile(welcomeNoteFile, { encoding: fileEncoding })
+    const notesFileNames = await readdir(rootDir, {
+      encoding: fileEncoding,
+      withFileTypes: false
+    })
 
-    // create the welcome note
-    await writeFile(`${rootDir}/${welcomeNoteFilename}`, content, { encoding: fileEncoding })
+    const mdFiles = notesFileNames.filter((fileName) => fileName.endsWith('.md'))
 
-    notes.push(welcomeNoteFilename)
+    if (isEmpty(mdFiles)) {
+      console.info('[Notes] No notes found, creating a welcome note')
+
+      const content = await readFile(welcomeNoteFile, { encoding: fileEncoding })
+
+      // create the welcome note
+      await writeFile(`${rootDir}/${welcomeNoteFilename}`, content, { encoding: fileEncoding })
+
+      const stats = await stat(`${rootDir}/${welcomeNoteFilename}`)
+      insertNote(welcomeNoteFilename.replace(/\.md$/, ''), stats.mtimeMs)
+      notes = [{ id: 1, title: welcomeNoteFilename.replace(/\.md$/, ''), lastEditTime: stats.mtimeMs }]
+    } else {
+      // Populate database from file system
+      for (const filename of mdFiles) {
+        const stats = await stat(`${rootDir}/${filename}`)
+        insertNote(filename.replace(/\.md$/, ''), stats.mtimeMs)
+      }
+      notes = getAllNotes()
+    }
   }
 
-  return Promise.all(notes.map(getNoteInfoFromFilename))
+  return notes.map((note) => ({
+    title: note.title,
+    lastEditTime: note.lastEditTime
+  }))
 }
 
 export const getNoteInfoFromFilename = async (filename: string): Promise<NoteInfo> => {
@@ -57,7 +78,11 @@ export const writeNote: WriteNote = async (filename, content) => {
   const rootDir = getRootDir()
 
   console.info(`Writing note ${filename}`)
-  return writeFile(`${rootDir}/${filename}.md`, content, { encoding: fileEncoding })
+  await writeFile(`${rootDir}/${filename}.md`, content, { encoding: fileEncoding })
+
+  // Update timestamp in database
+  const stats = await stat(`${rootDir}/${filename}.md`)
+  updateNoteTimestamp(filename, stats.mtimeMs)
 }
 
 export const createNote: CreateNote = async () => {
@@ -95,6 +120,10 @@ export const createNote: CreateNote = async () => {
   console.info(`Creating note: ${filePath}`)
   await writeFile(filePath, '')
 
+  // Add to database
+  const stats = await stat(filePath)
+  insertNote(filename, stats.mtimeMs)
+
   return filename
 }
 
@@ -117,5 +146,9 @@ export const deleteNote: DeleteNote = async (filename) => {
 
   console.info(`Deleting note: ${filename}`)
   await remove(`${rootDir}/${filename}.md`)
+
+  // Remove from database
+  deleteNoteByTitle(filename)
+
   return true
 }
