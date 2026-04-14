@@ -1,17 +1,17 @@
-import type { SessionMeta } from '@shared/models'
-import type { ComponentType, ReactNode } from 'react'
-import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
-import * as DraggableTopBarModule from './components/DraggableTopBar'
+import type { SessionMeta } from '@shared/models';
+import type { ComponentType, ReactNode } from 'react';
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import {
-  chatViewReducer,
-  createInitialChatViewState,
-  selectVisibleSessions,
-  type AssistantTranscriptEntry,
-  type SystemTranscriptEntry,
-  type ToolGroupView,
-  type TranscriptEntry,
-  type UserTranscriptEntry
-} from './chat/reducer'
+    chatViewReducer,
+    createInitialChatViewState,
+    selectVisibleSessions,
+    type AssistantTranscriptEntry,
+    type SystemTranscriptEntry,
+    type ToolGroupView,
+    type TranscriptEntry,
+    type UserTranscriptEntry
+} from './chat/reducer';
+import * as DraggableTopBarModule from './components/DraggableTopBar';
 
 const DraggableTopBar =
   (DraggableTopBarModule as { DraggableTopBar?: ComponentType }).DraggableTopBar ??
@@ -692,18 +692,6 @@ const App = () => {
               </button>
             </div>
 
-            <div className="mt-5 rounded-[26px] bg-gradient-to-br from-white to-[#fbf8f2] p-4 shadow-[0_24px_40px_rgba(66,53,22,0.08)] ring-1 ring-[rgba(219,213,202,0.82)]">
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-[#fff0ea] text-[#ff7b52] shadow-[0_10px_24px_rgba(255,123,82,0.18)]">
-                  <BoltIcon />
-                </div>
-                <div>
-                  <div className="text-[19px] font-semibold text-[var(--ink-main)]">QClaw</div>
-                  <div className="text-[13px] text-[var(--ink-soft)]">随时随地，帮您高效干活</div>
-                </div>
-              </div>
-            </div>
-
             <div className="mt-5 flex-1 overflow-y-auto pr-1">
               <div className="space-y-1.5">
                 {visibleSessions.length === 0 && !isBooting ? (
@@ -722,43 +710,17 @@ const App = () => {
                 )}
               </div>
             </div>
-
-            <div className="mt-4 rounded-[22px] bg-white/82 p-3 shadow-[0_16px_30px_rgba(66,53,22,0.05)] ring-1 ring-[rgba(219,213,202,0.78)]">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-[16px] bg-[#fff4e8] text-[#ff8b21]">📦</div>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-[14px] font-semibold text-[var(--ink-main)]">发现新版本!</div>
-                  <div className="text-[12px] text-[var(--ink-soft)]">界面已更新为新的工作台布局</div>
-                </div>
-                <button type="button" className="rounded-full bg-[#1b1c20] px-3 py-1.5 text-[12px] font-semibold text-white">
-                  更新
-                </button>
-              </div>
-            </div>
           </aside>
 
           <section className="flex min-w-0 flex-col bg-[var(--content-bg)]">
             <header className="flex shrink-0 items-center justify-between gap-4 px-6 py-4">
               <div className="flex items-center gap-5">
-                <div className="inline-flex rounded-full bg-[#f4efe7] p-1">
-                  {APP_TABS.map((tab, index) => (
-                    <button
-                      key={tab}
-                      type="button"
-                      className={`rounded-full px-5 py-2 text-[14px] font-semibold transition ${
-                        index === 0 ? 'bg-white text-[var(--ink-main)] shadow-[0_8px_18px_rgba(66,53,22,0.08)]' : 'text-[var(--ink-soft)]'
-                      }`}
-                    >
-                      {tab}
-                    </button>
-                  ))}
-                </div>
 
                 <div className="hidden items-center gap-2 text-[15px] font-semibold text-[#4f93ff] md:flex">
                   <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#edf4ff]">
                     <SparkIcon />
                   </span>
-                  龙虾管家
+                  DeepClaw
                 </div>
               </div>
 
