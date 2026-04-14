@@ -5,21 +5,24 @@ export const DraggableTopBar = (): JSX.Element => {
   const [isMaximized, setIsMaximized] = useState(false)
 
   useEffect(() => {
-    void window.context.windowIsMaximized().then(setIsMaximized)
+    void window.context.windowIsMaximized().then((value) => {
+      setIsMaximized(value)
+    })
   }, [])
 
   const handleToggleMaximize = async (): Promise<void> => {
-    const nextState = await window.context.windowToggleMaximize()
+    await window.context.windowToggleMaximize()
+    const nextState = await window.context.windowIsMaximized()
     setIsMaximized(nextState)
   }
 
   return (
-    <header className="absolute inset-x-0 top-0 z-50 h-8 bg-transparent flex items-center justify-end [-webkit-app-region:drag]">
+    <header className="absolute inset-x-0 top-0 z-50 flex h-8 items-center justify-end bg-transparent [-webkit-app-region:drag]">
       <div className="flex items-center [-webkit-app-region:no-drag]">
         <button
           type="button"
           onClick={() => window.context.windowMinimize()}
-          className="w-11 h-8 flex items-center justify-center hover:bg-notion-hover transition-colors"
+          className="flex h-8 w-11 items-center justify-center text-[var(--ink-soft)] transition-colors hover:bg-white/60 hover:text-[var(--ink-main)]"
           title="Minimize"
         >
           <FiMinus size={16} />
@@ -27,7 +30,7 @@ export const DraggableTopBar = (): JSX.Element => {
         <button
           type="button"
           onClick={handleToggleMaximize}
-          className="w-11 h-8 flex items-center justify-center hover:bg-notion-hover transition-colors"
+          className="flex h-8 w-11 items-center justify-center text-[var(--ink-soft)] transition-colors hover:bg-white/60 hover:text-[var(--ink-main)]"
           title={isMaximized ? 'Restore' : 'Maximize'}
         >
           {isMaximized ? <FiCopy size={14} /> : <FiSquare size={14} />}
@@ -35,7 +38,7 @@ export const DraggableTopBar = (): JSX.Element => {
         <button
           type="button"
           onClick={() => window.context.windowClose()}
-          className="w-11 h-8 flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors"
+          className="flex h-8 w-11 items-center justify-center text-[var(--ink-soft)] transition-colors hover:bg-red-500 hover:text-white"
           title="Close"
         >
           <FiX size={16} />
