@@ -11,7 +11,8 @@ declare global {
       createNote: CreateNote
       deleteNote: DeleteNote
       windowMinimize: () => Promise<void>
-      windowToggleMaximize: () => Promise<void>
+      windowToggleMaximize: () => Promise<boolean>
+      windowIsMaximized: () => Promise<boolean>
       windowClose: () => Promise<void>
     }
   }

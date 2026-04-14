@@ -78,12 +78,17 @@ app.whenReady().then(() => {
   })
   ipcMain.handle('window:toggle-maximize', (event) => {
     const window = BrowserWindow.fromWebContents(event.sender)
-    if (!window) return
+    if (!window) return false
     if (window.isMaximized()) {
       window.unmaximize()
-      return
+      return false
     }
     window.maximize()
+    return true
+  })
+  ipcMain.handle('window:is-maximized', (event) => {
+    const window = BrowserWindow.fromWebContents(event.sender)
+    return window?.isMaximized() ?? false
   })
   ipcMain.handle('window:close', (event) => {
     BrowserWindow.fromWebContents(event.sender)?.close()

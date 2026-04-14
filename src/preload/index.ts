@@ -15,6 +15,7 @@ try {
     deleteNote: (...args: Parameters<DeleteNote>) => ipcRenderer.invoke('deleteNote', ...args),
     windowMinimize: () => ipcRenderer.invoke('window:minimize'),
     windowToggleMaximize: () => ipcRenderer.invoke('window:toggle-maximize'),
+    windowIsMaximized: () => ipcRenderer.invoke('window:is-maximized'),
     windowClose: () => ipcRenderer.invoke('window:close')
   })
 } catch (error) {

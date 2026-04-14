@@ -1,7 +1,7 @@
 {
-  "name": "note-mark",
+  "name": "DeepClaw",
   "version": "1.0.0",
-  "description": "A Markdown Note taking app built with Electron",
+  "description": "Super Agent AI Assistant",
   "license": "MIT",
   "main": "./out/main/index.js",
   "scripts": {
