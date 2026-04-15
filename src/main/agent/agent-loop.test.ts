@@ -15,7 +15,7 @@ vi.mock('@anthropic-ai/sdk', () => {
   }
 })
 
-import { AnthropicChatRuntime } from './pi-chat-runtime'
+import { AnthropicChatRuntime } from './agent-loop'
 
 const ORIGINAL_ENV = { ...process.env }
 

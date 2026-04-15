@@ -7,8 +7,8 @@ import {
   clampSessionTitle,
   fallbackTitleFromUserText
 } from './session-store'
-import { validateRuntimeConfig } from './runtime/config'
-import { createChatRuntime } from './runtime'
+import { validateRuntimeConfig } from '../agent/config'
+import { createChatRuntime } from '../agent'
 
 type ActiveRun = {
   abortController: AbortController

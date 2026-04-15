@@ -2,7 +2,7 @@ import type { AnthropicSettings, ConnectionCheckResult } from '@shared/types'
 import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import { dirname, join } from 'node:path'
-import { createChatRuntime } from '../chat/runtime'
+import { createChatRuntime } from '../agent'
 
 const ANTHROPIC_BASE_URL_KEY = 'ANTHROPIC_BASE_URL'
 const ANTHROPIC_API_KEY = 'ANTHROPIC_API_KEY'

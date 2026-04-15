@@ -1,6 +1,15 @@
 import type { SessionMeta } from '@shared/models';
 import { useEffect, useMemo, useReducer, useRef, useState, type Ref } from 'react';
+import { toast } from 'sonner';
 import sparkIcon from '../assets/svg/spark.svg';
+import {
+  buildFeedbackKey,
+  copyAssistantMessage,
+  getLatestAssistantMessageId,
+  getRetryPromptForAssistant,
+  toggleAssistantFeedback,
+  type AssistantFeedback
+} from '../chat/messageActions';
 import {
     chatViewReducer,
     createInitialChatViewState,
@@ -11,6 +20,7 @@ import {
     type TranscriptEntry,
     type UserTranscriptEntry
 } from '../chat/reducer';
+import { AssistantMessageActions } from '../components/AssistantMessageActions';
 
 const INPUT_CHIPS = ['默认大模型', '技能', '找灵感']
 
@@ -452,7 +462,25 @@ const SessionRow = ({
   </div>
 )
 
-const TranscriptItem = ({ entry }: { entry: TranscriptEntry }) => {
+const TranscriptItem = ({
+  entry,
+  showAssistantActions,
+  copied,
+  feedback,
+  disableRetry,
+  onCopy,
+  onFeedback,
+  onRetry
+}: {
+  entry: TranscriptEntry
+  showAssistantActions: boolean
+  copied: boolean
+  feedback: AssistantFeedback
+  disableRetry: boolean
+  onCopy: () => void
+  onFeedback: (value: Exclude<AssistantFeedback, null>) => void
+  onRetry: () => void
+}) => {
   if (entry.kind === 'user') {
     const message = entry as UserTranscriptEntry
     return (
@@ -483,11 +511,24 @@ const TranscriptItem = ({ entry }: { entry: TranscriptEntry }) => {
             </div>
           ) : null}
           <p className="whitespace-pre-wrap">{message.text || '处理中…'}</p>
-          <time className="mt-3 block text-[11px] font-medium text-[var(--ink-faint)]">
-            {message.isStreaming
-              ? '思考中'
-              : formatClockTime(message.completedAt ?? message.createdAt)}
-          </time>
+          {!showAssistantActions ? (
+            <time className="mt-3 block text-[11px] font-medium text-[var(--ink-faint)]">
+              {message.isStreaming
+                ? '思考中'
+                : formatClockTime(message.completedAt ?? message.createdAt)}
+            </time>
+          ) : null}
+          {showAssistantActions ? (
+            <AssistantMessageActions
+              copied={copied}
+              feedback={feedback}
+              disableCopy={!message.text.trim()}
+              disableRetry={disableRetry}
+              onCopy={onCopy}
+              onFeedback={onFeedback}
+              onRetry={onRetry}
+            />
+          ) : null}
         </div>
       </div>
     )
@@ -659,17 +700,46 @@ export const ChatPage = () => {
   const [menuSessionId, setMenuSessionId] = useState<string | null>(null)
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null)
   const [titleDraft, setTitleDraft] = useState('')
+  const [copiedAssistantId, setCopiedAssistantId] = useState<string | null>(null)
+  const [assistantFeedbackByKey, setAssistantFeedbackByKey] = useState<
+    Record<string, AssistantFeedback>
+  >({})
   const [state, dispatch] = useReducer(chatViewReducer, undefined, createInitialChatViewState)
   const transcriptRef = useRef<HTMLDivElement>(null)
   const currentSessionIdRef = useRef<string | null>(null)
   const composerRef = useRef<HTMLTextAreaElement>(null)
   const shouldFocusComposerRef = useRef(false)
+  const copyFeedbackTimeoutRef = useRef<number | null>(null)
   const hasTranscript = state.transcript.length > 0
 
   const visibleSessions = useMemo(() => selectVisibleSessions(sessions), [sessions])
+  const latestAssistantMessageId = useMemo(
+    () => getLatestAssistantMessageId(state.transcript),
+    [state.transcript]
+  )
+  const retryPrompt = useMemo(
+    () =>
+      latestAssistantMessageId
+        ? getRetryPromptForAssistant(state.transcript, latestAssistantMessageId)
+        : null,
+    [latestAssistantMessageId, state.transcript]
+  )
 
   useEffect(() => {
     currentSessionIdRef.current = currentSessionId
+  }, [currentSessionId])
+
+  useEffect(
+    () => () => {
+      if (copyFeedbackTimeoutRef.current) {
+        window.clearTimeout(copyFeedbackTimeoutRef.current)
+      }
+    },
+    []
+  )
+
+  useEffect(() => {
+    setCopiedAssistantId(null)
   }, [currentSessionId])
 
   useEffect(() => {
@@ -881,12 +951,17 @@ export const ChatPage = () => {
     }
   }
 
-  const handleSend = async (): Promise<void> => {
-    if (!currentSessionId || !draft.trim() || state.isRunning) return
+  const runMessage = async (
+    sessionId: string,
+    message: string,
+    options?: { clearDraft?: boolean }
+  ): Promise<void> => {
+    if (!message.trim() || state.isRunning) return
 
-    const sessionId = currentSessionId
-    const message = draft
-    setDraft('')
+    if (options?.clearDraft) {
+      setDraft('')
+    }
+
     dispatch({ type: 'run.requested' })
 
     try {
@@ -910,6 +985,44 @@ export const ChatPage = () => {
         }
       })
     }
+  }
+
+  const handleSend = async (): Promise<void> => {
+    if (!currentSessionId) return
+    await runMessage(currentSessionId, draft, { clearDraft: true })
+  }
+
+  const handleCopyAssistant = async (message: AssistantTranscriptEntry): Promise<void> => {
+    const copied = await copyAssistantMessage(message)
+    if (!copied) {
+      toast.error('复制失败，请重试')
+      return
+    }
+
+    setCopiedAssistantId(message.id)
+    toast.success('复制成功')
+    if (copyFeedbackTimeoutRef.current) {
+      window.clearTimeout(copyFeedbackTimeoutRef.current)
+    }
+    copyFeedbackTimeoutRef.current = window.setTimeout(() => {
+      setCopiedAssistantId((current) => (current === message.id ? null : current))
+    }, 1500)
+  }
+
+  const handleFeedback = (assistantMessageId: string, value: Exclude<AssistantFeedback, null>): void => {
+    if (!currentSessionId) return
+
+    const key = buildFeedbackKey(currentSessionId, assistantMessageId)
+    setAssistantFeedbackByKey((prev) => toggleAssistantFeedback(prev, key, value))
+  }
+
+  const handleRetryLatestAssistant = async (): Promise<void> => {
+    if (!currentSessionId || !latestAssistantMessageId) return
+
+    const prompt = retryPrompt ?? getRetryPromptForAssistant(state.transcript, latestAssistantMessageId)
+    if (!prompt) return
+
+    await runMessage(currentSessionId, prompt)
   }
 
   const handleCancel = async (): Promise<void> => {
@@ -1001,9 +1114,35 @@ export const ChatPage = () => {
             <BootErrorState message={bootError} />
           ) : hasTranscript ? (
             <div className="mx-auto flex w-full max-w-[860px] flex-col gap-6 px-6 py-6">
-              {state.transcript.map((entry) => (
-                <TranscriptItem key={entry.id} entry={entry} />
-              ))}
+              {state.transcript.map((entry) => {
+                const showAssistantActions =
+                  entry.kind === 'assistant' && entry.id === latestAssistantMessageId
+
+                const feedbackKey =
+                  currentSessionId && entry.kind === 'assistant'
+                    ? buildFeedbackKey(currentSessionId, entry.id)
+                    : null
+
+                return (
+                  <TranscriptItem
+                    key={entry.id}
+                    entry={entry}
+                    showAssistantActions={showAssistantActions}
+                    copied={entry.kind === 'assistant' && copiedAssistantId === entry.id}
+                    feedback={feedbackKey ? assistantFeedbackByKey[feedbackKey] ?? null : null}
+                    disableRetry={!retryPrompt || state.isRunning}
+                    onCopy={() => {
+                      if (entry.kind !== 'assistant') return
+                      void handleCopyAssistant(entry)
+                    }}
+                    onFeedback={(value) => {
+                      if (entry.kind !== 'assistant') return
+                      handleFeedback(entry.id, value)
+                    }}
+                    onRetry={() => void handleRetryLatestAssistant()}
+                  />
+                )
+              })}
             </div>
           ) : (
             <EmptyState
