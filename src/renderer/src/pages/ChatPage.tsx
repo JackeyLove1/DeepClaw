@@ -1,37 +1,16 @@
-import type { SessionMeta } from '@shared/models'
-import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import type { SessionMeta } from '@shared/models';
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import {
-  chatViewReducer,
-  createInitialChatViewState,
-  selectVisibleSessions,
-  type AssistantTranscriptEntry,
-  type SystemTranscriptEntry,
-  type ToolGroupView,
-  type TranscriptEntry,
-  type UserTranscriptEntry
-} from '../chat/reducer'
+    chatViewReducer,
+    createInitialChatViewState,
+    selectVisibleSessions,
+    type AssistantTranscriptEntry,
+    type SystemTranscriptEntry,
+    type ToolGroupView,
+    type TranscriptEntry,
+    type UserTranscriptEntry
+} from '../chat/reducer';
 
-const CAPABILITY_ITEMS = [
-  {
-    icon: '💼',
-    title: '我能做什么?',
-    description: '追踪 GDP、利率、CPI 等关键宏观经济数据和央行政策。'
-  },
-  {
-    icon: '🧑‍🏫',
-    title: '我是怎么做?',
-    description: '支持 GDP/CPI/PMI/社融等、利率/准备金率变化影响查询，美联储/ECB 政策对 A 股影响。'
-  }
-]
-
-const SCENARIO_ITEMS = [
-  { icon: '📊', text: '想了解当前经济处于什么周期阶段' },
-  { icon: '✅', text: '想知道利率变动对股市有什么影响' },
-  { icon: '🌍', text: '想跟踪全球主要经济体的数据对比' }
-]
-
-const QUICK_PROMPTS = ['最新的 GDP 增速和 CPI 数据是多少?', '目前加息周期到哪个阶段了?']
-const EMPTY_STATE_BUBBLE = '经济数据查询能帮我做什么呢?'
 const INPUT_CHIPS = ['默认大模型', '技能', '找灵感']
 
 const formatClockTime = (timestamp: number): string =>
@@ -77,21 +56,6 @@ const PlusIcon = () => (
   >
     <path d="M12 5v14" />
     <path d="M5 12h14" />
-  </svg>
-)
-
-const ArrowIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className="h-4 w-4"
-  >
-    <path d="M5 12h14" />
-    <path d="m13 6 6 6-6 6" />
   </svg>
 )
 
@@ -511,67 +475,6 @@ const TranscriptItem = ({ entry }: { entry: TranscriptEntry }) => {
   )
 }
 
-const EmptyState = () => (
-  <div className="mx-auto flex h-full w-full max-w-[980px] flex-col px-8 pb-10 pt-8">
-    <div className="flex justify-end">
-      <div className="max-w-[360px] rounded-2xl border border-[#f0d7d0] bg-[#fff8f5] px-5 py-3 text-[20px] font-semibold leading-tight tracking-tight text-[#303030] shadow-[0_2px_6px_rgba(0,0,0,0.02)]">
-        {EMPTY_STATE_BUBBLE}
-      </div>
-    </div>
-
-    <div className="mt-20 max-w-[760px]">
-      {CAPABILITY_ITEMS.map((item) => (
-        <div key={item.title} className="mb-6">
-          <h3 className="text-[30px] font-semibold tracking-tight text-[var(--ink-main)]">
-            <span className="mr-2.5 align-middle text-[26px]">{item.icon}</span>
-            {item.title}
-          </h3>
-          <p className="mt-2 text-[24px] leading-[1.45] tracking-tight text-[var(--ink-main)]">
-            {item.description}
-          </p>
-        </div>
-      ))}
-    </div>
-
-    <div className="mt-3 max-w-[760px]">
-      <h3 className="text-[30px] font-semibold tracking-tight text-[var(--ink-main)]">
-        适用场景：
-      </h3>
-      <div className="mt-3 space-y-2.5">
-        {SCENARIO_ITEMS.map((item) => (
-          <div
-            key={item.text}
-            className="flex items-center gap-3 text-[24px] font-semibold leading-[1.45] tracking-tight text-[var(--ink-main)]"
-          >
-            <span className="text-[22px]">{item.icon}</span>
-            <span>{item.text}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-
-    <div className="mt-10 border-t border-[var(--border-soft)] pt-8">
-      <h3 className="mb-4 text-[28px] font-semibold tracking-tight text-[var(--ink-main)]">
-        可以试试这么问我:
-      </h3>
-      <div className="max-w-[760px] space-y-3">
-        {QUICK_PROMPTS.map((prompt) => (
-          <button
-            key={prompt}
-            type="button"
-            className="flex w-full items-center justify-between rounded-3xl border border-[#f0f0f3] bg-[#fbfbfd] px-6 py-3.5 text-left text-[21px] font-medium tracking-tight text-[#5b5b64] shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition hover:border-[#dedee6] hover:text-[var(--ink-main)]"
-          >
-            <span>{prompt}</span>
-            <span className="text-[#b6b8c2]">
-              <ArrowIcon />
-            </span>
-          </button>
-        ))}
-      </div>
-    </div>
-  </div>
-)
-
 const BootErrorState = ({ message }: { message: string }) => (
   <div className="mx-auto mt-12 max-w-[720px] rounded-3xl border border-rose-200 bg-rose-50/80 px-6 py-6 shadow-[0_8px_32px_rgba(153,27,27,0.06)]">
     <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-rose-500">
@@ -673,6 +576,41 @@ const InputBar = ({
   </div>
 )
 
+const EmptyState = ({
+  draft,
+  isRunning,
+  isCancelling,
+  currentSessionId,
+  onDraftChange,
+  onSend,
+  onCancel
+}: {
+  draft: string
+  isRunning: boolean
+  isCancelling: boolean
+  currentSessionId: string | null
+  onDraftChange: (value: string) => void
+  onSend: () => void
+  onCancel: () => void
+}) => (
+  <div className="mx-auto flex h-full w-full max-w-[860px] flex-col items-center justify-center px-6 pb-8">
+    <h2 className="text-center text-[clamp(28px,4.5vw,46px)] font-semibold tracking-tight text-[var(--ink-main)]">
+      我能帮您什么?
+    </h2>
+    <div className="mt-8 w-full">
+      <InputBar
+        draft={draft}
+        isRunning={isRunning}
+        isCancelling={isCancelling}
+        currentSessionId={currentSessionId}
+        onDraftChange={onDraftChange}
+        onSend={onSend}
+        onCancel={onCancel}
+      />
+    </div>
+  </div>
+)
+
 export const ChatPage = () => {
   const [sessions, setSessions] = useState<SessionMeta[]>([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -685,6 +623,7 @@ export const ChatPage = () => {
   const [titleDraft, setTitleDraft] = useState('')
   const [state, dispatch] = useReducer(chatViewReducer, undefined, createInitialChatViewState)
   const transcriptRef = useRef<HTMLDivElement>(null)
+  const hasTranscript = state.transcript.length > 0
 
   const visibleSessions = useMemo(() => selectVisibleSessions(sessions), [sessions])
 
@@ -983,27 +922,21 @@ export const ChatPage = () => {
           </div> */}
         </header>
 
-        <div ref={transcriptRef} className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
+        <div ref={transcriptRef} className={`min-h-0 flex-1 overflow-y-auto px-2 ${hasTranscript ? 'pb-2' : ''}`}>
           {isBooting ? (
             <div className="flex h-full items-center justify-center text-[14px] text-[var(--ink-soft)]">
               正在加载会话…
             </div>
           ) : bootError ? (
             <BootErrorState message={bootError} />
-          ) : state.transcript.length > 0 ? (
+          ) : hasTranscript ? (
             <div className="mx-auto flex w-full max-w-[860px] flex-col gap-6 px-6 py-6">
               {state.transcript.map((entry) => (
                 <TranscriptItem key={entry.id} entry={entry} />
               ))}
             </div>
           ) : (
-            <EmptyState />
-          )}
-        </div>
-
-        <div className="shrink-0 px-6 pb-4 pt-2">
-          <div className="mx-auto max-w-[860px]">
-            <InputBar
+            <EmptyState
               draft={draft}
               isRunning={state.isRunning}
               isCancelling={state.isCancelling}
@@ -1012,8 +945,24 @@ export const ChatPage = () => {
               onSend={() => void handleSend()}
               onCancel={() => void handleCancel()}
             />
-          </div>
+          )}
         </div>
+
+        {hasTranscript ? (
+          <div className="shrink-0 px-6 pb-4 pt-2">
+            <div className="mx-auto max-w-[860px]">
+              <InputBar
+                draft={draft}
+                isRunning={state.isRunning}
+                isCancelling={state.isCancelling}
+                currentSessionId={currentSessionId}
+                onDraftChange={setDraft}
+                onSend={() => void handleSend()}
+                onCancel={() => void handleCancel()}
+              />
+            </div>
+          </div>
+        ) : null}
       </section>
     </>
   )
