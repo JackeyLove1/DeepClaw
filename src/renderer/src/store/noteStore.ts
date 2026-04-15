@@ -44,7 +44,10 @@ export type NoteStoreActions = {
   createPage: (parentId: string | null, title?: string) => Promise<string>
   deleteCurrentNote: () => Promise<void>
   deletePage: (pageId: string) => Promise<void>
-  updatePageMeta: (pageId: string, updates: Partial<Pick<PageTreeItem, 'title' | 'emoji' | 'cover'>>) => void
+  updatePageMeta: (
+    pageId: string,
+    updates: Partial<Pick<PageTreeItem, 'title' | 'emoji' | 'cover'>>
+  ) => void
   movePage: (pageId: string, newParentId: string | null, index: number) => void
   toggleSidebar: () => void
   setSidebarWidth: (width: number) => void
@@ -392,8 +395,7 @@ export const useNoteStore = create<NoteStore>((set, get) => {
 
         const refreshedNotes = await fetchNotes()
         const nextNoteId =
-          (fallbackSelection &&
-          refreshedNotes.some((note) => note.title === fallbackSelection)
+          (fallbackSelection && refreshedNotes.some((note) => note.title === fallbackSelection)
             ? fallbackSelection
             : null) ?? refreshedNotes[0]?.title
 
@@ -427,8 +429,7 @@ export const useNoteStore = create<NoteStore>((set, get) => {
         const refreshedNotes = await fetchNotes()
         const currentNoteId = get().currentNoteId
         const currentStillExists =
-          currentNoteId !== null &&
-          refreshedNotes.some((note) => note.title === currentNoteId)
+          currentNoteId !== null && refreshedNotes.some((note) => note.title === currentNoteId)
 
         set({
           notes: refreshedNotes,
@@ -590,7 +591,7 @@ export const useNoteStore = create<NoteStore>((set, get) => {
 
       // Add to new parent
       set((state) => {
-        let newPages = state.pages.map((p) => {
+        const newPages = state.pages.map((p) => {
           if (p.id === pageId) {
             return { ...p, parentId: newParentId }
           }
@@ -655,10 +656,6 @@ export const selectCurrentNote = (state: NoteStoreState): NoteInfo | null => {
 
 export const selectIsBusy = (state: NoteStoreState): boolean => {
   return (
-    state.isHydrating ||
-    state.isReading ||
-    state.isSaving ||
-    state.isCreating ||
-    state.isDeleting
+    state.isHydrating || state.isReading || state.isSaving || state.isCreating || state.isDeleting
   )
 }

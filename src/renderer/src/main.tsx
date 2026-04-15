@@ -3,7 +3,7 @@ import { HashRouter } from 'react-router-dom'
 import './assets/index.css'
 
 const escapeHtml = (message: string): string =>
-  message.replace(/[&<>]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[char] ?? char))
+  message.replace(/[&<>]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[char] ?? char)
 
 const renderFatalError = (message: string): void => {
   const existing = document.getElementById('notemark-fatal-error')
@@ -33,7 +33,10 @@ window.addEventListener('error', (event) => {
 })
 
 window.addEventListener('unhandledrejection', (event) => {
-  const reason = event.reason instanceof Error ? event.reason.stack || event.reason.message : String(event.reason)
+  const reason =
+    event.reason instanceof Error
+      ? event.reason.stack || event.reason.message
+      : String(event.reason)
   renderFatalError(reason)
 })
 

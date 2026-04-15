@@ -3,7 +3,9 @@ export const TasksPage = () => {
     <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--content-bg)]">
       <header className="border-b border-[var(--border-soft)] px-8 py-6">
         <h1 className="text-[24px] font-semibold text-[var(--ink-main)]">任务</h1>
-        <p className="mt-2 text-[14px] text-[var(--ink-faint)]">任务页首版骨架已就绪，后续可在这里接入任务列表、状态流转与执行日志。</p>
+        <p className="mt-2 text-[14px] text-[var(--ink-faint)]">
+          任务页首版骨架已就绪，后续可在这里接入任务列表、状态流转与执行日志。
+        </p>
       </header>
 
       <div className="flex flex-1 items-center justify-center p-8">

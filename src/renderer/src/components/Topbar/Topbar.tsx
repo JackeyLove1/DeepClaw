@@ -1,8 +1,8 @@
-import { useNoteStore } from '@renderer/store/noteStore';
-import { ComponentProps } from 'react';
-import { FiMenu } from 'react-icons/fi';
-import { twMerge } from 'tailwind-merge';
-import { Breadcrumbs } from './Breadcrumbs';
+import { useNoteStore } from '@renderer/store/noteStore'
+import { ComponentProps } from 'react'
+import { FiMenu } from 'react-icons/fi'
+import { twMerge } from 'tailwind-merge'
+import { Breadcrumbs } from './Breadcrumbs'
 
 export const Topbar = ({ className, ...props }: ComponentProps<'header'>): JSX.Element => {
   const toggleSidebar = useNoteStore((state) => state.toggleSidebar)

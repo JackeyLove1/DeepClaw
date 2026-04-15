@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { SessionSnapshot } from '@shared/models'
-import { applyChatEvent, createInitialChatViewState, replaySession, selectVisibleSessions } from './reducer'
+import {
+  applyChatEvent,
+  createInitialChatViewState,
+  replaySession,
+  selectVisibleSessions
+} from './reducer'
 
 describe('chat reducer', () => {
   it('replays transcript events and aggregates tool calls into one assistant turn', () => {

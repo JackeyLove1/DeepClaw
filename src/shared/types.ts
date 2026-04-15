@@ -23,3 +23,11 @@ export type WindowMinimize = () => Promise<void>
 export type WindowIsMaximized = () => Promise<boolean>
 export type WindowToggleMaximize = () => Promise<void>
 export type WindowClose = () => Promise<void>
+
+export interface AnthropicSettings {
+  baseUrl: string
+  apiKey: string
+}
+
+export type GetAnthropicSettings = () => Promise<AnthropicSettings>
+export type SaveAnthropicSettings = (settings: AnthropicSettings) => Promise<AnthropicSettings>

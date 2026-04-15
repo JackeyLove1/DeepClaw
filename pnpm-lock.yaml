@@ -17,6 +17,9 @@ importers:
       '@mariozechner/pi-agent-core':
         specifier: ^0.67.1
         version: 0.67.1(ws@8.20.0)(zod@4.3.6)
+      '@mariozechner/pi-ai':
+        specifier: ^0.67.2
+        version: 0.67.2(ws@8.20.0)(zod@4.3.6)
       '@mdxeditor/editor':
         specifier: ^1.14.3
         version: 1.14.3(@codemirror/language@6.12.3)(@lezer/highlight@1.2.3)(@types/react-dom@18.3.7(@types/react@18.3.28))(@types/react@18.3.28)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(yjs@13.6.30)
@@ -843,8 +846,8 @@ packages:
     resolution: {integrity: sha512-hs1xCimrlhXY+DszumOGLpM73NuKgt3/N7Wepr7hzFrxqDNPCfAk7z4QqiRqs5ChKlT0xd+QAA4sk8hbfIqNAA==}
     engines: {node: '>=20.0.0'}
 
-  '@mariozechner/pi-ai@0.67.1':
-    resolution: {integrity: sha512-4ShQ+g3uH01oCEoM4GaOcXricR4BG5Yrg2Ii7aIOXDJl0tYtH6vcNuR4mxhu7vtH/wuIUuugvT0z621O0Y66ug==}
+  '@mariozechner/pi-ai@0.67.2':
+    resolution: {integrity: sha512-2RZD5GYj1WjLww/m6jN4BIJiJ9qOZLsq4jBecdcnMKOpnxUXYzEAYN8wfRR1H5+5cGOY2AfNkXU3AnPOkiL9Eg==}
     engines: {node: '>=20.0.0'}
     hasBin: true
 
@@ -5979,7 +5982,7 @@ snapshots:
 
   '@mariozechner/pi-agent-core@0.67.1(ws@8.20.0)(zod@4.3.6)':
     dependencies:
-      '@mariozechner/pi-ai': 0.67.1(ws@8.20.0)(zod@4.3.6)
+      '@mariozechner/pi-ai': 0.67.2(ws@8.20.0)(zod@4.3.6)
     transitivePeerDependencies:
       - '@modelcontextprotocol/sdk'
       - aws-crt
@@ -5989,7 +5992,7 @@ snapshots:
       - ws
       - zod
 
-  '@mariozechner/pi-ai@0.67.1(ws@8.20.0)(zod@4.3.6)':
+  '@mariozechner/pi-ai@0.67.2(ws@8.20.0)(zod@4.3.6)':
     dependencies:
       '@anthropic-ai/sdk': 0.73.0(zod@4.3.6)
       '@aws-sdk/client-bedrock-runtime': 3.1030.0

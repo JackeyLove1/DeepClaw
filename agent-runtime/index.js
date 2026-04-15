@@ -1,6 +1,6 @@
-import { randomUUID } from 'node:crypto';
-import os from 'node:os';
-import process from 'node:process';
+import { randomUUID } from 'node:crypto'
+import os from 'node:os'
+import process from 'node:process'
 
 const SYSTEM_PROMPT = `You are DeepClaw, a concise desktop chat assistant.
 
@@ -14,7 +14,9 @@ Rules:
 const importDynamic = (specifier) => new Function('s', 'return import(s)')(specifier)
 
 const clampText = (value, maxLength = 280) => {
-  const text = String(value ?? '').replace(/\s+/g, ' ').trim()
+  const text = String(value ?? '')
+    .replace(/\s+/g, ' ')
+    .trim()
   if (!text) return ''
   return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text
 }
@@ -57,11 +59,20 @@ const fallbackTitle = (userText, createdAt = Date.now()) => {
 }
 
 const resolveRuntimeConfig = () => {
-  const provider = process.env.NOTEMARK_MODEL_PROVIDER
-    ?? (process.env.OPENAI_API_KEY ? 'openai' : process.env.ANTHROPIC_API_KEY ? 'anthropic' : undefined)
+  const provider =
+    process.env.NOTEMARK_MODEL_PROVIDER ??
+    (process.env.OPENAI_API_KEY
+      ? 'openai'
+      : process.env.ANTHROPIC_API_KEY
+        ? 'anthropic'
+        : undefined)
   const model =
-    process.env.NOTEMARK_MODEL
-    ?? (provider === 'openai' ? 'gpt-4.1-mini' : provider === 'anthropic' ? 'claude-sonnet-4-20250514' : '')
+    process.env.NOTEMARK_MODEL ??
+    (provider === 'openai'
+      ? 'gpt-4.1-mini'
+      : provider === 'anthropic'
+        ? 'claude-sonnet-4-20250514'
+        : '')
 
   if (!provider) {
     throw new Error(
@@ -252,7 +263,9 @@ class PiChatRuntime {
     const model = getModel(config.provider, config.model)
 
     if (!model) {
-      throw new Error(`Unable to resolve model "${config.model}" for provider "${config.provider}".`)
+      throw new Error(
+        `Unable to resolve model "${config.model}" for provider "${config.provider}".`
+      )
     }
 
     const tools = createReadOnlyTools(Type)
@@ -341,7 +354,8 @@ class PiChatRuntime {
 
       if (event.type === 'tool_execution_end') {
         const details = event.result?.details?.summary
-        const outputSummary = details || extractTextContent(event.result?.content) || summarizeValue(event.result)
+        const outputSummary =
+          details || extractTextContent(event.result?.content) || summarizeValue(event.result)
         const started = toolStartTimes.get(event.toolCallId) ?? Date.now()
         toolStartTimes.delete(event.toolCallId)
 

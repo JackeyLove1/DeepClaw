@@ -42,7 +42,9 @@ export const getNotes: GetNotes = async () => {
 
       const stats = await stat(`${rootDir}/${welcomeNoteFilename}`)
       insertNote(welcomeNoteFilename.replace(/\.md$/, ''), stats.mtimeMs)
-      notes = [{ id: 1, title: welcomeNoteFilename.replace(/\.md$/, ''), lastEditTime: stats.mtimeMs }]
+      notes = [
+        { id: 1, title: welcomeNoteFilename.replace(/\.md$/, ''), lastEditTime: stats.mtimeMs }
+      ]
     } else {
       // Populate database from file system
       for (const filename of mdFiles) {

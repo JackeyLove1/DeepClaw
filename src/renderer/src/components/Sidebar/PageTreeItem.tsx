@@ -9,7 +9,12 @@ interface PageTreeItemProps extends ComponentProps<'div'> {
   depth: number
 }
 
-export const PageTreeItem = ({ page, depth, className, ...props }: PageTreeItemProps): JSX.Element => {
+export const PageTreeItem = ({
+  page,
+  depth,
+  className,
+  ...props
+}: PageTreeItemProps): JSX.Element => {
   const [isExpanded, setIsExpanded] = useState(true)
   const currentPageId = useNoteStore((state) => state.currentPageId)
   const selectPage = useNoteStore((state) => state.selectPage)
@@ -36,7 +41,7 @@ export const PageTreeItem = ({ page, depth, className, ...props }: PageTreeItemP
       <div
         className={cn(
           'flex items-center gap-1 px-2 py-1 rounded cursor-pointer group transition-colors',
-          isActive ? 'bg-notion-hover' : 'hover:bg-notion-hover',
+          isActive ? 'bg-notion-hover' : 'hover:bg-notion-hover'
         )}
         style={{ paddingLeft: `${depth * 16 + 8}px` }}
         onClick={() => void selectPage(page.id)}

@@ -1,7 +1,12 @@
 import { randomUUID } from 'node:crypto'
 import { BrowserWindow } from 'electron'
 import type { ChatEvent, SessionMeta, SessionSnapshot } from '@shared/models'
-import { ChatSessionStore, DEFAULT_SESSION_TITLE, clampSessionTitle, fallbackTitleFromUserText } from './session-store'
+import {
+  ChatSessionStore,
+  DEFAULT_SESSION_TITLE,
+  clampSessionTitle,
+  fallbackTitleFromUserText
+} from './session-store'
 
 // @ts-ignore Runtime lives in a top-level JS module by design.
 import { createChatRuntime } from '../../../agent-runtime/index.js'
@@ -119,7 +124,9 @@ export class ChatSupervisor {
     }
 
     if (this.activeRuns.has(sessionId)) {
-      throw new Error('This chat is already responding. Cancel the current run before sending a new message.')
+      throw new Error(
+        'This chat is already responding. Cancel the current run before sending a new message.'
+      )
     }
 
     const snapshot = await this.store.openSession(sessionId)
@@ -165,7 +172,9 @@ export class ChatSupervisor {
             messageCount: current.messageCount + 1
           }))
           shouldGenerateTitle =
-            updatedMeta.title === DEFAULT_SESSION_TITLE && updatedMeta.messageCount <= 2 && Boolean(assistantText)
+            updatedMeta.title === DEFAULT_SESSION_TITLE &&
+            updatedMeta.messageCount <= 2 &&
+            Boolean(assistantText)
         }
 
         this.broadcast(event)
@@ -192,11 +201,16 @@ export class ChatSupervisor {
       return
     }
 
-    const firstUserMessage = snapshot.events.find((event): event is Extract<ChatEvent, { type: 'user.message' }> => {
-      return event.type === 'user.message'
-    })
+    const firstUserMessage = snapshot.events.find(
+      (event): event is Extract<ChatEvent, { type: 'user.message' }> => {
+        return event.type === 'user.message'
+      }
+    )
 
-    const fallback = fallbackTitleFromUserText(firstUserMessage?.text ?? '', snapshot.meta.createdAt)
+    const fallback = fallbackTitleFromUserText(
+      firstUserMessage?.text ?? '',
+      snapshot.meta.createdAt
+    )
     let nextTitle = fallback
 
     try {

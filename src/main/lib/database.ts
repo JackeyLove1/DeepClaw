@@ -60,7 +60,9 @@ export const closeDatabase = (): void => {
 
 // Note operations
 export const getAllNotes = (): NoteRecord[] => {
-  const stmt = getDatabase().prepare('SELECT id, title, lastEditTime FROM notes ORDER BY lastEditTime DESC')
+  const stmt = getDatabase().prepare(
+    'SELECT id, title, lastEditTime FROM notes ORDER BY lastEditTime DESC'
+  )
   return stmt.all() as NoteRecord[]
 }
 
@@ -91,6 +93,8 @@ export const deleteNoteByTitle = (title: string): boolean => {
 }
 
 export const searchNotes = (query: string): NoteRecord[] => {
-  const stmt = getDatabase().prepare('SELECT id, title, lastEditTime FROM notes WHERE title LIKE ? ORDER BY lastEditTime DESC')
+  const stmt = getDatabase().prepare(
+    'SELECT id, title, lastEditTime FROM notes WHERE title LIKE ? ORDER BY lastEditTime DESC'
+  )
   return stmt.all(`%${query}%`) as NoteRecord[]
 }

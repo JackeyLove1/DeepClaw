@@ -1,15 +1,15 @@
-import type { SessionMeta } from '@shared/models';
-import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import type { SessionMeta } from '@shared/models'
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import {
-    chatViewReducer,
-    createInitialChatViewState,
-    selectVisibleSessions,
-    type AssistantTranscriptEntry,
-    type SystemTranscriptEntry,
-    type ToolGroupView,
-    type TranscriptEntry,
-    type UserTranscriptEntry
-} from '../chat/reducer';
+  chatViewReducer,
+  createInitialChatViewState,
+  selectVisibleSessions,
+  type AssistantTranscriptEntry,
+  type SystemTranscriptEntry,
+  type ToolGroupView,
+  type TranscriptEntry,
+  type UserTranscriptEntry
+} from '../chat/reducer'
 
 const CAPABILITY_ITEMS = [
   {
@@ -51,28 +51,60 @@ const formatSessionTime = (timestamp: number): string => {
 }
 
 const SearchIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="h-4 w-4"
+  >
     <circle cx="11" cy="11" r="7" />
     <path d="m20 20-3.5-3.5" />
   </svg>
 )
 
 const PlusIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="h-4 w-4"
+  >
     <path d="M12 5v14" />
     <path d="M5 12h14" />
   </svg>
 )
 
 const ArrowIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="h-4 w-4"
+  >
     <path d="M5 12h14" />
     <path d="m13 6 6 6-6 6" />
   </svg>
 )
 
 const ChatIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="h-4 w-4"
+  >
     <path d="M7 18 3 21V7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H7Z" />
     <path d="M8 10h8" />
     <path d="M8 14h5" />
@@ -80,47 +112,102 @@ const ChatIcon = () => (
 )
 
 const SparkIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="h-4 w-4"
+  >
     <path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z" />
   </svg>
 )
 
 const CompassIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="h-4 w-4"
+  >
     <circle cx="12" cy="12" r="8" />
     <path d="m15.5 8.5-2.2 6.1-6.1 2.2 2.2-6.1 6.1-2.2Z" />
   </svg>
 )
 
 const BoltIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="h-4 w-4"
+  >
     <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8Z" />
   </svg>
 )
 
-
 const WrenchIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="h-4 w-4"
+  >
     <path d="m14 7 3-3a4 4 0 0 1-5 5l-6.5 6.5a2 2 0 1 1-2.8-2.8L9.2 6.2a4 4 0 0 1 5-5l-3 3 2.8 2.8Z" />
   </svg>
 )
 
 const SendIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="h-4 w-4"
+  >
     <path d="M21 3 10 14" />
     <path d="m21 3-7 18-4-7-7-4 18-7Z" />
   </svg>
 )
 
 const LinkIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="h-4 w-4"
+  >
     <path d="M10.8 13.2a4 4 0 0 1 0-5.7l2-2a4 4 0 1 1 5.7 5.7l-1.3 1.3" />
     <path d="M13.2 10.8a4 4 0 0 1 0 5.7l-2 2a4 4 0 0 1-5.7-5.7l1.3-1.3" />
   </svg>
 )
 
 const ChevronDownIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5">
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="h-3.5 w-3.5"
+  >
     <path d="m6 9 6 6 6-6" />
   </svg>
 )
@@ -132,7 +219,15 @@ const StopIcon = () => (
 )
 
 const ChevronIcon = ({ className = '' }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`h-4 w-4 ${className}`}>
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={`h-4 w-4 ${className}`}
+  >
     <path d="m9 6 6 6-6 6" />
   </svg>
 )
@@ -146,14 +241,30 @@ const MoreIcon = () => (
 )
 
 const EditIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="h-4 w-4"
+  >
     <path d="M12 20h9" />
     <path d="m16.5 3.5 4 4L7 21l-4 1 1-4L16.5 3.5Z" />
   </svg>
 )
 
 const TrashIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className="h-4 w-4"
+  >
     <path d="M3 6h18" />
     <path d="M8 6V4h8v2" />
     <path d="m19 6-1 14H6L5 6" />
@@ -170,7 +281,9 @@ const ToolGroupPanel = ({ toolGroup }: { toolGroup: ToolGroupView }) => (
           <WrenchIcon />
         </span>
         <div className="min-w-0">
-          <div className="truncate text-[13px] font-semibold text-[var(--ink-main)]">{toolGroup.summary}</div>
+          <div className="truncate text-[13px] font-semibold text-[var(--ink-main)]">
+            {toolGroup.summary}
+          </div>
           <div className="text-[11px] text-[var(--ink-faint)]">
             {toolGroup.calls.length} 次调用
             {toolGroup.totalDurationMs > 0 ? ` · ${toolGroup.totalDurationMs}ms` : ''}
@@ -196,8 +309,16 @@ const ToolGroupPanel = ({ toolGroup }: { toolGroup: ToolGroupView }) => (
               {call.status}
             </span>
           </div>
-          {call.argsSummary ? <p className="mt-1 text-[11.5px] leading-5 text-[var(--ink-soft)]">{call.argsSummary}</p> : null}
-          {call.outputSummary ? <p className="mt-1 text-[11.5px] leading-5 text-[var(--ink-soft)]">{call.outputSummary}</p> : null}
+          {call.argsSummary ? (
+            <p className="mt-1 text-[11.5px] leading-5 text-[var(--ink-soft)]">
+              {call.argsSummary}
+            </p>
+          ) : null}
+          {call.outputSummary ? (
+            <p className="mt-1 text-[11.5px] leading-5 text-[var(--ink-soft)]">
+              {call.outputSummary}
+            </p>
+          ) : null}
         </div>
       ))}
     </div>
@@ -236,7 +357,9 @@ const SessionRow = ({
       type="button"
       onClick={onSelect}
       className={`group flex w-full items-start gap-3 rounded-2xl px-3 py-2.5 pr-11 text-left transition ${
-        isActive ? 'bg-[#e4e4e4] shadow-[inset_0_1px_0_rgba(255,255,255,0.55)]' : 'hover:bg-[#e8e8e8]/70'
+        isActive
+          ? 'bg-[#e4e4e4] shadow-[inset_0_1px_0_rgba(255,255,255,0.55)]'
+          : 'hover:bg-[#e8e8e8]/70'
       }`}
     >
       <span
@@ -270,14 +393,20 @@ const SessionRow = ({
         </span>
       ) : (
         <span className="min-w-0 flex-1">
-          <span className="line-clamp-1 text-[14px] font-semibold text-[#2b2b2b]">{session.title}</span>
+          <span className="line-clamp-1 text-[14px] font-semibold text-[#2b2b2b]">
+            {session.title}
+          </span>
           <span className="mt-0.5 block text-[12px] leading-tight text-[#7b7b7b]">
             {session.status === 'running' ? '正在生成回复…' : `${session.messageCount} 条消息`}
           </span>
         </span>
       )}
 
-      {!isActive && !isRenaming ? <span className="pt-0.5 text-[11px] text-[#8a8a8a]">{formatSessionTime(session.updatedAt)}</span> : null}
+      {!isActive && !isRenaming ? (
+        <span className="pt-0.5 text-[11px] text-[#8a8a8a]">
+          {formatSessionTime(session.updatedAt)}
+        </span>
+      ) : null}
     </button>
 
     {!isRenaming ? (
@@ -347,7 +476,9 @@ const TranscriptItem = ({ entry }: { entry: TranscriptEntry }) => {
             <SparkIcon />
           </span>
           经济数据助手
-          {message.isStreaming ? <span className="h-2 w-2 animate-pulse-dot rounded-full bg-emerald-500" /> : null}
+          {message.isStreaming ? (
+            <span className="h-2 w-2 animate-pulse-dot rounded-full bg-emerald-500" />
+          ) : null}
         </div>
         <div className="rounded-2xl bg-transparent px-1 py-1 text-[24px] font-semibold leading-[1.48] tracking-tight text-[var(--ink-main)]">
           <p className="whitespace-pre-wrap">{message.text || '处理中…'}</p>
@@ -357,7 +488,9 @@ const TranscriptItem = ({ entry }: { entry: TranscriptEntry }) => {
             </div>
           ) : null}
           <time className="mt-3 block text-[11px] font-medium text-[var(--ink-faint)]">
-            {message.isStreaming ? '实时生成中' : formatClockTime(message.completedAt ?? message.createdAt)}
+            {message.isStreaming
+              ? '实时生成中'
+              : formatClockTime(message.completedAt ?? message.createdAt)}
           </time>
         </div>
       </div>
@@ -368,7 +501,9 @@ const TranscriptItem = ({ entry }: { entry: TranscriptEntry }) => {
   return (
     <div
       className={`rounded-2xl border px-4 py-3 text-[13px] leading-6 ${
-        message.tone === 'error' ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-[var(--border-soft)] bg-[#f5f5f7] text-[var(--ink-soft)]'
+        message.tone === 'error'
+          ? 'border-rose-200 bg-rose-50 text-rose-700'
+          : 'border-[var(--border-soft)] bg-[#f5f5f7] text-[var(--ink-soft)]'
       }`}
     >
       {message.text}
@@ -391,16 +526,23 @@ const EmptyState = () => (
             <span className="mr-2.5 align-middle text-[26px]">{item.icon}</span>
             {item.title}
           </h3>
-          <p className="mt-2 text-[24px] leading-[1.45] tracking-tight text-[var(--ink-main)]">{item.description}</p>
+          <p className="mt-2 text-[24px] leading-[1.45] tracking-tight text-[var(--ink-main)]">
+            {item.description}
+          </p>
         </div>
       ))}
     </div>
 
     <div className="mt-3 max-w-[760px]">
-      <h3 className="text-[30px] font-semibold tracking-tight text-[var(--ink-main)]">适用场景：</h3>
+      <h3 className="text-[30px] font-semibold tracking-tight text-[var(--ink-main)]">
+        适用场景：
+      </h3>
       <div className="mt-3 space-y-2.5">
         {SCENARIO_ITEMS.map((item) => (
-          <div key={item.text} className="flex items-center gap-3 text-[24px] font-semibold leading-[1.45] tracking-tight text-[var(--ink-main)]">
+          <div
+            key={item.text}
+            className="flex items-center gap-3 text-[24px] font-semibold leading-[1.45] tracking-tight text-[var(--ink-main)]"
+          >
             <span className="text-[22px]">{item.icon}</span>
             <span>{item.text}</span>
           </div>
@@ -409,7 +551,9 @@ const EmptyState = () => (
     </div>
 
     <div className="mt-10 border-t border-[var(--border-soft)] pt-8">
-      <h3 className="mb-4 text-[28px] font-semibold tracking-tight text-[var(--ink-main)]">可以试试这么问我:</h3>
+      <h3 className="mb-4 text-[28px] font-semibold tracking-tight text-[var(--ink-main)]">
+        可以试试这么问我:
+      </h3>
       <div className="max-w-[760px] space-y-3">
         {QUICK_PROMPTS.map((prompt) => (
           <button
@@ -430,9 +574,13 @@ const EmptyState = () => (
 
 const BootErrorState = ({ message }: { message: string }) => (
   <div className="mx-auto mt-12 max-w-[720px] rounded-3xl border border-rose-200 bg-rose-50/80 px-6 py-6 shadow-[0_8px_32px_rgba(153,27,27,0.06)]">
-    <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-rose-500">启动异常</div>
+    <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-rose-500">
+      启动异常
+    </div>
     <h3 className="mt-3 text-[20px] font-semibold text-rose-950">会话界面初始化失败</h3>
-    <pre className="mt-4 whitespace-pre-wrap break-words font-mono text-[12px] leading-6 text-rose-700">{message}</pre>
+    <pre className="mt-4 whitespace-pre-wrap break-words font-mono text-[12px] leading-6 text-rose-700">
+      {message}
+    </pre>
   </div>
 )
 
@@ -477,7 +625,13 @@ const InputBar = ({
             className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#ececf1] px-3.5 text-[12.5px] font-medium text-[#4e505a] transition hover:bg-[#e4e4eb] hover:text-[var(--ink-main)]"
           >
             <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-[#8f919c]">
-              {chip === '默认大模型' ? <BoltIcon /> : chip === '技能' ? <SparkIcon /> : <CompassIcon />}
+              {chip === '默认大模型' ? (
+                <BoltIcon />
+              ) : chip === '技能' ? (
+                <SparkIcon />
+              ) : (
+                <CompassIcon />
+              )}
             </span>
             {chip}
             {chip !== '找灵感' ? <ChevronDownIcon /> : null}
@@ -567,7 +721,9 @@ export const ChatPage = () => {
         }
       } catch (error) {
         if (!disposed) {
-          setBootError(error instanceof Error ? error.message : 'Failed to bootstrap chat sessions.')
+          setBootError(
+            error instanceof Error ? error.message : 'Failed to bootstrap chat sessions.'
+          )
         }
       } finally {
         if (!disposed) setIsBooting(false)
@@ -781,7 +937,9 @@ export const ChatPage = () => {
         <div className="mt-5 flex-1 overflow-y-auto pr-1">
           <div className="space-y-1.5">
             {visibleSessions.length === 0 && !isBooting ? (
-              <div className="rounded-2xl bg-[#e4e4e4] px-4 py-5 text-[13px] text-[#7b7b7b]">暂无会话</div>
+              <div className="rounded-2xl bg-[#e4e4e4] px-4 py-5 text-[13px] text-[#7b7b7b]">
+                暂无会话
+              </div>
             ) : (
               visibleSessions.map((session) => (
                 <SessionRow
@@ -797,7 +955,9 @@ export const ChatPage = () => {
                     setTitleDraft('')
                     void openSession(session.id)
                   }}
-                  onToggleMenu={() => setMenuSessionId((current) => (current === session.id ? null : session.id))}
+                  onToggleMenu={() =>
+                    setMenuSessionId((current) => (current === session.id ? null : session.id))
+                  }
                   onRenameDraftChange={setTitleDraft}
                   onCommitRename={() => void commitTitleEdit(session.id)}
                   onCancelRename={() => {
@@ -825,7 +985,9 @@ export const ChatPage = () => {
 
         <div ref={transcriptRef} className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
           {isBooting ? (
-            <div className="flex h-full items-center justify-center text-[14px] text-[var(--ink-soft)]">正在加载会话…</div>
+            <div className="flex h-full items-center justify-center text-[14px] text-[var(--ink-soft)]">
+              正在加载会话…
+            </div>
           ) : bootError ? (
             <BootErrorState message={bootError} />
           ) : state.transcript.length > 0 ? (

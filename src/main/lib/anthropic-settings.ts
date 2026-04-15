@@ -1,0 +1,132 @@
+import type { AnthropicSettings } from '@shared/types'
+import { promises as fs } from 'node:fs'
+import os from 'node:os'
+import { dirname, join } from 'node:path'
+
+const ANTHROPIC_BASE_URL_KEY = 'ANTHROPIC_BASE_URL'
+const ANTHROPIC_API_KEY = 'ANTHROPIC_API_KEY'
+const PROVIDER_KEY = 'NOTEMARK_MODEL_PROVIDER'
+
+const deepclawEnvPath = join(os.homedir(), '.deepclaw', '.env')
+
+const parseEnvEntries = (source: string): Map<string, string> => {
+  const entries = new Map<string, string>()
+  const lines = source.split(/\r?\n/)
+
+  for (const line of lines) {
+    const match = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/)
+    if (!match) continue
+
+    const [, key, rawValue] = match
+    const value =
+      (rawValue.startsWith('"') && rawValue.endsWith('"')) ||
+      (rawValue.startsWith("'") && rawValue.endsWith("'"))
+        ? rawValue.slice(1, -1)
+        : rawValue
+    entries.set(key, value)
+  }
+
+  return entries
+}
+
+const formatValue = (value: string): string => {
+  if (!value) return '""'
+  if (/^[A-Za-z0-9_./:@-]+$/.test(value)) return value
+
+  return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
+}
+
+const ensureDeepclawEnvFile = async (): Promise<void> => {
+  await fs.mkdir(dirname(deepclawEnvPath), { recursive: true })
+
+  try {
+    await fs.access(deepclawEnvPath)
+  } catch {
+    await fs.writeFile(deepclawEnvPath, '', 'utf8')
+  }
+}
+
+const readDeepclawEnvFile = async (): Promise<string> => {
+  await ensureDeepclawEnvFile()
+  return fs.readFile(deepclawEnvPath, 'utf8')
+}
+
+const writeDeepclawEnvFile = async (source: string): Promise<void> => {
+  await ensureDeepclawEnvFile()
+  await fs.writeFile(deepclawEnvPath, source, 'utf8')
+}
+
+const buildUpdatedEnv = (currentEnvSource: string, updates: Record<string, string>): string => {
+  const lines = currentEnvSource.split(/\r?\n/)
+  const handled = new Set<string>()
+  const nextLines = lines.map((line) => {
+    const match = line.match(/^(\s*(?:export\s+)?)([A-Za-z_][A-Za-z0-9_]*)(\s*=\s*)(.*)$/)
+    if (!match) return line
+
+    const [, prefix, key, separator] = match
+    const nextValue = updates[key]
+    if (nextValue == null) return line
+    handled.add(key)
+    return `${prefix}${key}${separator}${formatValue(nextValue)}`
+  })
+
+  for (const [key, value] of Object.entries(updates)) {
+    if (!handled.has(key)) {
+      nextLines.push(`${key}=${formatValue(value)}`)
+    }
+  }
+
+  const output = nextLines.join('\n')
+  return output.endsWith('\n') ? output : `${output}\n`
+}
+
+const applySettingsToProcessEnv = (settings: AnthropicSettings): void => {
+  process.env[ANTHROPIC_BASE_URL_KEY] = settings.baseUrl
+  process.env[ANTHROPIC_API_KEY] = settings.apiKey
+  process.env[PROVIDER_KEY] = 'anthropic'
+}
+
+export const getAnthropicSettings = async (): Promise<AnthropicSettings> => {
+  const source = await readDeepclawEnvFile()
+  const envEntries = parseEnvEntries(source)
+
+  return {
+    baseUrl: envEntries.get(ANTHROPIC_BASE_URL_KEY) ?? '',
+    apiKey: envEntries.get(ANTHROPIC_API_KEY) ?? ''
+  }
+}
+
+export const saveAnthropicSettings = async (
+  settings: AnthropicSettings
+): Promise<AnthropicSettings> => {
+  const nextSettings: AnthropicSettings = {
+    baseUrl: settings.baseUrl.trim(),
+    apiKey: settings.apiKey.trim()
+  }
+
+  if (!nextSettings.baseUrl) {
+    throw new Error('Base URL 不能为空。')
+  }
+
+  if (!nextSettings.apiKey) {
+    throw new Error('API Key 不能为空。')
+  }
+
+  const source = await readDeepclawEnvFile()
+  const nextSource = buildUpdatedEnv(source, {
+    [ANTHROPIC_BASE_URL_KEY]: nextSettings.baseUrl,
+    [ANTHROPIC_API_KEY]: nextSettings.apiKey,
+    [PROVIDER_KEY]: 'anthropic'
+  })
+  await writeDeepclawEnvFile(nextSource)
+  applySettingsToProcessEnv(nextSettings)
+
+  return nextSettings
+}
+
+export const hydrateAnthropicSettings = async (): Promise<void> => {
+  const settings = await getAnthropicSettings()
+  if (!settings.baseUrl || !settings.apiKey) return
+
+  applySettingsToProcessEnv(settings)
+}

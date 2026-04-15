@@ -12,7 +12,10 @@ export const Breadcrumbs = ({ className, ...props }: ComponentProps<'div'>): JSX
 
   if (path.length === 0) {
     return (
-      <div className={twMerge('flex items-center gap-1 text-sm text-notion-text-secondary', className)} {...props}>
+      <div
+        className={twMerge('flex items-center gap-1 text-sm text-notion-text-secondary', className)}
+        {...props}
+      >
         <span>No page selected</span>
       </div>
     )
@@ -28,7 +31,9 @@ export const Breadcrumbs = ({ className, ...props }: ComponentProps<'div'>): JSX
             onClick={() => void selectPage(item.id)}
             className={twMerge(
               'hover:text-notion-text transition-colors',
-              index === path.length - 1 ? 'text-notion-text font-medium' : 'text-notion-text-secondary'
+              index === path.length - 1
+                ? 'text-notion-text font-medium'
+                : 'text-notion-text-secondary'
             )}
           >
             {item.emoji && <span className="mr-1">{item.emoji}</span>}

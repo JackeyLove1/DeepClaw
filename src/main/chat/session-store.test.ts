@@ -111,7 +111,9 @@ describe('ChatSessionStore', () => {
   })
 
   it('falls back to truncated user text or a timestamp-based title', () => {
-    expect(fallbackTitleFromUserText('   A very focused chat title   ')).toBe('A very focused chat title')
+    expect(fallbackTitleFromUserText('   A very focused chat title   ')).toBe(
+      'A very focused chat title'
+    )
     expect(fallbackTitleFromUserText('')).toMatch(/^Chat /)
   })
 })

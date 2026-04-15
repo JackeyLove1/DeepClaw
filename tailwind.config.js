@@ -16,7 +16,7 @@ module.exports = {
           hover: '#efefed',
           'hover-secondary': '#e8e8e6',
           'drag-handle': '#dcdcdb',
-          'scrollbar': '#dcdcdb',
+          scrollbar: '#dcdcdb'
         },
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
@@ -25,32 +25,32 @@ module.exports = {
         foreground: 'hsl(var(--foreground))',
         primary: {
           DEFAULT: 'hsl(var(--primary))',
-          foreground: 'hsl(var(--primary-foreground))',
+          foreground: 'hsl(var(--primary-foreground))'
         },
         secondary: {
           DEFAULT: 'hsl(var(--secondary))',
-          foreground: 'hsl(var(--secondary-foreground))',
+          foreground: 'hsl(var(--secondary-foreground))'
         },
         destructive: {
           DEFAULT: 'hsl(var(--destructive))',
-          foreground: 'hsl(var(--destructive-foreground))',
+          foreground: 'hsl(var(--destructive-foreground))'
         },
         muted: {
           DEFAULT: 'hsl(var(--muted))',
-          foreground: 'hsl(var(--muted-foreground))',
+          foreground: 'hsl(var(--muted-foreground))'
         },
         accent: {
           DEFAULT: 'hsl(var(--accent))',
-          foreground: 'hsl(var(--accent-foreground))',
+          foreground: 'hsl(var(--accent-foreground))'
         },
         popover: {
           DEFAULT: 'hsl(var(--popover))',
-          foreground: 'hsl(var(--popover-foreground))',
+          foreground: 'hsl(var(--popover-foreground))'
         },
         card: {
           DEFAULT: 'hsl(var(--card))',
-          foreground: 'hsl(var(--card-foreground))',
-        },
+          foreground: 'hsl(var(--card-foreground))'
+        }
       },
       fontFamily: {
         sans: [
@@ -65,30 +65,36 @@ module.exports = {
           'Noto Sans SC',
           'sans-serif'
         ],
-        brandEn: ['MyriadPro-Regular', 'MyriadPro-Light', '-apple-system', 'Segoe UI', 'sans-serif'],
+        brandEn: [
+          'MyriadPro-Regular',
+          'MyriadPro-Light',
+          '-apple-system',
+          'Segoe UI',
+          'sans-serif'
+        ],
         brandZh: ['汉仪旗黑-55S', '汉仪旗黑-40S', 'Microsoft YaHei', 'Noto Sans SC', 'sans-serif']
       },
       maxWidth: {
-        'notion': '900px',
+        notion: '900px'
       },
       width: {
-        'sidebar': '260px',
+        sidebar: '260px',
         'sidebar-min': '200px',
-        'sidebar-max': '400px',
+        'sidebar-max': '400px'
       },
       fontSize: {
         'notion-h1': ['40px', { lineHeight: '1.2', fontWeight: '700' }],
         'notion-h2': ['24px', { lineHeight: '1.3', fontWeight: '600' }],
-        'notion-h3': ['20px', { lineHeight: '1.4', fontWeight: '600' }],
+        'notion-h3': ['20px', { lineHeight: '1.4', fontWeight: '600' }]
       },
       spacing: {
-        'notion': '90px',
+        notion: '90px'
       },
       borderRadius: {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
-        sm: 'calc(var(--radius) - 4px)',
-      },
+        sm: 'calc(var(--radius) - 4px)'
+      }
     }
   },
   plugins: [require('@tailwindcss/typography')]

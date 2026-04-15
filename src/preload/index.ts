@@ -5,10 +5,12 @@ import type {
   CreateSession,
   DeleteSession,
   DeleteNote,
+  GetAnthropicSettings,
   GetNotes,
   ListSessions,
   OpenSession,
   ReadNote,
+  SaveAnthropicSettings,
   SearchSessions,
   SendMessage,
   SubscribeChatEvents,
@@ -25,7 +27,8 @@ if (!process.contextIsolated) {
   throw new Error('contextIsolation must be enabled in the BrowserWindow')
 }
 
-const invoke = <T>(channel: string, ...args: unknown[]): Promise<T> => ipcRenderer.invoke(channel, ...args)
+const invoke = <T>(channel: string, ...args: unknown[]): Promise<T> =>
+  ipcRenderer.invoke(channel, ...args)
 
 const subscribeChatEvents: SubscribeChatEvents = (sessionId, listener) => {
   const wrapped = (_event: Electron.IpcRendererEvent, payload: ChatEvent): void => {
@@ -44,9 +47,12 @@ const subscribeChatEvents: SubscribeChatEvents = (sessionId, listener) => {
 try {
   contextBridge.exposeInMainWorld('context', {
     locale: navigator.language,
-    getNotes: (...args: Parameters<GetNotes>) => invoke<Awaited<ReturnType<GetNotes>>>('getNotes', ...args),
-    readNote: (...args: Parameters<ReadNote>) => invoke<Awaited<ReturnType<ReadNote>>>('readNote', ...args),
-    writeNote: (...args: Parameters<WriteNote>) => invoke<Awaited<ReturnType<WriteNote>>>('writeNote', ...args),
+    getNotes: (...args: Parameters<GetNotes>) =>
+      invoke<Awaited<ReturnType<GetNotes>>>('getNotes', ...args),
+    readNote: (...args: Parameters<ReadNote>) =>
+      invoke<Awaited<ReturnType<ReadNote>>>('readNote', ...args),
+    writeNote: (...args: Parameters<WriteNote>) =>
+      invoke<Awaited<ReturnType<WriteNote>>>('writeNote', ...args),
     createNote: (...args: Parameters<CreateNote>) =>
       invoke<Awaited<ReturnType<CreateNote>>>('createNote', ...args),
     deleteNote: (...args: Parameters<DeleteNote>) =>
@@ -75,7 +81,11 @@ try {
     windowToggleMaximize: (...args: Parameters<WindowToggleMaximize>) =>
       invoke<Awaited<ReturnType<WindowToggleMaximize>>>('window:toggleMaximize', ...args),
     windowClose: (...args: Parameters<WindowClose>) =>
-      invoke<Awaited<ReturnType<WindowClose>>>('window:close', ...args)
+      invoke<Awaited<ReturnType<WindowClose>>>('window:close', ...args),
+    getAnthropicSettings: (...args: Parameters<GetAnthropicSettings>) =>
+      invoke<Awaited<ReturnType<GetAnthropicSettings>>>('settings:getAnthropic', ...args),
+    saveAnthropicSettings: (...args: Parameters<SaveAnthropicSettings>) =>
+      invoke<Awaited<ReturnType<SaveAnthropicSettings>>>('settings:saveAnthropic', ...args)
   })
 } catch (error) {
   console.error(error)

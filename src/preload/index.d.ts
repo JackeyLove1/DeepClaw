@@ -4,10 +4,12 @@ import type {
   CreateSession,
   DeleteSession,
   DeleteNote,
+  GetAnthropicSettings,
   GetNotes,
   ListSessions,
   OpenSession,
   ReadNote,
+  SaveAnthropicSettings,
   SearchSessions,
   SendMessage,
   SubscribeChatEvents,
@@ -41,6 +43,8 @@ declare global {
       windowIsMaximized: WindowIsMaximized
       windowToggleMaximize: WindowToggleMaximize
       windowClose: WindowClose
+      getAnthropicSettings: GetAnthropicSettings
+      saveAnthropicSettings: SaveAnthropicSettings
     }
   }
 }

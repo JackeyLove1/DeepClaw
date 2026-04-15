@@ -55,10 +55,7 @@ export type SystemTranscriptEntry = {
   createdAt: number
 }
 
-export type TranscriptEntry =
-  | UserTranscriptEntry
-  | AssistantTranscriptEntry
-  | SystemTranscriptEntry
+export type TranscriptEntry = UserTranscriptEntry | AssistantTranscriptEntry | SystemTranscriptEntry
 
 export type ChatViewState = {
   meta: SessionMeta | null
@@ -180,7 +177,10 @@ const applyAssistantCompleted = (
   }))
 }
 
-const ensureToolGroup = (state: ChatViewState, event: Extract<ChatEvent, { type: 'tool.group.started' }>): ChatViewState =>
+const ensureToolGroup = (
+  state: ChatViewState,
+  event: Extract<ChatEvent, { type: 'tool.group.started' }>
+): ChatViewState =>
   updateAssistant(state, event.assistantMessageId, (entry) => ({
     ...entry,
     toolGroup: entry.toolGroup ?? {
@@ -280,7 +280,7 @@ export const applyChatEvent = (state: ChatViewState, event: ChatEvent): ChatView
 
   const nextAppliedIds = new Set(state.appliedEventIds)
   nextAppliedIds.add(event.eventId)
-  let nextState: ChatViewState = { ...state, appliedEventIds: nextAppliedIds }
+  const nextState: ChatViewState = { ...state, appliedEventIds: nextAppliedIds }
 
   switch (event.type) {
     case 'session.created':
