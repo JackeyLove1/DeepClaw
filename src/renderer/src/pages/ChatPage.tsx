@@ -1,5 +1,6 @@
 import type { SessionMeta } from '@shared/models';
-import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { useEffect, useMemo, useReducer, useRef, useState, type Ref } from 'react';
+import sparkIcon from '../assets/svg/spark.svg';
 import {
     chatViewReducer,
     createInitialChatViewState,
@@ -103,18 +104,8 @@ const ChatIcon = () => (
   </svg>
 )
 
-const SparkIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className="h-4 w-4"
-  >
-    <path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8L12 3Z" />
-  </svg>
+const SparkIcon = ({ className = 'h-4 w-4' }: { className?: string }) => (
+  <img src={sparkIcon} alt="" className={`${className} shrink-0`} aria-hidden="true" />
 )
 
 const CompassIcon = () => (
@@ -265,57 +256,71 @@ const TrashIcon = () => (
   </svg>
 )
 
-const ToolGroupPanel = ({ toolGroup }: { toolGroup: ToolGroupView }) => (
-  <details className="group rounded-2xl border border-[var(--border-soft)] bg-white shadow-[0_2px_8px_rgba(0,0,0,0.03)]">
-    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 text-left">
-      <div className="flex min-w-0 items-center gap-3">
-        <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#f5f5f7] text-[var(--ink-subtle)]">
-          <WrenchIcon />
-        </span>
-        <div className="min-w-0">
-          <div className="truncate text-[13px] font-semibold text-[var(--ink-main)]">
-            {toolGroup.summary}
-          </div>
-          <div className="text-[11px] text-[var(--ink-faint)]">
-            {toolGroup.calls.length} 次调用
-            {toolGroup.totalDurationMs > 0 ? ` · ${toolGroup.totalDurationMs}ms` : ''}
+const ToolGroupPanel = ({ toolGroup }: { toolGroup: ToolGroupView }) => {
+  const title =
+    toolGroup.status === 'running'
+      ? '思考中'
+      : toolGroup.status === 'error'
+        ? '思考完成（含错误）'
+        : '已完成思考'
+
+  const statusLabel = (status: ToolGroupView['calls'][number]['status']): string => {
+    if (status === 'running') return '执行中'
+    if (status === 'error') return '失败'
+    return '完成'
+  }
+
+  return (
+    <details className="group rounded-2xl border border-[var(--border-soft)] bg-white/90 shadow-[0_2px_8px_rgba(0,0,0,0.03)]">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-left">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#f5f5f7] text-[var(--ink-subtle)]">
+            <WrenchIcon />
+          </span>
+          <div className="min-w-0">
+            <div className="truncate text-[13px] font-semibold text-[var(--ink-main)]">{title}</div>
+            <div className="text-[11px] text-[var(--ink-faint)]">
+              {toolGroup.calls.length} 次工具调用
+              {toolGroup.totalDurationMs > 0 ? ` · ${toolGroup.totalDurationMs}ms` : ''}
+            </div>
           </div>
         </div>
+        <ChevronIcon className="text-[var(--ink-faint)] transition-transform duration-200 group-open:rotate-90" />
+      </summary>
+      <div className="border-t border-[var(--border-soft)] px-4 py-2">
+        {toolGroup.calls.map((call) => (
+          <details
+            key={call.id}
+            open={call.status === 'running'}
+            className="group/call border-b border-[var(--border-soft)] py-2.5 last:border-b-0"
+          >
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-left">
+              <span className="font-mono text-[12px] text-[var(--ink-main)]">{call.name}</span>
+              <div className="flex items-center gap-2">
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                    call.status === 'error'
+                      ? 'bg-rose-100 text-rose-700'
+                      : call.status === 'running'
+                        ? 'bg-amber-100 text-amber-700'
+                        : 'bg-emerald-100 text-emerald-700'
+                  }`}
+                >
+                  {statusLabel(call.status)}
+                </span>
+                <ChevronIcon className="h-3.5 w-3.5 text-[var(--ink-faint)] transition-transform duration-200 group-open/call:rotate-90" />
+              </div>
+            </summary>
+            <div className="space-y-1.5 pt-2 text-[11.5px] leading-5 text-[var(--ink-soft)]">
+              {call.argsSummary ? <p>{call.argsSummary}</p> : null}
+              {call.outputSummary ? <p>{call.outputSummary}</p> : null}
+            </div>
+          </details>
+        ))}
       </div>
-      <ChevronIcon className="text-[var(--ink-faint)] transition-transform duration-200 group-open:rotate-90" />
-    </summary>
-    <div className="border-t border-[var(--border-soft)] px-4 py-2">
-      {toolGroup.calls.map((call) => (
-        <div key={call.id} className="border-b border-[var(--border-soft)] py-3 last:border-b-0">
-          <div className="flex items-center justify-between gap-3">
-            <span className="font-mono text-[12px] text-[var(--ink-main)]">{call.name}</span>
-            <span
-              className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                call.status === 'error'
-                  ? 'bg-rose-100 text-rose-700'
-                  : call.status === 'running'
-                    ? 'bg-amber-100 text-amber-700'
-                    : 'bg-emerald-100 text-emerald-700'
-              }`}
-            >
-              {call.status}
-            </span>
-          </div>
-          {call.argsSummary ? (
-            <p className="mt-1 text-[11.5px] leading-5 text-[var(--ink-soft)]">
-              {call.argsSummary}
-            </p>
-          ) : null}
-          {call.outputSummary ? (
-            <p className="mt-1 text-[11.5px] leading-5 text-[var(--ink-soft)]">
-              {call.outputSummary}
-            </p>
-          ) : null}
-        </div>
-      ))}
-    </div>
-  </details>
-)
+    </details>
+  )
+}
 
 const SessionRow = ({
   session,
@@ -463,25 +468,24 @@ const TranscriptItem = ({ entry }: { entry: TranscriptEntry }) => {
     const message = entry as AssistantTranscriptEntry
     return (
       <div className="max-w-[88%] pl-1">
-        <div className="mb-2 flex items-center gap-2 text-[13px] font-semibold text-[#6c6d74]">
-          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#f4f4f7] text-[#8d8f98]">
-            <SparkIcon />
+        {/* <div className="mb-2 flex items-center gap-2 text-[8px] font-semibold text-[#6c6d74]">
+          <span className="inline-flex h-12 w-12 items-center justify-center rounded-full">
+            <SparkIcon className={`h-8 w-8 ${message.isStreaming ? 'animate-spin' : ''}`} />
           </span>
-          经济数据助手
           {message.isStreaming ? (
             <span className="h-2 w-2 animate-pulse-dot rounded-full bg-emerald-500" />
           ) : null}
-        </div>
-        <div className="rounded-2xl bg-transparent px-1 py-1 text-[24px] font-semibold leading-[1.48] tracking-tight text-[var(--ink-main)]">
-          <p className="whitespace-pre-wrap">{message.text || '处理中…'}</p>
+        </div> */}
+        <div className="rounded-2xl bg-transparent px-1 py-1 text-[16px] font-semibold leading-[1.48] tracking-tight text-[var(--ink-main)]">
           {message.toolGroup ? (
-            <div className="mt-5 max-w-[780px]">
+            <div className="mb-4 max-w-[780px]">
               <ToolGroupPanel toolGroup={message.toolGroup} />
             </div>
           ) : null}
+          <p className="whitespace-pre-wrap">{message.text || '处理中…'}</p>
           <time className="mt-3 block text-[11px] font-medium text-[var(--ink-faint)]">
             {message.isStreaming
-              ? '实时生成中'
+              ? '思考中'
               : formatClockTime(message.completedAt ?? message.createdAt)}
           </time>
         </div>
@@ -520,6 +524,7 @@ const InputBar = ({
   isRunning,
   isCancelling,
   currentSessionId,
+  textareaRef,
   onDraftChange,
   onSend,
   onCancel
@@ -528,12 +533,14 @@ const InputBar = ({
   isRunning: boolean
   isCancelling: boolean
   currentSessionId: string | null
+  textareaRef?: Ref<HTMLTextAreaElement>
   onDraftChange: (value: string) => void
   onSend: () => void
   onCancel: () => void
 }) => (
   <div className="rounded-[28px] border border-[#ececf0] bg-[#f7f7f9] px-5 py-4 shadow-[0_10px_30px_rgba(15,15,20,0.06)]">
     <textarea
+      ref={textareaRef}
       value={draft}
       onChange={(event) => onDraftChange(event.target.value)}
       onKeyDown={(event) => {
@@ -609,6 +616,7 @@ const EmptyState = ({
   isRunning,
   isCancelling,
   currentSessionId,
+  textareaRef,
   onDraftChange,
   onSend,
   onCancel
@@ -617,6 +625,7 @@ const EmptyState = ({
   isRunning: boolean
   isCancelling: boolean
   currentSessionId: string | null
+  textareaRef?: Ref<HTMLTextAreaElement>
   onDraftChange: (value: string) => void
   onSend: () => void
   onCancel: () => void
@@ -631,6 +640,7 @@ const EmptyState = ({
         isRunning={isRunning}
         isCancelling={isCancelling}
         currentSessionId={currentSessionId}
+        textareaRef={textareaRef}
         onDraftChange={onDraftChange}
         onSend={onSend}
         onCancel={onCancel}
@@ -652,6 +662,8 @@ export const ChatPage = () => {
   const [state, dispatch] = useReducer(chatViewReducer, undefined, createInitialChatViewState)
   const transcriptRef = useRef<HTMLDivElement>(null)
   const currentSessionIdRef = useRef<string | null>(null)
+  const composerRef = useRef<HTMLTextAreaElement>(null)
+  const shouldFocusComposerRef = useRef(false)
   const hasTranscript = state.transcript.length > 0
 
   const visibleSessions = useMemo(() => selectVisibleSessions(sessions), [sessions])
@@ -663,6 +675,22 @@ export const ChatPage = () => {
   useEffect(() => {
     transcriptRef.current?.scrollTo({ top: transcriptRef.current.scrollHeight, behavior: 'smooth' })
   }, [state.transcript, state.isRunning])
+
+  useEffect(() => {
+    if (!shouldFocusComposerRef.current) return
+
+    shouldFocusComposerRef.current = false
+    const rafId = requestAnimationFrame(() => {
+      const composer = composerRef.current
+      if (!composer) return
+
+      composer.focus()
+      const length = composer.value.length
+      composer.setSelectionRange(length, length)
+    })
+
+    return () => cancelAnimationFrame(rafId)
+  }, [currentSessionId, hasTranscript])
 
   useEffect(() => {
     let disposed = false
@@ -776,6 +804,7 @@ export const ChatPage = () => {
   }
 
   const createSession = async (): Promise<void> => {
+    shouldFocusComposerRef.current = true
     const created = await window.context.createSession()
     const next = await window.context.searchSessions(searchQuery)
     setSessions(next)
@@ -982,6 +1011,7 @@ export const ChatPage = () => {
               isRunning={state.isRunning}
               isCancelling={state.isCancelling}
               currentSessionId={currentSessionId}
+              textareaRef={composerRef}
               onDraftChange={setDraft}
               onSend={() => void handleSend()}
               onCancel={() => void handleCancel()}
@@ -997,6 +1027,7 @@ export const ChatPage = () => {
                 isRunning={state.isRunning}
                 isCancelling={state.isCancelling}
                 currentSessionId={currentSessionId}
+                textareaRef={composerRef}
                 onDraftChange={setDraft}
                 onSend={() => void handleSend()}
                 onCancel={() => void handleCancel()}
