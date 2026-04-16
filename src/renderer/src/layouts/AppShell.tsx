@@ -1,14 +1,14 @@
 import {
-  CircleCheckBig,
-  CircleHelp,
-  MessageCircleMore,
-  MonitorSmartphone,
-  Settings
-} from 'lucide-react'
-import type { ReactNode } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
-import appIcon from '../assets/icon.png'
-import * as DraggableTopBarModule from '../components/DraggableTopBar'
+    CircleCheckBig,
+    CircleHelp,
+    MessageCircleMore,
+    MonitorSmartphone,
+    Settings
+} from 'lucide-react';
+import type { ReactNode } from 'react';
+import { NavLink, Outlet } from 'react-router-dom';
+import appIcon from '../assets/icon.png';
+import * as DraggableTopBarModule from '../components/DraggableTopBar';
 
 const DraggableTopBar = DraggableTopBarModule.DraggableTopBar ?? (() => null)
 
@@ -29,7 +29,7 @@ const NavRailLink = ({ label, to, icon }: NavRailLinkProps) => (
   <NavLink
     to={to}
     className={({ isActive }) =>
-      `group flex flex-col items-center gap-0.5 rounded-2xl px-2 py-3 text-[11px] font-semibold transition-all ${
+      `group flex flex-col items-center gap-0.5 rounded-2xl px-2 py-2 text-[11px] tracking-wider transition-all ${
         isActive
           ? 'bg-[#f4f4f8] text-[var(--ink-main)] shadow-[0_6px_18px_rgba(0,0,0,0.08)]'
           : 'text-[var(--ink-faint)] hover:bg-[#f6f6f9] hover:text-[var(--ink-main)]'
