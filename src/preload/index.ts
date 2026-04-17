@@ -7,6 +7,9 @@ import type {
   DeleteNote,
   GetAnthropicSettings,
   GetNotes,
+  GetUsageOverview,
+  ListToolCallRecords,
+  ListUsageRecords,
   ListSessions,
   OpenSession,
   ReadNote,
@@ -91,7 +94,13 @@ try {
       invoke<Awaited<ReturnType<TestAnthropicConnection>>>(
         'settings:testAnthropicConnection',
         ...args
-      )
+      ),
+    getUsageOverview: (...args: Parameters<GetUsageOverview>) =>
+      invoke<Awaited<ReturnType<GetUsageOverview>>>('settings:getUsageOverview', ...args),
+    listUsageRecords: (...args: Parameters<ListUsageRecords>) =>
+      invoke<Awaited<ReturnType<ListUsageRecords>>>('settings:listUsageRecords', ...args),
+    listToolCallRecords: (...args: Parameters<ListToolCallRecords>) =>
+      invoke<Awaited<ReturnType<ListToolCallRecords>>>('settings:listToolCallRecords', ...args)
   })
 } catch (error) {
   console.error(error)

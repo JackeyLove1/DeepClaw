@@ -38,8 +38,54 @@ export interface ConnectionCheckResult {
   preview: string
 }
 
+export type UsageRecordKind = 'chat_turn' | 'title_gen' | 'connection_test'
+
+export interface UsageOverview {
+  todayTokenUsage: number
+  todayInputTokens: number
+  todayOutputTokens: number
+  todayCacheCreationTokens: number
+  todayCacheReadTokens: number
+  remainingTokens: number | null
+  totalSessions: number
+  totalMessages: number
+}
+
+export interface UsageRecord {
+  id: string
+  sessionId: string | null
+  sessionTitle: string | null
+  assistantMessageId: string | null
+  requestRound: number
+  kind: UsageRecordKind
+  model: string
+  inputTokens: number
+  outputTokens: number
+  cacheCreationTokens: number
+  cacheReadTokens: number
+  totalTokens: number
+  timestamp: number
+}
+
+export interface ToolCallUsageRecord {
+  eventId: string
+  sessionId: string
+  sessionTitle: string | null
+  timestamp: number
+  toolName: string
+  callType: 'tool' | 'mcp'
+  phase: 'called' | 'completed'
+  status: 'running' | 'success' | 'error'
+  durationMs: number | null
+  argsSummary: string
+  outputSummary: string
+}
+
 export type GetAnthropicSettings = () => Promise<AnthropicSettings>
 export type SaveAnthropicSettings = (settings: AnthropicSettings) => Promise<AnthropicSettings>
 export type TestAnthropicConnection = (
   settings: AnthropicSettings
 ) => Promise<ConnectionCheckResult>
+export type GetUsageOverview = () => Promise<UsageOverview>
+export type ListUsageRecords = (limit?: number) => Promise<UsageRecord[]>
+export type ListToolCallRecords = (limit?: number) => Promise<ToolCallUsageRecord[]>

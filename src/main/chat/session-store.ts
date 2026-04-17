@@ -1,6 +1,12 @@
 import { randomUUID } from 'node:crypto'
 import type Database from 'better-sqlite3'
 import type { ChatEvent, SessionMeta, SessionSnapshot } from '@shared/models'
+import type {
+  ToolCallUsageRecord,
+  UsageOverview,
+  UsageRecord,
+  UsageRecordKind
+} from '@shared/types'
 import { getDatabase } from '../lib/database'
 import { ensureChatSchema } from './sqlite-schema'
 
@@ -79,6 +85,56 @@ const sanitizeFtsQuery = (query: string): string => {
 
   return terms.map((term) => `"${term.replace(/"/g, '""')}"`).join(' AND ')
 }
+
+type UsageRecordInput = {
+  sessionId?: string | null
+  assistantMessageId?: string | null
+  requestRound: number
+  kind: UsageRecordKind
+  model: string
+  inputTokens?: number
+  outputTokens?: number
+  cacheCreationTokens?: number
+  cacheReadTokens?: number
+  timestamp?: number
+}
+
+type UsageRow = {
+  id: string
+  sessionId: string | null
+  title: string | null
+  assistantMessageId: string | null
+  requestRound: number
+  kind: UsageRecordKind
+  model: string
+  inputTokens: number
+  outputTokens: number
+  cacheCreationTokens: number
+  cacheReadTokens: number
+  timestamp: number
+}
+
+const rowToUsageRecord = (row: UsageRow): UsageRecord => {
+  const totalTokens =
+    row.inputTokens + row.outputTokens + row.cacheCreationTokens + row.cacheReadTokens
+  return {
+    id: row.id,
+    sessionId: row.sessionId,
+    sessionTitle: row.title,
+    assistantMessageId: row.assistantMessageId,
+    requestRound: row.requestRound,
+    kind: row.kind,
+    model: row.model,
+    inputTokens: row.inputTokens,
+    outputTokens: row.outputTokens,
+    cacheCreationTokens: row.cacheCreationTokens,
+    cacheReadTokens: row.cacheReadTokens,
+    totalTokens,
+    timestamp: row.timestamp
+  }
+}
+
+type ToolEventPayload = Extract<ChatEvent, { type: 'tool.called' | 'tool.completed' }>
 
 export class ChatSessionStore {
   private readonly db: Database.Database
@@ -274,6 +330,185 @@ export class ChatSessionStore {
     }>
 
     return rows.map(parseSessionMeta)
+  }
+
+  async appendUsageRecord(record: UsageRecordInput): Promise<void> {
+    this.db
+      .prepare(
+        `
+        INSERT INTO chat_usage_records (
+          id,
+          sessionId,
+          assistantMessageId,
+          requestRound,
+          kind,
+          model,
+          inputTokens,
+          outputTokens,
+          cacheCreationTokens,
+          cacheReadTokens,
+          timestamp
+        )
+        VALUES (
+          @id,
+          @sessionId,
+          @assistantMessageId,
+          @requestRound,
+          @kind,
+          @model,
+          @inputTokens,
+          @outputTokens,
+          @cacheCreationTokens,
+          @cacheReadTokens,
+          @timestamp
+        )
+        `
+      )
+      .run({
+        id: randomUUID(),
+        sessionId: record.sessionId ?? null,
+        assistantMessageId: record.assistantMessageId ?? null,
+        requestRound: record.requestRound,
+        kind: record.kind,
+        model: record.model,
+        inputTokens: record.inputTokens ?? 0,
+        outputTokens: record.outputTokens ?? 0,
+        cacheCreationTokens: record.cacheCreationTokens ?? 0,
+        cacheReadTokens: record.cacheReadTokens ?? 0,
+        timestamp: record.timestamp ?? Date.now()
+      })
+  }
+
+  async getUsageOverview(now = Date.now()): Promise<UsageOverview> {
+    const startOfDay = new Date(now)
+    startOfDay.setHours(0, 0, 0, 0)
+    const dayStart = startOfDay.getTime()
+
+    const sessionCounts = this.db
+      .prepare(
+        `
+        SELECT COUNT(*) as totalSessions, COALESCE(SUM(messageCount), 0) as totalMessages
+        FROM chat_sessions
+        `
+      )
+      .get() as { totalSessions: number; totalMessages: number }
+
+    const todayUsage = this.db
+      .prepare(
+        `
+        SELECT
+          COALESCE(SUM(inputTokens), 0) as todayInputTokens,
+          COALESCE(SUM(outputTokens), 0) as todayOutputTokens,
+          COALESCE(SUM(cacheCreationTokens), 0) as todayCacheCreationTokens,
+          COALESCE(SUM(cacheReadTokens), 0) as todayCacheReadTokens
+        FROM chat_usage_records
+        WHERE timestamp >= ?
+        `
+      )
+      .get(dayStart) as {
+      todayInputTokens: number
+      todayOutputTokens: number
+      todayCacheCreationTokens: number
+      todayCacheReadTokens: number
+    }
+
+    const todayTokenUsage =
+      todayUsage.todayInputTokens +
+      todayUsage.todayOutputTokens +
+      todayUsage.todayCacheCreationTokens +
+      todayUsage.todayCacheReadTokens
+
+    return {
+      todayTokenUsage,
+      todayInputTokens: todayUsage.todayInputTokens,
+      todayOutputTokens: todayUsage.todayOutputTokens,
+      todayCacheCreationTokens: todayUsage.todayCacheCreationTokens,
+      todayCacheReadTokens: todayUsage.todayCacheReadTokens,
+      remainingTokens: null,
+      totalSessions: sessionCounts.totalSessions,
+      totalMessages: sessionCounts.totalMessages
+    }
+  }
+
+  async listUsageRecords(limit = 100): Promise<UsageRecord[]> {
+    const rows = this.db
+      .prepare(
+        `
+        SELECT
+          records.id as id,
+          records.sessionId as sessionId,
+          sessions.title as title,
+          records.assistantMessageId as assistantMessageId,
+          records.requestRound as requestRound,
+          records.kind as kind,
+          records.model as model,
+          records.inputTokens as inputTokens,
+          records.outputTokens as outputTokens,
+          records.cacheCreationTokens as cacheCreationTokens,
+          records.cacheReadTokens as cacheReadTokens,
+          records.timestamp as timestamp
+        FROM chat_usage_records records
+        LEFT JOIN chat_sessions sessions ON sessions.id = records.sessionId
+        ORDER BY records.timestamp DESC
+        LIMIT ?
+        `
+      )
+      .all(limit) as UsageRow[]
+
+    return rows.map(rowToUsageRecord)
+  }
+
+  async listToolCallRecords(limit = 100): Promise<ToolCallUsageRecord[]> {
+    const rows = this.db
+      .prepare(
+        `
+        SELECT events.payload as payload, sessions.title as sessionTitle
+        FROM chat_events events
+        LEFT JOIN chat_sessions sessions ON sessions.id = events.sessionId
+        WHERE events.type IN ('tool.called', 'tool.completed')
+        ORDER BY events.timestamp DESC, events.id DESC
+        LIMIT ?
+        `
+      )
+      .all(limit) as Array<{ payload: string; sessionTitle: string | null }>
+
+    return rows
+      .map((row) => {
+        const payload = JSON.parse(row.payload) as ToolEventPayload
+        const toolName = payload.toolName ?? ''
+        const callType = toolName.toLowerCase().includes('mcp') ? 'mcp' : 'tool'
+
+        if (payload.type === 'tool.called') {
+          return {
+            eventId: payload.eventId,
+            sessionId: payload.sessionId,
+            sessionTitle: row.sessionTitle,
+            timestamp: payload.timestamp,
+            toolName,
+            callType,
+            phase: 'called',
+            status: 'running',
+            durationMs: null,
+            argsSummary: payload.argsSummary,
+            outputSummary: ''
+          } satisfies ToolCallUsageRecord
+        }
+
+        return {
+          eventId: payload.eventId,
+          sessionId: payload.sessionId,
+          sessionTitle: row.sessionTitle,
+          timestamp: payload.timestamp,
+          toolName,
+          callType,
+          phase: 'completed',
+          status: payload.isError ? 'error' : 'success',
+          durationMs: payload.durationMs,
+          argsSummary: '',
+          outputSummary: payload.outputSummary
+        } satisfies ToolCallUsageRecord
+      })
+      .filter(Boolean)
   }
 
   async updateSessionTitle(sessionId: string, title: string): Promise<SessionMeta> {

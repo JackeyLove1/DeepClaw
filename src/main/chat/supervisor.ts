@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { BrowserWindow } from 'electron'
 import type { ChatEvent, SessionMeta, SessionSnapshot } from '@shared/models'
+import type { ToolCallUsageRecord, UsageOverview, UsageRecord } from '@shared/types'
 import {
   ChatSessionStore,
   DEFAULT_SESSION_TITLE,
@@ -67,6 +68,18 @@ export class ChatSupervisor {
 
   async listSessions(): Promise<SessionMeta[]> {
     return this.store.listSessions()
+  }
+
+  async getUsageOverview(): Promise<UsageOverview> {
+    return this.store.getUsageOverview()
+  }
+
+  async listUsageRecords(limit?: number): Promise<UsageRecord[]> {
+    return this.store.listUsageRecords(limit)
+  }
+
+  async listToolCallRecords(limit?: number): Promise<ToolCallUsageRecord[]> {
+    return this.store.listToolCallRecords(limit)
   }
 
   async searchSessions(query: string): Promise<SessionMeta[]> {
@@ -170,6 +183,23 @@ export class ChatSupervisor {
         assistantText = event.type === 'assistant.completed' ? event.text : assistantText
 
         await this.store.appendEvent(sessionId, event)
+
+        if (event.type === 'assistant.completed' && event.apiUsages?.length) {
+          for (const usage of event.apiUsages) {
+            await this.store.appendUsageRecord({
+              sessionId,
+              assistantMessageId: event.messageId,
+              requestRound: usage.requestRound,
+              kind: 'chat_turn',
+              model: usage.model,
+              inputTokens: usage.inputTokens,
+              outputTokens: usage.outputTokens,
+              cacheCreationTokens: usage.cacheCreationTokens,
+              cacheReadTokens: usage.cacheReadTokens,
+              timestamp: usage.timestamp
+            })
+          }
+        }
 
         if (event.type === 'assistant.completed') {
           const updatedMeta = await this.store.updateMeta(sessionId, (current) => ({

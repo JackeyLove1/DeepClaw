@@ -6,6 +6,9 @@ import type {
   DeleteNote,
   GetAnthropicSettings,
   GetNotes,
+  GetUsageOverview,
+  ListToolCallRecords,
+  ListUsageRecords,
   ListSessions,
   OpenSession,
   ReadNote,
@@ -47,6 +50,9 @@ declare global {
       getAnthropicSettings: GetAnthropicSettings
       saveAnthropicSettings: SaveAnthropicSettings
       testAnthropicConnection: TestAnthropicConnection
+      getUsageOverview: GetUsageOverview
+      listUsageRecords: ListUsageRecords
+      listToolCallRecords: ListToolCallRecords
     }
   }
 }

@@ -70,11 +70,22 @@ export type ToolCompletedEvent = ChatEventBase & {
   isError: boolean
 }
 
+export type AssistantApiUsage = {
+  requestRound: number
+  model: string
+  inputTokens: number
+  outputTokens: number
+  cacheCreationTokens: number
+  cacheReadTokens: number
+  timestamp: number
+}
+
 export type AssistantCompletedEvent = ChatEventBase & {
   type: 'assistant.completed'
   messageId: string
   text: string
   durationMs: number
+  apiUsages?: AssistantApiUsage[]
 }
 
 export type SessionTitleUpdatedEvent = ChatEventBase & {

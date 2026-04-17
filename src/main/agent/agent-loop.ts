@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import Anthropic from '@anthropic-ai/sdk'
 import type { MessageParam, RawMessageStreamEvent } from '@anthropic-ai/sdk/resources/messages'
 import type { ChatEvent } from '@shared/models'
+import { ChatSessionStore } from '../chat/session-store'
 import { getAnthropicApiKey, resolveRuntimeConfig } from './config'
 import {
   clampText,
@@ -34,7 +35,53 @@ type AnthropicToolUse = {
   input: Record<string, unknown>
 }
 
+type UsageSnapshot = {
+  inputTokens: number
+  outputTokens: number
+  cacheCreationTokens: number
+  cacheReadTokens: number
+}
+
+const EMPTY_USAGE: UsageSnapshot = {
+  inputTokens: 0,
+  outputTokens: 0,
+  cacheCreationTokens: 0,
+  cacheReadTokens: 0
+}
+
+const asFiniteNumber = (value: unknown): number => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return 0
+  }
+  return Math.max(0, Math.trunc(value))
+}
+
+const toUsageSnapshot = (value: unknown): UsageSnapshot => {
+  if (!value || typeof value !== 'object') {
+    return EMPTY_USAGE
+  }
+
+  const usage = value as Record<string, unknown>
+  return {
+    inputTokens: asFiniteNumber(usage.input_tokens ?? usage.inputTokens),
+    outputTokens: asFiniteNumber(usage.output_tokens ?? usage.outputTokens),
+    cacheCreationTokens: asFiniteNumber(
+      usage.cache_creation_input_tokens ?? usage.cacheCreationTokens
+    ),
+    cacheReadTokens: asFiniteNumber(usage.cache_read_input_tokens ?? usage.cacheReadTokens)
+  }
+}
+
+const mergeUsage = (base: UsageSnapshot, incoming: UsageSnapshot): UsageSnapshot => ({
+  inputTokens: Math.max(base.inputTokens, incoming.inputTokens),
+  outputTokens: Math.max(base.outputTokens, incoming.outputTokens),
+  cacheCreationTokens: Math.max(base.cacheCreationTokens, incoming.cacheCreationTokens),
+  cacheReadTokens: Math.max(base.cacheReadTokens, incoming.cacheReadTokens)
+})
+
 export class AnthropicChatRuntime implements ChatRuntime {
+  private readonly usageStore = new ChatSessionStore()
+
   private createClient(): Anthropic {
     const config = resolveRuntimeConfig()
     const apiKey = getAnthropicApiKey()
@@ -60,6 +107,30 @@ export class AnthropicChatRuntime implements ChatRuntime {
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: 'Reply with exactly "pong".' }]
     })
+
+    const usage = toUsageSnapshot((response as { usage?: unknown }).usage)
+    if (
+      usage.inputTokens > 0 ||
+      usage.outputTokens > 0 ||
+      usage.cacheCreationTokens > 0 ||
+      usage.cacheReadTokens > 0
+    ) {
+      try {
+        await this.usageStore.appendUsageRecord({
+          sessionId: null,
+          assistantMessageId: null,
+          requestRound: 1,
+          kind: 'connection_test',
+          model: config.model,
+          inputTokens: usage.inputTokens,
+          outputTokens: usage.outputTokens,
+          cacheCreationTokens: usage.cacheCreationTokens,
+          cacheReadTokens: usage.cacheReadTokens
+        })
+      } catch (error) {
+        console.warn('[usage] failed to persist connection usage record', error)
+      }
+    }
 
     const preview = clampText(this.readAssistantText(response.content) || 'pong', 160)
     return {
@@ -97,6 +168,9 @@ export class AnthropicChatRuntime implements ChatRuntime {
     const startedAt = Date.now()
     let textBuffer = ''
     let toolGroupStarted = false
+    const apiUsages: NonNullable<Extract<ChatEvent, { type: 'assistant.completed' }>['apiUsages']> =
+      []
+    let requestRound = 0
 
     const toEvent = (event: RuntimeEventPayload): ChatEvent =>
       ({
@@ -112,9 +186,11 @@ export class AnthropicChatRuntime implements ChatRuntime {
     })
 
     while (true) {
+      requestRound += 1
       const toolUses = new Map<number, AnthropicToolUse>()
       const toolInputJson = new Map<number, string>()
       const textByIndex = new Map<number, string>()
+      let usageForRound = EMPTY_USAGE
 
       const stream = await client.messages.create(
         {
@@ -130,6 +206,20 @@ export class AnthropicChatRuntime implements ChatRuntime {
 
       for await (const rawEvent of stream) {
         const event = rawEvent as RawMessageStreamEvent
+
+        if (event.type === 'message_start') {
+          usageForRound = mergeUsage(
+            usageForRound,
+            toUsageSnapshot((event as { message?: { usage?: unknown } }).message?.usage)
+          )
+        }
+
+        if (event.type === 'message_delta') {
+          usageForRound = mergeUsage(
+            usageForRound,
+            toUsageSnapshot((event as { usage?: unknown }).usage)
+          )
+        }
 
         if (event.type === 'content_block_start' && event.content_block.type === 'text') {
           textByIndex.set(event.index, event.content_block.text ?? '')
@@ -168,6 +258,23 @@ export class AnthropicChatRuntime implements ChatRuntime {
             `${toolInputJson.get(event.index) ?? ''}${event.delta.partial_json}`
           )
         }
+      }
+
+      if (
+        usageForRound.inputTokens > 0 ||
+        usageForRound.outputTokens > 0 ||
+        usageForRound.cacheCreationTokens > 0 ||
+        usageForRound.cacheReadTokens > 0
+      ) {
+        apiUsages.push({
+          requestRound,
+          model: config.model,
+          inputTokens: usageForRound.inputTokens,
+          outputTokens: usageForRound.outputTokens,
+          cacheCreationTokens: usageForRound.cacheCreationTokens,
+          cacheReadTokens: usageForRound.cacheReadTokens,
+          timestamp: Date.now()
+        })
       }
 
       const assistantContent: Array<
@@ -320,11 +427,12 @@ export class AnthropicChatRuntime implements ChatRuntime {
       type: 'assistant.completed',
       messageId: assistantMessageId,
       text: finalText,
-      durationMs: Date.now() - startedAt
+      durationMs: Date.now() - startedAt,
+      apiUsages
     })
   }
 
-  async generateTitle({ userText, assistantText }: GenerateTitleArgs): Promise<string> {
+  async generateTitle({ sessionId, userText, assistantText }: GenerateTitleArgs): Promise<string> {
     const fallback = fallbackTitle(userText)
 
     try {
@@ -348,6 +456,30 @@ ${assistantText}`
           }
         ]
       })
+
+      const usage = toUsageSnapshot((response as { usage?: unknown }).usage)
+      if (
+        usage.inputTokens > 0 ||
+        usage.outputTokens > 0 ||
+        usage.cacheCreationTokens > 0 ||
+        usage.cacheReadTokens > 0
+      ) {
+        try {
+          await this.usageStore.appendUsageRecord({
+            sessionId,
+            assistantMessageId: null,
+            requestRound: 1,
+            kind: 'title_gen',
+            model: config.model,
+            inputTokens: usage.inputTokens,
+            outputTokens: usage.outputTokens,
+            cacheCreationTokens: usage.cacheCreationTokens,
+            cacheReadTokens: usage.cacheReadTokens
+          })
+        } catch (error) {
+          console.warn('[usage] failed to persist title usage record', error)
+        }
+      }
 
       return sanitizeTitle(this.readAssistantText(response.content), fallback)
     } catch {

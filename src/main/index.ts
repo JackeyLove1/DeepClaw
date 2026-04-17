@@ -4,7 +4,10 @@ import type {
   CreateNote,
   DeleteNote,
   GetAnthropicSettings,
+  GetUsageOverview,
   GetNotes,
+  ListToolCallRecords,
+  ListUsageRecords,
   ReadNote,
   TestAnthropicConnection,
   SaveAnthropicSettings,
@@ -258,6 +261,24 @@ function registerSettingsIpc(): void {
     'settings:testAnthropicConnection',
     (_, ...args: Parameters<TestAnthropicConnection>) => testAnthropicConnection(...args)
   )
+  ipcMain.handle('settings:getUsageOverview', (_, ...args: Parameters<GetUsageOverview>) => {
+    if (!chatSupervisor) {
+      throw new Error('Chat supervisor is not initialized.')
+    }
+    return chatSupervisor.getUsageOverview(...args)
+  })
+  ipcMain.handle('settings:listUsageRecords', (_, ...args: Parameters<ListUsageRecords>) => {
+    if (!chatSupervisor) {
+      throw new Error('Chat supervisor is not initialized.')
+    }
+    return chatSupervisor.listUsageRecords(...args)
+  })
+  ipcMain.handle('settings:listToolCallRecords', (_, ...args: Parameters<ListToolCallRecords>) => {
+    if (!chatSupervisor) {
+      throw new Error('Chat supervisor is not initialized.')
+    }
+    return chatSupervisor.listToolCallRecords(...args)
+  })
 }
 
 app.whenReady().then(() => {

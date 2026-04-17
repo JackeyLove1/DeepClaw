@@ -1,11 +1,8 @@
 import { createBashTool, type BashToolOptions } from './BashTool'
-import {
-  createPatchTool,
-  createReadFileTool,
-  createWriteFileTool
-} from './FileSystemTool'
+import { createPatchTool, createReadFileTool, createWriteFileTool } from './FileSystemTool'
 import { createGetTimeTool } from './get-time'
 import { createPowerShellTool, type PowerShellToolOptions } from './PowerShellTool'
+import { createTodoTool } from './TodoTool'
 import { DEFAULT_PRIORITY } from './priorities'
 import type {
   PostToolUseHook,
@@ -30,7 +27,8 @@ const toolFactories: ToolFactory[] = [
   createGetTimeTool,
   createReadFileTool,
   createWriteFileTool,
-  createPatchTool
+  createPatchTool,
+  createTodoTool
 ]
 
 export type PlatformShellToolOptions = ShellPermissionOptions & {

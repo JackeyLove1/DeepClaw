@@ -31,6 +31,28 @@ export const ensureChatSchema = (db: Database.Database): void => {
   `)
 
   db.exec(`
+    CREATE TABLE IF NOT EXISTS chat_usage_records (
+      id TEXT PRIMARY KEY,
+      sessionId TEXT,
+      assistantMessageId TEXT,
+      requestRound INTEGER NOT NULL,
+      kind TEXT NOT NULL,
+      model TEXT NOT NULL,
+      inputTokens INTEGER NOT NULL DEFAULT 0,
+      outputTokens INTEGER NOT NULL DEFAULT 0,
+      cacheCreationTokens INTEGER NOT NULL DEFAULT 0,
+      cacheReadTokens INTEGER NOT NULL DEFAULT 0,
+      timestamp INTEGER NOT NULL,
+      FOREIGN KEY (sessionId) REFERENCES chat_sessions(id) ON DELETE SET NULL
+    );
+  `)
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_chat_usage_timestamp ON chat_usage_records(timestamp DESC);
+    CREATE INDEX IF NOT EXISTS idx_chat_usage_session ON chat_usage_records(sessionId, timestamp DESC);
+  `)
+
+  db.exec(`
     CREATE VIRTUAL TABLE IF NOT EXISTS chat_events_fts USING fts5(
       searchableText,
       content='chat_events',
