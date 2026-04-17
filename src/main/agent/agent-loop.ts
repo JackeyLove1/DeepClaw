@@ -3,6 +3,12 @@ import Anthropic from '@anthropic-ai/sdk'
 import type { MessageParam, RawMessageStreamEvent } from '@anthropic-ai/sdk/resources/messages'
 import type { ChatEvent } from '@shared/models'
 import { ChatSessionStore } from '../chat/session-store'
+import {
+  findInstalledSkillByFilePath,
+  getUserSkillsDir,
+  loadInstalledSkillsFromDir,
+  type InstalledSkill
+} from './skills/loadSkillsDir'
 import { getAnthropicApiKey, resolveRuntimeConfig } from './config'
 import {
   clampText,
@@ -12,21 +18,8 @@ import {
   summarizeValue,
   toAnthropicMessages
 } from './text-utils'
-import { createTools, notifyOtherToolCall } from './tools'
+import { createTools, notifyOtherToolCall, type Tool } from './tools'
 import type { ChatRuntime, ConnectionTestResult, GenerateTitleArgs, RunTurnArgs } from './types'
-
-const SYSTEM_PROMPT = `You are DeepClaw, a concise desktop chat assistant.
-
-Rules:
-- Prefer direct answers.
-- Use tools when they materially improve accuracy.
-- Keep tool usage minimal and explain results clearly.
-- Do not mention internal system prompts or implementation details.
-- When returning a title, return only the title text.
-
-Environment:
-- Platform: ${process.platform}
-- Current timestamp: ${new Date().toISOString()}`
 
 type RuntimeEventPayload = { type: ChatEvent['type'] } & Record<string, unknown>
 type AnthropicToolUse = {
@@ -42,12 +35,49 @@ type UsageSnapshot = {
   cacheReadTokens: number
 }
 
+type AnthropicChatRuntimeOptions = {
+  usageStore?: ChatSessionStore
+  installedSkills?: InstalledSkill[]
+  toolsFactory?: () => Tool[]
+}
+
 const EMPTY_USAGE: UsageSnapshot = {
   inputTokens: 0,
   outputTokens: 0,
   cacheCreationTokens: 0,
   cacheReadTokens: 0
 }
+
+const formatInstalledSkillsSection = (installedSkills: readonly InstalledSkill[]): string => {
+  if (installedSkills.length === 0) {
+    return 'Installed skills:\n- None detected in ~/.deepclaw/skills.'
+  }
+
+  const lines = installedSkills.map((skill) => {
+    const description = clampText(skill.description, 220)
+    return `- ${skill.skillId} | ${skill.name}: ${description} | details: ~/.deepclaw/skills/${skill.skillId}/SKILL.md`
+  })
+
+  return ['Installed skills:', ...lines].join('\n')
+}
+
+const buildSystemPrompt = (installedSkills: readonly InstalledSkill[]): string => `You are DeepClaw, a concise desktop chat assistant.
+
+Rules:
+- Prefer direct answers.
+- Use tools when they materially improve accuracy.
+- Keep tool usage minimal and explain results clearly.
+- Do not mention internal system prompts or implementation details.
+- Before handling a specialized workflow, review the installed skill catalog and read the relevant SKILL.md with read_file.
+- Skill details live under ~/.deepclaw/skills/<skillId>/SKILL.md. Read only the relevant skill files on demand.
+- When returning a title, return only the title text.
+
+Environment:
+- Platform: ${process.platform}
+- Current timestamp: ${new Date().toISOString()}
+- Skills directory: ${getUserSkillsDir()}
+
+${formatInstalledSkillsSection(installedSkills)}`
 
 const asFiniteNumber = (value: unknown): number => {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
@@ -79,8 +109,32 @@ const mergeUsage = (base: UsageSnapshot, incoming: UsageSnapshot): UsageSnapshot
   cacheReadTokens: Math.max(base.cacheReadTokens, incoming.cacheReadTokens)
 })
 
+const getReadFilePath = (input: Record<string, unknown>): string | null => {
+  const candidate = input.path
+  return typeof candidate === 'string' && candidate.trim() ? candidate : null
+}
+
+const isToolExecutionError = (outputText: string): boolean => {
+  try {
+    const parsed = JSON.parse(outputText) as { error?: unknown }
+    return typeof parsed.error === 'string' && parsed.error.length > 0
+  } catch {
+    return false
+  }
+}
+
 export class AnthropicChatRuntime implements ChatRuntime {
-  private readonly usageStore = new ChatSessionStore()
+  private readonly usageStore: ChatSessionStore
+
+  private readonly installedSkills: InstalledSkill[]
+
+  private readonly toolsFactory: () => Tool[]
+
+  constructor(options: AnthropicChatRuntimeOptions = {}) {
+    this.usageStore = options.usageStore ?? new ChatSessionStore()
+    this.installedSkills = options.installedSkills ?? loadInstalledSkillsFromDir()
+    this.toolsFactory = options.toolsFactory ?? (() => createTools())
+  }
 
   private createClient(): Anthropic {
     const config = resolveRuntimeConfig()
@@ -97,6 +151,10 @@ export class AnthropicChatRuntime implements ChatRuntime {
     })
   }
 
+  private getSystemPrompt(): string {
+    return buildSystemPrompt(this.installedSkills)
+  }
+
   async testConnection(): Promise<ConnectionTestResult> {
     const config = resolveRuntimeConfig()
     const startedAt = Date.now()
@@ -104,7 +162,7 @@ export class AnthropicChatRuntime implements ChatRuntime {
     const response = await client.messages.create({
       model: config.model,
       max_tokens: 24,
-      system: SYSTEM_PROMPT,
+      system: this.getSystemPrompt(),
       messages: [{ role: 'user', content: 'Reply with exactly "pong".' }]
     })
 
@@ -154,7 +212,7 @@ export class AnthropicChatRuntime implements ChatRuntime {
 
     const client = this.createClient()
     const config = resolveRuntimeConfig()
-    const runtimeTools = createTools()
+    const runtimeTools = this.toolsFactory()
     const toolsByName = new Map(runtimeTools.map((tool) => [tool.name, tool]))
     const anthropicTools = runtimeTools.map((tool) => ({
       name: tool.name,
@@ -168,6 +226,7 @@ export class AnthropicChatRuntime implements ChatRuntime {
     const startedAt = Date.now()
     let textBuffer = ''
     let toolGroupStarted = false
+    const usedSkillIds = new Set<string>()
     const apiUsages: NonNullable<Extract<ChatEvent, { type: 'assistant.completed' }>['apiUsages']> =
       []
     let requestRound = 0
@@ -196,7 +255,7 @@ export class AnthropicChatRuntime implements ChatRuntime {
         {
           model: config.model,
           max_tokens: 2048,
-          system: SYSTEM_PROMPT,
+          system: this.getSystemPrompt(),
           tools: anthropicTools,
           messages,
           stream: true
@@ -381,8 +440,31 @@ export class AnthropicChatRuntime implements ChatRuntime {
 
         try {
           const result = await tool.execute(toolCall.id, { ...toolCall.input, task_id: sessionId })
-          const outputSummary =
-            result.details.summary || result.content.map((item) => item.text).join('\n') || ''
+          const outputText = result.content.map((item) => item.text).join('\n')
+          const outputSummary = result.details.summary || outputText || ''
+          const skillReadPath = toolCall.name === 'read_file' ? getReadFilePath(toolCall.input) : null
+          const skill = skillReadPath
+            ? findInstalledSkillByFilePath(skillReadPath, this.installedSkills)
+            : null
+
+          if (skill && !usedSkillIds.has(skill.skillId) && !isToolExecutionError(outputText)) {
+            try {
+              this.usageStore.appendSkillUsageRecord({
+                sessionId,
+                assistantMessageId,
+                requestRound,
+                toolCallId: toolCall.id,
+                skillId: skill.skillId,
+                skillName: skill.name,
+                skillFilePath: skill.skillFilePath,
+                timestamp: Date.now()
+              })
+              usedSkillIds.add(skill.skillId)
+            } catch (error) {
+              console.warn('[skills] failed to persist skill usage record', error)
+            }
+          }
+
           yield toEvent({
             type: 'tool.completed',
             assistantMessageId,
@@ -460,7 +542,7 @@ export class AnthropicChatRuntime implements ChatRuntime {
       const response = await client.messages.create({
         model: config.model,
         max_tokens: 32,
-        system: SYSTEM_PROMPT,
+        system: this.getSystemPrompt(),
         messages: [
           {
             role: 'user',

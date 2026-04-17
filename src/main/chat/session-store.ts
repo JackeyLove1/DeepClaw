@@ -159,6 +159,29 @@ type ToolUsageRecordInput = {
   timestamp?: number
 }
 
+type SkillUsageRecordInput = {
+  sessionId?: string | null
+  assistantMessageId: string
+  requestRound: number
+  toolCallId: string
+  skillId: string
+  skillName: string
+  skillFilePath: string
+  timestamp?: number
+}
+
+export interface SkillUsageRecord {
+  id: string
+  sessionId: string | null
+  assistantMessageId: string
+  requestRound: number
+  toolCallId: string
+  skillId: string
+  skillName: string
+  skillFilePath: string
+  timestamp: number
+}
+
 type ToolStatsRow = {
   toolName: string
   callType: 'tool' | 'mcp'
@@ -530,6 +553,76 @@ export class ChatSessionStore {
         roundToolCallCount: Math.max(1, record.roundToolCallCount ?? 1),
         timestamp: record.timestamp ?? Date.now()
       })
+  }
+
+  appendSkillUsageRecord(record: SkillUsageRecordInput): void {
+    this.db
+      .prepare(
+        `
+        INSERT INTO skill_usage_records (
+          id,
+          sessionId,
+          assistantMessageId,
+          requestRound,
+          toolCallId,
+          skillId,
+          skillName,
+          skillFilePath,
+          timestamp
+        )
+        VALUES (
+          @id,
+          @sessionId,
+          @assistantMessageId,
+          @requestRound,
+          @toolCallId,
+          @skillId,
+          @skillName,
+          @skillFilePath,
+          @timestamp
+        )
+        ON CONFLICT(assistantMessageId, skillId) DO UPDATE SET
+          sessionId = excluded.sessionId,
+          requestRound = excluded.requestRound,
+          toolCallId = excluded.toolCallId,
+          skillName = excluded.skillName,
+          skillFilePath = excluded.skillFilePath,
+          timestamp = excluded.timestamp
+        `
+      )
+      .run({
+        id: randomUUID(),
+        sessionId: record.sessionId ?? null,
+        assistantMessageId: record.assistantMessageId,
+        requestRound: record.requestRound,
+        toolCallId: record.toolCallId,
+        skillId: record.skillId,
+        skillName: record.skillName,
+        skillFilePath: record.skillFilePath,
+        timestamp: record.timestamp ?? Date.now()
+      })
+  }
+
+  async listSkillUsageRecords(limit = 100): Promise<SkillUsageRecord[]> {
+    return this.db
+      .prepare(
+        `
+        SELECT
+          id,
+          sessionId,
+          assistantMessageId,
+          requestRound,
+          toolCallId,
+          skillId,
+          skillName,
+          skillFilePath,
+          timestamp
+        FROM skill_usage_records
+        ORDER BY timestamp DESC
+        LIMIT ?
+        `
+      )
+      .all(limit) as SkillUsageRecord[]
   }
 
   async getUsageOverview(now = Date.now()): Promise<UsageOverview> {

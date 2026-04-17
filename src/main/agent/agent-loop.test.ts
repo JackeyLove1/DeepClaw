@@ -1,5 +1,9 @@
+import Database from 'better-sqlite3'
+import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ChatEvent } from '@shared/models'
+import { ChatSessionStore } from '../chat/session-store'
+import type { Tool } from './tools'
 
 const messagesCreateMock = vi.fn()
 
@@ -18,6 +22,7 @@ vi.mock('@anthropic-ai/sdk', () => {
 import { AnthropicChatRuntime } from './agent-loop'
 
 const ORIGINAL_ENV = { ...process.env }
+const cleanupDatabases: Database.Database[] = []
 
 const resetEnv = (): void => {
   for (const key of Object.keys(process.env)) {
@@ -36,9 +41,19 @@ const toStream = (events: unknown[]): AsyncIterable<unknown> => {
   }
 }
 
+const createStore = (): ChatSessionStore => {
+  const database = new Database(':memory:')
+  cleanupDatabases.push(database)
+  return new ChatSessionStore({ database })
+}
+
 afterEach(() => {
   resetEnv()
   messagesCreateMock.mockReset()
+
+  for (const database of cleanupDatabases.splice(0)) {
+    database.close()
+  }
 })
 
 describe('AnthropicChatRuntime', () => {
@@ -140,5 +155,125 @@ describe('AnthropicChatRuntime', () => {
     expect(completed?.text).toBe('Checking done')
     expect(toolCompleted?.requestRound).toBe(1)
     expect(toolCompleted?.roundToolCallCount).toBe(1)
+  })
+
+  it('includes installed skills in the system prompt and records one usage row per skill per turn', async () => {
+    process.env.ANTHROPIC_API_KEY = 'test-key'
+    process.env.NOTEMARK_MODEL_PROVIDER = 'anthropic'
+    process.env.NOTEMARK_MODEL = 'claude-sonnet-4-5'
+
+    const store = createStore()
+    await store.createSession('s_skill')
+    const skillDir = path.resolve('C:/Users/test/.deepclaw/skills/powerpoint')
+    const skillFilePath = path.resolve(`${skillDir}/SKILL.md`)
+    const readSkillTool: Tool = {
+      name: 'read_file',
+      label: 'Read file',
+      description: 'Read a text file',
+      inputSchema: { type: 'object' },
+      execute: async () => ({
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              path: skillFilePath,
+              content: '1|---\n2|name: powerpoint',
+              truncated: false
+            })
+          }
+        ],
+        details: {
+          summary: JSON.stringify({
+            path: skillFilePath,
+            content: '1|---\n2|name: powerpoint',
+            truncated: false
+          })
+        }
+      })
+    }
+
+    let streamRound = 0
+    messagesCreateMock.mockImplementation(async (params: { stream?: boolean; system?: string }) => {
+      if (!params.stream) {
+        return {
+          content: [{ type: 'text', text: 'pong' }]
+        }
+      }
+
+      streamRound += 1
+      if (streamRound === 1) {
+        return toStream([
+          {
+            type: 'content_block_start',
+            index: 0,
+            content_block: {
+              type: 'tool_use',
+              id: 'tool_skill_1',
+              name: 'read_file',
+              input: { path: skillFilePath }
+            }
+          },
+          {
+            type: 'content_block_start',
+            index: 1,
+            content_block: {
+              type: 'tool_use',
+              id: 'tool_skill_2',
+              name: 'read_file',
+              input: { path: skillFilePath }
+            }
+          }
+        ])
+      }
+
+      return toStream([
+        {
+          type: 'content_block_start',
+          index: 0,
+          content_block: { type: 'text', text: '' }
+        },
+        {
+          type: 'content_block_delta',
+          index: 0,
+          delta: { type: 'text_delta', text: 'Skill loaded' }
+        }
+      ])
+    })
+
+    const runtime = new AnthropicChatRuntime({
+      usageStore: store,
+      installedSkills: [
+        {
+          skillId: 'powerpoint',
+          name: 'powerpoint',
+          description: 'Use this skill for slide workflows.',
+          skillDir,
+          skillFilePath,
+          body: '# Powerpoint',
+          tags: []
+        }
+      ],
+      toolsFactory: () => [readSkillTool]
+    })
+
+    const events: ChatEvent[] = []
+    for await (const event of runtime.runTurn({
+      sessionId: 's_skill',
+      userText: 'Please help with my presentation',
+      history: []
+    })) {
+      events.push(event)
+    }
+
+    const firstCallArgs = messagesCreateMock.mock.calls[0]?.[0] as { system?: string }
+    expect(firstCallArgs.system).toContain('Installed skills:')
+    expect(firstCallArgs.system).toContain('powerpoint | powerpoint')
+    expect(firstCallArgs.system).toContain('~/.deepclaw/skills/powerpoint/SKILL.md')
+
+    const skillRecords = await store.listSkillUsageRecords()
+    expect(skillRecords).toHaveLength(1)
+    expect(skillRecords[0]?.skillId).toBe('powerpoint')
+    expect(skillRecords[0]?.toolCallId).toBe('tool_skill_1')
+    expect(events.at(-1)?.type).toBe('assistant.completed')
   })
 })

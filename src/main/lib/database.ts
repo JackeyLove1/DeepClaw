@@ -1,8 +1,7 @@
 import type Database from 'better-sqlite3'
 import { mkdirSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import os from 'node:os'
-import path from 'path'
+import { resolveDatabasePath, resolveDeepClawHomeDir } from '../agent/utils'
 import { ensureChatSchema } from '../chat/sqlite-schema'
 
 let db: Database.Database | null = null
@@ -35,9 +34,9 @@ export interface NoteRecord {
 export const initDatabase = (): Database.Database => {
   if (db) return db
 
-  const dbDirectory = path.join(os.homedir(), '.deepclaw')
+  const dbDirectory = resolveDeepClawHomeDir()
   mkdirSync(dbDirectory, { recursive: true })
-  const dbPath = path.join(dbDirectory, 'deepclaw.db')
+  const dbPath = resolveDatabasePath()
   const DatabaseCtor = loadDatabaseCtor()
   db = new DatabaseCtor(dbPath)
   const initializedDb = db

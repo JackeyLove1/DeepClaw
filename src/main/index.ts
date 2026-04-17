@@ -25,6 +25,7 @@ import {
   testAnthropicConnection
 } from './lib/anthropic-settings'
 import { initDatabase } from './lib/database'
+import { seedBundledSkillsIntoUserDir } from './agent/skills/loadSkillsDir'
 
 let mainWindow: BrowserWindow | null = null
 let chatSupervisor: ChatSupervisor | null = null
@@ -300,6 +301,15 @@ app.whenReady().then(() => {
 
   try {
     initDatabase()
+    const skillSeedResult = seedBundledSkillsIntoUserDir()
+    if (skillSeedResult.sourceDir) {
+      console.info(
+        `[skills] seeded bundled skills from ${skillSeedResult.sourceDir} into ${skillSeedResult.userDir} ` +
+          `(copied=${skillSeedResult.copiedFiles}, skipped=${skillSeedResult.skippedFiles})`
+      )
+    } else {
+      console.warn('[skills] bundled default skills directory was not found; skipping skill seed')
+    }
     void hydrateAnthropicSettings().catch((error: unknown) => {
       console.error('Failed to hydrate Anthropic settings from ~/.deepclaw/.env', error)
     })

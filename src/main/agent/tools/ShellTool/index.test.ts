@@ -1,8 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import os from 'node:os'
+import path from 'node:path'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { createBashTool } from '../BashTool'
 import { createGetTimeTool } from '../get-time'
 import { createPowerShellTool } from '../PowerShellTool'
+import { resolveDefaultWorkingDir } from '../../utils'
 import { createPlatformShellTool, createReadOnlyTools, createTools } from '..'
 
 const parseText = (
@@ -12,6 +15,10 @@ const parseText = (
 }
 
 describe('shell tools', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   it('blocks dangerous bash commands with built-in deny regex', async () => {
     const tool = createBashTool()
     const result = await tool.execute('tool_1', { command: 'rm -rf *' })
@@ -86,6 +93,31 @@ describe('shell tools', () => {
 
     expect(result.details.summary).toBe('custom summary')
     expect(result.details.audited).toBe(true)
+  })
+
+  it('defaults cwd to ~/.deepclaw when not provided', async () => {
+    vi.spyOn(os, 'homedir').mockReturnValue(path.join('C:', 'Users', 'shell-test'))
+
+    let observedCwd = ''
+    const tool = createBashTool({
+      runCommand: async (request) => {
+        observedCwd = request.cwd
+        return {
+          stdout: 'ok',
+          stderr: '',
+          exitCode: 0,
+          signal: null,
+          timedOut: false,
+          failedToStart: false
+        }
+      }
+    })
+
+    const result = await tool.execute('tool_default_cwd', { command: 'pwd' })
+    const payload = parseText(result)
+
+    expect(observedCwd).toBe(resolveDefaultWorkingDir())
+    expect(payload.cwd).toBe(resolveDefaultWorkingDir())
   })
 
   it('loads the platform shell tool only in createTools', () => {

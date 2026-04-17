@@ -171,6 +171,42 @@ describe('ChatSessionStore', () => {
     expect(store.getToolUseCountsSync().get('todo')).toBe(2)
   })
 
+  it('deduplicates skill usage per assistant message and skill id', async () => {
+    const store = createStore()
+    const session = await store.createSession('session-skills')
+
+    store.appendSkillUsageRecord({
+      sessionId: session.id,
+      assistantMessageId: 'assistant-1',
+      requestRound: 1,
+      toolCallId: 'tool-call-1',
+      skillId: 'powerpoint',
+      skillName: 'powerpoint',
+      skillFilePath: 'C:/skills/powerpoint/SKILL.md',
+      timestamp: 1_000
+    })
+
+    store.appendSkillUsageRecord({
+      sessionId: session.id,
+      assistantMessageId: 'assistant-1',
+      requestRound: 2,
+      toolCallId: 'tool-call-2',
+      skillId: 'powerpoint',
+      skillName: 'powerpoint',
+      skillFilePath: 'C:/skills/powerpoint/SKILL.md',
+      timestamp: 1_200
+    })
+
+    const records = await store.listSkillUsageRecords()
+
+    expect(records).toHaveLength(1)
+    expect(records[0]?.sessionId).toBe(session.id)
+    expect(records[0]?.assistantMessageId).toBe('assistant-1')
+    expect(records[0]?.requestRound).toBe(2)
+    expect(records[0]?.toolCallId).toBe('tool-call-2')
+    expect(records[0]?.skillId).toBe('powerpoint')
+  })
+
   it('sorts sessions and keeps only the latest ten for the sidebar selector', () => {
     const sessions = Array.from({ length: 14 }, (_, index) => ({
       id: String(index),

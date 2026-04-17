@@ -12,9 +12,9 @@
  */
 
 import fsp from 'node:fs/promises'
-import os from 'node:os'
 import path from 'node:path'
 
+import { resolveTmpDir } from '../utils'
 import type { Tool } from './types'
 
 // ---------------------------------------------------------------------------
@@ -69,11 +69,7 @@ const DEFAULT_BUDGET: BudgetConfig = {
 // ---------------------------------------------------------------------------
 
 function resolveStorageDir(): string {
-  const homeDir = os.homedir()
-  const tempDir = os.tmpdir()
-  // Prefer user's temp directory on Windows
-  const baseDir = process.platform === 'win32' ? tempDir : homeDir
-  return path.join(baseDir, '.deepclaw', 'tmp')
+  return resolveTmpDir()
 }
 
 // ---------------------------------------------------------------------------

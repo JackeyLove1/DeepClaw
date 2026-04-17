@@ -1,7 +1,7 @@
 import type { AnthropicSettings, ConnectionCheckResult } from '@shared/types'
 import { promises as fs } from 'node:fs'
-import os from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname } from 'node:path'
+import { resolveEnvFilePath } from '../agent/utils'
 import { createChatRuntime } from '../agent'
 
 const ANTHROPIC_BASE_URL_KEY = 'ANTHROPIC_BASE_URL'
@@ -9,7 +9,7 @@ const ANTHROPIC_API_KEY = 'ANTHROPIC_API_KEY'
 const PROVIDER_KEY = 'NOTEMARK_MODEL_PROVIDER'
 const MODEL_KEY = 'NOTEMARK_MODEL'
 
-const deepclawEnvPath = join(os.homedir(), '.deepclaw', '.env')
+const deepclawEnvPath = resolveEnvFilePath()
 
 const parseEnvEntries = (source: string): Map<string, string> => {
   const entries = new Map<string, string>()

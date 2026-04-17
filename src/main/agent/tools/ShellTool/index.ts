@@ -4,6 +4,7 @@ import type { ExecFileOptions } from 'node:child_process'
 import { z } from 'zod'
 
 import { getToolPriority } from '../priorities'
+import { resolveDefaultWorkingDir } from '../../utils'
 import type { Tool, ToolExecuteResult } from '../types'
 import { defineTool, lazySchema, toolExecuteResultSchema } from '../schema'
 import { clampSummary, jsonResult, redactSensitiveText } from '../FileSystemTool/utils'
@@ -12,6 +13,7 @@ const DEFAULT_TIMEOUT_MS = 20_000
 const MAX_TIMEOUT_MS = 300_000
 const MAX_BUFFER_BYTES = 2 * 1024 * 1024
 const MAX_OUTPUT_CHARS = 12_000
+const DEFAULT_WORKING_DIR_LABEL = '~/.deepclaw'
 
 export type ShellRule = {
   name: string
@@ -161,7 +163,10 @@ function summarizeExecution(
 const shellToolInputSchema = lazySchema(() =>
   z.strictObject({
     command: z.string().trim().min(1).describe('One non-interactive shell command to execute.'),
-    cwd: z.string().optional().describe('Working directory for the command.'),
+    cwd: z
+      .string()
+      .optional()
+      .describe(`Working directory for the command (defaults to ${DEFAULT_WORKING_DIR_LABEL}).`),
     timeout_ms: z.coerce
       .number()
       .transform((value) => Math.floor(value))
@@ -291,7 +296,7 @@ export function createShellTool(options: ShellToolOptions): Tool {
     outputSchema: shellToolOutputSchema,
     execute: async (toolCallId, params) => {
       const command = params.command.trim()
-      const cwd = params.cwd?.trim() || process.cwd()
+      const cwd = params.cwd?.trim() || resolveDefaultWorkingDir()
       const timeoutMs = params.timeout_ms ?? DEFAULT_TIMEOUT_MS
       const taskId = params.task_id || 'default'
       const env = {
