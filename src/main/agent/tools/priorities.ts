@@ -10,6 +10,8 @@ export const TOOL_PRIORITIES: Record<string, number> = {
   search_files: 90,
   write_file: 80,
   patch: 70,
+  bash: 60,
+  powershell: 60,
   get_time: 50
 }
 

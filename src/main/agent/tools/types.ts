@@ -4,7 +4,7 @@ export type ToolResultTextBlock = {
 }
 export type ToolExecuteResult = {
   content: ToolResultTextBlock[]
-  details: { summary: string }
+  details: { summary: string; [key: string]: unknown }
 }
 
 export type ToolInputSchema = {
@@ -26,4 +26,3 @@ export type Tool = {
 
 
 export type ToolFactory = () => Tool
-

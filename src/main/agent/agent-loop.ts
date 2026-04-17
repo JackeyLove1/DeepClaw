@@ -11,7 +11,7 @@ import {
   summarizeValue,
   toAnthropicMessages
 } from './text-utils'
-import { createReadOnlyTools, notifyOtherToolCall } from './tools'
+import { createTools, notifyOtherToolCall } from './tools'
 import type { ChatRuntime, ConnectionTestResult, GenerateTitleArgs, RunTurnArgs } from './types'
 
 const SYSTEM_PROMPT = `You are DeepClaw, a concise desktop chat assistant.
@@ -76,7 +76,7 @@ export class AnthropicChatRuntime implements ChatRuntime {
 
     const client = this.createClient()
     const config = resolveRuntimeConfig()
-    const runtimeTools = createReadOnlyTools()
+    const runtimeTools = createTools()
     const toolsByName = new Map(runtimeTools.map((tool) => [tool.name, tool]))
     const anthropicTools = runtimeTools.map((tool) => ({
       name: tool.name,
