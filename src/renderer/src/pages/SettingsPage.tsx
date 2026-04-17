@@ -49,7 +49,13 @@ export const SettingsPage = () => {
   }, [])
 
   const canSave = useMemo(() => {
-    return Boolean(baseUrl.trim()) && Boolean(apiKey.trim()) && Boolean(model.trim()) && !isSaving && !isLoading
+    return (
+      Boolean(baseUrl.trim()) &&
+      Boolean(apiKey.trim()) &&
+      Boolean(model.trim()) &&
+      !isSaving &&
+      !isLoading
+    )
   }, [apiKey, baseUrl, model, isLoading, isSaving])
 
   const isConfigIncomplete = useMemo(() => {
@@ -110,7 +116,9 @@ export const SettingsPage = () => {
       )
     } catch (error) {
       setTestState('error')
-      setTestMessage(error instanceof Error ? error.message : '连接测试失败，请检查 Base URL 与 API Key。')
+      setTestMessage(
+        error instanceof Error ? error.message : '连接测试失败，请检查 Base URL 与 API Key。'
+      )
     } finally {
       setIsTesting(false)
     }
@@ -136,7 +144,8 @@ export const SettingsPage = () => {
               配置 Anthropic 兼容接口与模型名。保存后会同步写入本地 `~/.deepclaw/.env` 并立即生效。
             </p>
             <p className="mt-2 text-[13px] text-[var(--ink-faint)]">
-              聊天请求由 Electron 主进程发出，Renderer 的 Network 面板通常看不到模型请求；请以“测试连接”和聊天回包为准。
+              聊天请求由 Electron 主进程发出，Renderer 的 Network
+              面板通常看不到模型请求；请以“测试连接”和聊天回包为准。
             </p>
 
             <div className="mt-8 space-y-5">

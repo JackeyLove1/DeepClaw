@@ -2,7 +2,10 @@ import { createShellTool, type ShellToolOptions } from '../ShellTool'
 import { evaluateBashPermission } from './permission'
 import { BASH_TOOL_PROMPT } from './prompt'
 
-export type BashToolOptions = Omit<ShellToolOptions, 'description' | 'label' | 'name' | 'shellExecutable' | 'shellArgs' | 'permission'>
+export type BashToolOptions = Omit<
+  ShellToolOptions,
+  'description' | 'label' | 'name' | 'shellExecutable' | 'shellArgs' | 'permission'
+>
 
 export function createBashTool(options: BashToolOptions = {}) {
   return createShellTool({

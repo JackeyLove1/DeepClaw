@@ -1,9 +1,7 @@
 import process from 'node:process'
 import type { RuntimeConfig } from './types'
 
-type RuntimeConfigValidation =
-  | { ok: true; config: RuntimeConfig }
-  | { ok: false; message: string }
+type RuntimeConfigValidation = { ok: true; config: RuntimeConfig } | { ok: false; message: string }
 
 const getBaseUrl = (): string | undefined => process.env.ANTHROPIC_BASE_URL?.trim() || undefined
 

@@ -1,16 +1,16 @@
-import 'highlight.js/styles/atom-one-light.css';
-import 'katex/dist/katex.min.css';
+import 'highlight.js/styles/atom-one-light.css'
+import 'katex/dist/katex.min.css'
 
-import { Check, Copy } from 'lucide-react';
-import { useMemo, useState, type ReactElement, type ReactNode } from 'react';
-import type { Components } from 'react-markdown';
-import ReactMarkdown from 'react-markdown';
-import rehypeHighlight from 'rehype-highlight';
-import rehypeKatex from 'rehype-katex';
-import remarkGfm from 'remark-gfm';
-import remarkMath from 'remark-math';
+import { Check, Copy } from 'lucide-react'
+import { useMemo, useState, type ReactElement, type ReactNode } from 'react'
+import type { Components } from 'react-markdown'
+import ReactMarkdown from 'react-markdown'
+import rehypeHighlight from 'rehype-highlight'
+import rehypeKatex from 'rehype-katex'
+import remarkGfm from 'remark-gfm'
+import remarkMath from 'remark-math'
 
-import { cn } from '@/utils';
+import { cn } from '@/utils'
 
 const getCodeText = (node: ReactNode): string => {
   if (typeof node === 'string') return node

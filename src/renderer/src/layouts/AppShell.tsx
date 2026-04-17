@@ -1,14 +1,14 @@
 import {
-    CircleCheckBig,
-    CircleHelp,
-    MessageCircleMore,
-    MonitorSmartphone,
-    Settings
-} from 'lucide-react';
-import type { ReactNode } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
-import appIcon from '../assets/icon.png';
-import * as DraggableTopBarModule from '../components/DraggableTopBar';
+  CircleCheckBig,
+  CircleHelp,
+  MessageCircleMore,
+  MonitorSmartphone,
+  Settings
+} from 'lucide-react'
+import type { ReactNode } from 'react'
+import { NavLink, Outlet } from 'react-router-dom'
+import appIcon from '../assets/icon.png'
+import * as DraggableTopBarModule from '../components/DraggableTopBar'
 
 const DraggableTopBar = DraggableTopBarModule.DraggableTopBar ?? (() => null)
 

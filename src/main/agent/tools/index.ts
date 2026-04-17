@@ -1,15 +1,21 @@
-import { createBashTool, type BashToolOptions } from './BashTool';
+import { createBashTool, type BashToolOptions } from './BashTool'
 import {
-    createPatchTool,
-    createReadFileTool,
-    createSearchFilesTool,
-    createWriteFileTool
-} from './FileSystemTool';
-import { createGetTimeTool } from './get-time';
-import { createPowerShellTool, type PowerShellToolOptions } from './PowerShellTool';
-import { DEFAULT_PRIORITY } from './priorities';
-import type { PostToolUseHook, PreToolUseHook, ShellCommandRunner, ShellPermissionOptions } from './ShellTool';
-import type { Tool, ToolFactory } from './types';
+  createPatchTool,
+  createReadFileTool,
+  createSearchFilesTool,
+  createWriteFileTool
+} from './FileSystemTool'
+import { createGetTimeTool } from './get-time'
+import { createPowerShellTool, type PowerShellToolOptions } from './PowerShellTool'
+import { DEFAULT_PRIORITY } from './priorities'
+import type {
+  PostToolUseHook,
+  PreToolUseHook,
+  ShellCommandRunner,
+  ShellPermissionOptions
+} from './ShellTool'
+import type { Tool, ToolFactory } from './types'
+import { withResultPersistence, DEFAULT_BUDGET, type BudgetConfig } from './budget'
 
 /**
  * Safe defaults for the chat runtime: time + read-only file inspection and search.
@@ -38,6 +44,7 @@ export type PlatformShellToolOptions = ShellPermissionOptions & {
 export type CreateToolsOptions = {
   platform?: NodeJS.Platform
   shellTool?: PlatformShellToolOptions
+  budgetConfig?: BudgetConfig
 }
 
 export function createPlatformShellTool(
@@ -60,35 +67,56 @@ export function createPlatformShellTool(
  * @returns 新数组，每个元素来自对应工厂的一次调用（非缓存单例）。
  */
 export function createTools(options: CreateToolsOptions = {}): Tool[] {
-  return [...toolFactories.map((factory) => factory()), createPlatformShellTool(options.platform, options.shellTool)]
-    .sort((a, b) => (b.priority ?? DEFAULT_PRIORITY) - (a.priority ?? DEFAULT_PRIORITY))
+  const config = options.budgetConfig ?? DEFAULT_BUDGET
+  const baseTools = [
+    ...toolFactories.map((factory) => factory()),
+    createPlatformShellTool(options.platform, options.shellTool)
+  ]
+  const withPersistence = baseTools.map((tool) => withResultPersistence(tool, config))
+  return withPersistence.sort(
+    (a, b) => (b.priority ?? DEFAULT_PRIORITY) - (a.priority ?? DEFAULT_PRIORITY)
+  )
 }
 
-export { createBashTool } from './BashTool';
+export { createBashTool } from './BashTool'
 export {
-    clearFileOpsCache,
-    clearReadTracker,
-    createFileSystemTools,
-    getReadFilesSummary,
-    notifyOtherToolCall,
-    registerInternalBlockedDirectories,
-    resetFileDedup
-} from './FileSystemTool';
-export { createPowerShellTool } from './PowerShellTool';
+  clearFileOpsCache,
+  clearReadTracker,
+  createFileSystemTools,
+  getReadFilesSummary,
+  notifyOtherToolCall,
+  registerInternalBlockedDirectories,
+  resetFileDedup
+} from './FileSystemTool'
+export { createPowerShellTool } from './PowerShellTool'
 
 export type {
-    PostToolUseHook,
-    PostToolUseHookContext,
-    PostToolUseHookResult,
-    PreToolUseHook,
-    PreToolUseHookContext,
-    PreToolUseHookResult,
-    ShellCommandRunner,
-    ShellExecutionOutput,
-    ShellExecutionRequest,
-    ShellPermissionDecision,
-    ShellPermissionOptions,
-    ShellRule,
-    ShellToolOptions
-} from './ShellTool';
-export type { Tool, ToolExecuteResult, ToolFactory, ToolInputSchema, ToolResultTextBlock } from './types';
+  PostToolUseHook,
+  PostToolUseHookContext,
+  PostToolUseHookResult,
+  PreToolUseHook,
+  PreToolUseHookContext,
+  PreToolUseHookResult,
+  ShellCommandRunner,
+  ShellExecutionOutput,
+  ShellExecutionRequest,
+  ShellPermissionDecision,
+  ShellPermissionOptions,
+  ShellRule,
+  ShellToolOptions
+} from './ShellTool'
+export type {
+  Tool,
+  ToolExecuteResult,
+  ToolFactory,
+  ToolInputSchema,
+  ToolResultTextBlock
+} from './types'
+export type { BudgetConfig, PersistedResult } from './budget'
+export {
+  DEFAULT_BUDGET,
+  enforceTurnBudget,
+  maybePersistToolResult,
+  resolveThreshold,
+  withResultPersistence
+} from './budget'

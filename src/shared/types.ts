@@ -40,4 +40,6 @@ export interface ConnectionCheckResult {
 
 export type GetAnthropicSettings = () => Promise<AnthropicSettings>
 export type SaveAnthropicSettings = (settings: AnthropicSettings) => Promise<AnthropicSettings>
-export type TestAnthropicConnection = (settings: AnthropicSettings) => Promise<ConnectionCheckResult>
+export type TestAnthropicConnection = (
+  settings: AnthropicSettings
+) => Promise<ConnectionCheckResult>

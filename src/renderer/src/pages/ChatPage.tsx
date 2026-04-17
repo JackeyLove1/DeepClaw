@@ -1,4 +1,4 @@
-import type { SessionMeta } from '@shared/models';
+import type { SessionMeta } from '@shared/models'
 import {
   ChevronDown,
   ChevronRight,
@@ -15,9 +15,9 @@ import {
   Trash2,
   Wrench,
   Zap
-} from 'lucide-react';
-import { useEffect, useMemo, useReducer, useRef, useState, type Ref } from 'react';
-import { toast } from 'sonner';
+} from 'lucide-react'
+import { useEffect, useMemo, useReducer, useRef, useState, type Ref } from 'react'
+import { toast } from 'sonner'
 import {
   buildFeedbackKey,
   copyAssistantMessage,
@@ -25,19 +25,19 @@ import {
   getRetryPromptForAssistant,
   toggleAssistantFeedback,
   type AssistantFeedback
-} from '../chat/messageActions';
+} from '../chat/messageActions'
 import {
-    chatViewReducer,
-    createInitialChatViewState,
-    selectVisibleSessions,
-    type AssistantTranscriptEntry,
-    type SystemTranscriptEntry,
-    type ToolGroupView,
-    type TranscriptEntry,
-    type UserTranscriptEntry
-} from '../chat/reducer';
-import { AssistantMessageActions } from '../components/AssistantMessageActions';
-import { AssistantMessageMarkdown } from '../components/AssistantMessageMarkdown';
+  chatViewReducer,
+  createInitialChatViewState,
+  selectVisibleSessions,
+  type AssistantTranscriptEntry,
+  type SystemTranscriptEntry,
+  type ToolGroupView,
+  type TranscriptEntry,
+  type UserTranscriptEntry
+} from '../chat/reducer'
+import { AssistantMessageActions } from '../components/AssistantMessageActions'
+import { AssistantMessageMarkdown } from '../components/AssistantMessageMarkdown'
 
 const INPUT_CHIPS = ['默认大模型', '技能', '找灵感']
 
@@ -193,7 +193,11 @@ const SessionRow = ({
           isActive ? 'bg-white text-[var(--ink-main)]' : 'bg-[#f2f2f2] text-[var(--ink-faint)]'
         }`}
       >
-        {isActive ? <span className="text-[15px] leading-none">🦞</span> : <MessageSquare className="h-4 w-4" />}
+        {isActive ? (
+          <span className="text-[15px] leading-none">🦞</span>
+        ) : (
+          <MessageSquare className="h-4 w-4" />
+        )}
       </span>
 
       {isRenaming ? (
@@ -870,7 +874,10 @@ export const ChatPage = () => {
     }, 1500)
   }
 
-  const handleFeedback = (assistantMessageId: string, value: Exclude<AssistantFeedback, null>): void => {
+  const handleFeedback = (
+    assistantMessageId: string,
+    value: Exclude<AssistantFeedback, null>
+  ): void => {
     if (!currentSessionId) return
 
     const key = buildFeedbackKey(currentSessionId, assistantMessageId)
@@ -880,7 +887,8 @@ export const ChatPage = () => {
   const handleRetryLatestAssistant = async (): Promise<void> => {
     if (!currentSessionId || !latestAssistantMessageId) return
 
-    const prompt = retryPrompt ?? getRetryPromptForAssistant(state.transcript, latestAssistantMessageId)
+    const prompt =
+      retryPrompt ?? getRetryPromptForAssistant(state.transcript, latestAssistantMessageId)
     if (!prompt) return
 
     await runMessage(currentSessionId, prompt)
@@ -966,7 +974,10 @@ export const ChatPage = () => {
           </div> */}
         </header>
 
-        <div ref={transcriptRef} className={`min-h-0 flex-1 overflow-y-auto px-2 ${hasTranscript ? 'pb-2' : ''}`}>
+        <div
+          ref={transcriptRef}
+          className={`min-h-0 flex-1 overflow-y-auto px-2 ${hasTranscript ? 'pb-2' : ''}`}
+        >
           {isBooting ? (
             <div className="flex h-full items-center justify-center text-[14px] text-[var(--ink-soft)]">
               正在加载会话…
@@ -990,7 +1001,7 @@ export const ChatPage = () => {
                     entry={entry}
                     showAssistantActions={showAssistantActions}
                     copied={entry.kind === 'assistant' && copiedAssistantId === entry.id}
-                    feedback={feedbackKey ? assistantFeedbackByKey[feedbackKey] ?? null : null}
+                    feedback={feedbackKey ? (assistantFeedbackByKey[feedbackKey] ?? null) : null}
                     disableRetry={!retryPrompt || state.isRunning}
                     onCopy={() => {
                       if (entry.kind !== 'assistant') return

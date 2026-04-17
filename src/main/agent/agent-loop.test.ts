@@ -126,9 +126,11 @@ describe('AnthropicChatRuntime', () => {
       'assistant.completed'
     ])
 
-    const completed = events.find((event): event is Extract<ChatEvent, { type: 'assistant.completed' }> => {
-      return event.type === 'assistant.completed'
-    })
+    const completed = events.find(
+      (event): event is Extract<ChatEvent, { type: 'assistant.completed' }> => {
+        return event.type === 'assistant.completed'
+      }
+    )
     expect(completed?.text).toBe('Checking done')
   })
 })

@@ -39,7 +39,9 @@ export class AnthropicChatRuntime implements ChatRuntime {
     const config = resolveRuntimeConfig()
     const apiKey = getAnthropicApiKey()
     if (!apiKey) {
-      throw new Error('Chat runtime is missing ANTHROPIC_API_KEY for the configured Anthropic model.')
+      throw new Error(
+        'Chat runtime is missing ANTHROPIC_API_KEY for the configured Anthropic model.'
+      )
     }
 
     return new Anthropic({
@@ -69,7 +71,12 @@ export class AnthropicChatRuntime implements ChatRuntime {
     }
   }
 
-  async *runTurn({ sessionId, userText, history = [], signal }: RunTurnArgs): AsyncIterable<ChatEvent> {
+  async *runTurn({
+    sessionId,
+    userText,
+    history = [],
+    signal
+  }: RunTurnArgs): AsyncIterable<ChatEvent> {
     if (!String(userText ?? '').trim()) {
       return
     }
@@ -156,7 +163,10 @@ export class AnthropicChatRuntime implements ChatRuntime {
         }
 
         if (event.type === 'content_block_delta' && event.delta.type === 'input_json_delta') {
-          toolInputJson.set(event.index, `${toolInputJson.get(event.index) ?? ''}${event.delta.partial_json}`)
+          toolInputJson.set(
+            event.index,
+            `${toolInputJson.get(event.index) ?? ''}${event.delta.partial_json}`
+          )
         }
       }
 
@@ -166,7 +176,9 @@ export class AnthropicChatRuntime implements ChatRuntime {
       > = []
       const toolCalls: AnthropicToolUse[] = []
 
-      for (const index of [...new Set([...textByIndex.keys(), ...toolUses.keys()])].sort((a, b) => a - b)) {
+      for (const index of [...new Set([...textByIndex.keys(), ...toolUses.keys()])].sort(
+        (a, b) => a - b
+      )) {
         const text = textByIndex.get(index)
         if (typeof text === 'string' && text) {
           assistantContent.push({ type: 'text', text })

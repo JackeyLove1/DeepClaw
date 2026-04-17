@@ -331,7 +331,9 @@ export function checkInternalReadBlocked(resolvedPath: string, displayPath: stri
   return null
 }
 
-export function getReadFilesSummary(taskId: string = 'default'): Array<{ path: string; regions: string[] }> {
+export function getReadFilesSummary(
+  taskId: string = 'default'
+): Array<{ path: string; regions: string[] }> {
   const task = readTracker.get(taskId)
   if (!task) {
     return []

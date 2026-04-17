@@ -15,9 +15,7 @@ const loadDatabaseCtor = (): BetterSqlite3Ctor => {
   }
 
   const require = createRequire(import.meta.url)
-  const mod = require('better-sqlite3') as
-    | BetterSqlite3Ctor
-    | { default?: BetterSqlite3Ctor }
+  const mod = require('better-sqlite3') as BetterSqlite3Ctor | { default?: BetterSqlite3Ctor }
   const ctor = typeof mod === 'function' ? mod : mod.default
 
   if (!ctor) {

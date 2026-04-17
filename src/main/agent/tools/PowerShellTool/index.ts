@@ -2,7 +2,10 @@ import { createShellTool, type ShellToolOptions } from '../ShellTool'
 import { evaluatePowerShellPermission } from './permission'
 import { POWERSHELL_TOOL_PROMPT } from './prompt'
 
-export type PowerShellToolOptions = Omit<ShellToolOptions, 'description' | 'label' | 'name' | 'shellExecutable' | 'shellArgs' | 'permission'>
+export type PowerShellToolOptions = Omit<
+  ShellToolOptions,
+  'description' | 'label' | 'name' | 'shellExecutable' | 'shellArgs' | 'permission'
+>
 
 export function createPowerShellTool(options: PowerShellToolOptions = {}) {
   return createShellTool({
