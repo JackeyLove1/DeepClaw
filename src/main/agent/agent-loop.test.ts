@@ -74,8 +74,8 @@ describe('AnthropicChatRuntime', () => {
             content_block: {
               type: 'tool_use',
               id: 'tool_1',
-              name: 'echo',
-              input: { text: 'hello tool' }
+              name: 'get_time',
+              input: {}
             }
           }
         ])

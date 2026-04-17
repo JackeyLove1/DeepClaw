@@ -1,6 +1,6 @@
-import type { ReadOnlyTool } from '../types'
+import type { Tool } from '../types'
 
-export function createGetTimeTool(): ReadOnlyTool {
+export function createGetTimeTool(): Tool {
   return {
     name: 'get_time',
     label: 'Current Time',
