@@ -31,6 +31,14 @@ export interface SendMessageInput {
   attachments: PendingImageAttachment[]
 }
 export type SendMessage = (sessionId: string, input: SendMessageInput) => Promise<void>
+export interface ClipboardImagePayload {
+  mimeType: ChatImageAttachment['mimeType']
+  dataBase64: string
+  sizeBytes: number
+  width: number
+  height: number
+}
+export type ReadClipboardImage = () => Promise<ClipboardImagePayload | null>
 export type CancelRun = (sessionId: string) => Promise<void>
 
 export type CronScheduleKind = 'delay' | 'interval' | 'cron' | 'datetime'
@@ -121,10 +129,17 @@ export type WindowIsMaximized = () => Promise<boolean>
 export type WindowToggleMaximize = () => Promise<void>
 export type WindowClose = () => Promise<void>
 
-export interface AnthropicSettings {
+export interface AiChannelConfig {
+  id: string
+  name: string
   baseUrl: string
   apiKey: string
   model: string
+}
+
+export interface AiChannelSettings {
+  channels: AiChannelConfig[]
+  activeChannelId: string | null
 }
 
 export interface ConnectionCheckResult {
@@ -218,10 +233,13 @@ export interface SkillUsageRecord {
   timestamp: number
 }
 
-export type GetAnthropicSettings = () => Promise<AnthropicSettings>
-export type SaveAnthropicSettings = (settings: AnthropicSettings) => Promise<AnthropicSettings>
-export type TestAnthropicConnection = (
-  settings: AnthropicSettings
+export type GetAiChannelSettings = () => Promise<AiChannelSettings>
+export type SaveAiChannelSettings = (settings: AiChannelSettings) => Promise<AiChannelSettings>
+export type SetActiveAiChannel = (
+  channelId: AiChannelConfig['id'] | null
+) => Promise<AiChannelSettings>
+export type TestAiChannelConnection = (
+  channel: AiChannelConfig
 ) => Promise<ConnectionCheckResult>
 export type GetUsageOverview = () => Promise<UsageOverview>
 export type ListUsageRecords = (limit?: number) => Promise<UsageRecord[]>

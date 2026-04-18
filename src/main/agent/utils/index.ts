@@ -1,4 +1,5 @@
 export {
+  resolveAiChannelsFilePath,
   resolveDatabasePath,
   resolveDeepClawHomeDir,
   resolveDeepClawPath,
@@ -7,3 +8,5 @@ export {
   resolveSkillsDir,
   resolveTmpDir
 } from './paths'
+
+export { resolvePlatformShellKind, isLinux, isMacOS, isWindows } from './platform'

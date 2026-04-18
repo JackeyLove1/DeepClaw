@@ -1,11 +1,11 @@
 import type {
+  GetAiChannelSettings,
   CancelRun,
   CreateNote,
   CreateCronJob,
   CreateSession,
   DeleteSession,
   DeleteNote,
-  GetAnthropicSettings,
   GetNotes,
   GetUsageOverview,
   ListCronJobs,
@@ -17,15 +17,17 @@ import type {
   ListSessions,
   OpenSession,
   PauseCronJob,
+  ReadClipboardImage,
   ReadNote,
   RemoveCronJob,
   ResumeCronJob,
   RunCronJob,
-  SaveAnthropicSettings,
+  SaveAiChannelSettings,
   SearchSessions,
   SendMessage,
+  SetActiveAiChannel,
   SubscribeChatEvents,
-  TestAnthropicConnection,
+  TestAiChannelConnection,
   UpdateCronJob,
   UpdateSessionTitle,
   WindowClose,
@@ -51,15 +53,17 @@ declare global {
       updateSessionTitle: UpdateSessionTitle
       deleteSession: DeleteSession
       sendMessage: SendMessage
+      readClipboardImage: ReadClipboardImage
       cancelRun: CancelRun
       subscribeChatEvents: SubscribeChatEvents
       windowMinimize: WindowMinimize
       windowIsMaximized: WindowIsMaximized
       windowToggleMaximize: WindowToggleMaximize
       windowClose: WindowClose
-      getAnthropicSettings: GetAnthropicSettings
-      saveAnthropicSettings: SaveAnthropicSettings
-      testAnthropicConnection: TestAnthropicConnection
+      getAiChannelSettings: GetAiChannelSettings
+      saveAiChannelSettings: SaveAiChannelSettings
+      setActiveAiChannel: SetActiveAiChannel
+      testAiChannelConnection: TestAiChannelConnection
       getUsageOverview: GetUsageOverview
       listUsageRecords: ListUsageRecords
       listToolCallRecords: ListToolCallRecords

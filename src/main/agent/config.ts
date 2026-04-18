@@ -12,19 +12,20 @@ export const validateRuntimeConfig = (): RuntimeConfigValidation => {
   if (provider !== 'anthropic') {
     return {
       ok: false,
-      message: 'Chat runtime only supports Anthropic provider. Save Anthropic settings and retry.'
+      message:
+        'Chat runtime only supports Anthropic-compatible channels. Save an active AI channel and retry.'
     }
   }
 
   if (!model) {
-    return { ok: false, message: 'Chat runtime is missing NOTEMARK_MODEL.' }
+    return { ok: false, message: 'Chat runtime is missing NOTEMARK_MODEL for the active AI channel.' }
   }
 
   if (!process.env.ANTHROPIC_API_KEY) {
     return {
       ok: false,
       message:
-        'Chat runtime is missing ANTHROPIC_API_KEY for the configured Anthropic model. Save your settings and test the connection.'
+        'Chat runtime is missing ANTHROPIC_API_KEY for the active AI channel. Save your settings and test the connection.'
     }
   }
 

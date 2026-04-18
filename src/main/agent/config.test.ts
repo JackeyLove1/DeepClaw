@@ -20,21 +20,23 @@ describe('runtime config', () => {
     delete process.env.NOTEMARK_MODEL_PROVIDER
     delete process.env.NOTEMARK_MODEL
 
-    expect(() => resolveRuntimeConfig()).toThrow(/missing NOTEMARK_MODEL/)
+    expect(() => resolveRuntimeConfig()).toThrow(/missing NOTEMARK_MODEL for the active AI channel/)
   })
 
   it('throws when anthropic provider is missing api key', () => {
     delete process.env.NOTEMARK_MODEL_PROVIDER
     delete process.env.ANTHROPIC_API_KEY
 
-    expect(() => resolveRuntimeConfig()).toThrow(/missing ANTHROPIC_API_KEY/)
+    expect(() => resolveRuntimeConfig()).toThrow(
+      /missing ANTHROPIC_API_KEY for the active AI channel/
+    )
   })
 
   it('throws when provider is explicitly set to non-anthropic', () => {
     process.env.NOTEMARK_MODEL_PROVIDER = 'openai'
     process.env.ANTHROPIC_API_KEY = 'anthropic-key'
 
-    expect(() => resolveRuntimeConfig()).toThrow(/only supports Anthropic provider/)
+    expect(() => resolveRuntimeConfig()).toThrow(/only supports Anthropic-compatible channels/)
   })
 
   it('returns explicit anthropic provider/model and key lookup', () => {

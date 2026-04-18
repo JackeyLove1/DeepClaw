@@ -24,8 +24,19 @@ export const toolResultTextBlockSchema = z.strictObject({
   text: z.string()
 })
 
+const toolResultArtifactSchema = z.strictObject({
+  id: z.string(),
+  fileName: z.string(),
+  mimeType: z.enum(['image/jpeg', 'image/png', 'image/gif', 'image/webp']),
+  filePath: z.string(),
+  sizeBytes: z.number(),
+  width: z.number(),
+  height: z.number()
+})
+
 export const toolExecuteResultSchema = z.strictObject({
   content: z.array(toolResultTextBlockSchema),
+  artifacts: z.array(toolResultArtifactSchema).optional(),
   details: z.object({ summary: z.string() }).catchall(z.unknown())
 })
 

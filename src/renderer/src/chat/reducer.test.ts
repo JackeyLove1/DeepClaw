@@ -82,6 +82,17 @@ describe('chat reducer', () => {
           outputSummary: 'hello',
           durationMs: 8,
           isError: false,
+          artifacts: [
+            {
+              id: 'artifact-1',
+              fileName: 'capture.jpg',
+              mimeType: 'image/jpeg',
+              filePath: 'C:/temp/capture.jpg',
+              sizeBytes: 2048,
+              width: 1280,
+              height: 720
+            }
+          ],
           roundInputTokens: 12,
           roundOutputTokens: 6,
           roundCacheCreationTokens: 0,
@@ -116,6 +127,13 @@ describe('chat reducer', () => {
       expect(assistant.text).toBe('Hi there')
       expect(assistant.toolGroup?.calls).toHaveLength(1)
       expect(assistant.toolGroup?.summary).toContain('1 tool')
+      expect(assistant.toolGroup?.calls[0]?.artifacts).toMatchObject([
+        {
+          id: 'artifact-1',
+          fileName: 'capture.jpg',
+          mimeType: 'image/jpeg'
+        }
+      ])
     }
   })
 

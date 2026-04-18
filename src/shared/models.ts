@@ -88,6 +88,7 @@ export type ToolCompletedEvent = ChatEventBase & {
   roundCacheCreationTokens: number
   roundCacheReadTokens: number
   roundToolCallCount: number
+  artifacts?: ChatImageAttachment[]
   errorCode?: string
   errorType?: string
   failureStage?: string

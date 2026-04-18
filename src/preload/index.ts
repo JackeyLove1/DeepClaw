@@ -1,12 +1,12 @@
 import type { ChatEvent } from '@shared/models'
 import type {
+  GetAiChannelSettings,
   CancelRun,
   CreateCronJob,
   CreateNote,
   CreateSession,
   DeleteSession,
   DeleteNote,
-  GetAnthropicSettings,
   GetNotes,
   ListSkillUsageRecords,
   GetUsageOverview,
@@ -18,15 +18,17 @@ import type {
   ListSessions,
   OpenSession,
   PauseCronJob,
+  ReadClipboardImage,
   ReadNote,
   RemoveCronJob,
   ResumeCronJob,
   RunCronJob,
-  SaveAnthropicSettings,
+  SaveAiChannelSettings,
   SearchSessions,
   SendMessage,
+  SetActiveAiChannel,
   SubscribeChatEvents,
-  TestAnthropicConnection,
+  TestAiChannelConnection,
   UpdateCronJob,
   UpdateSessionTitle,
   WindowClose,
@@ -85,6 +87,8 @@ try {
       invoke<Awaited<ReturnType<DeleteSession>>>('chat:deleteSession', ...args),
     sendMessage: (...args: Parameters<SendMessage>) =>
       invoke<Awaited<ReturnType<SendMessage>>>('chat:sendMessage', ...args),
+    readClipboardImage: (...args: Parameters<ReadClipboardImage>) =>
+      invoke<Awaited<ReturnType<ReadClipboardImage>>>('chat:readClipboardImage', ...args),
     cancelRun: (...args: Parameters<CancelRun>) =>
       invoke<Awaited<ReturnType<CancelRun>>>('chat:cancelRun', ...args),
     subscribeChatEvents,
@@ -96,13 +100,15 @@ try {
       invoke<Awaited<ReturnType<WindowToggleMaximize>>>('window:toggleMaximize', ...args),
     windowClose: (...args: Parameters<WindowClose>) =>
       invoke<Awaited<ReturnType<WindowClose>>>('window:close', ...args),
-    getAnthropicSettings: (...args: Parameters<GetAnthropicSettings>) =>
-      invoke<Awaited<ReturnType<GetAnthropicSettings>>>('settings:getAnthropic', ...args),
-    saveAnthropicSettings: (...args: Parameters<SaveAnthropicSettings>) =>
-      invoke<Awaited<ReturnType<SaveAnthropicSettings>>>('settings:saveAnthropic', ...args),
-    testAnthropicConnection: (...args: Parameters<TestAnthropicConnection>) =>
-      invoke<Awaited<ReturnType<TestAnthropicConnection>>>(
-        'settings:testAnthropicConnection',
+    getAiChannelSettings: (...args: Parameters<GetAiChannelSettings>) =>
+      invoke<Awaited<ReturnType<GetAiChannelSettings>>>('settings:getAiChannels', ...args),
+    saveAiChannelSettings: (...args: Parameters<SaveAiChannelSettings>) =>
+      invoke<Awaited<ReturnType<SaveAiChannelSettings>>>('settings:saveAiChannels', ...args),
+    setActiveAiChannel: (...args: Parameters<SetActiveAiChannel>) =>
+      invoke<Awaited<ReturnType<SetActiveAiChannel>>>('settings:setActiveAiChannel', ...args),
+    testAiChannelConnection: (...args: Parameters<TestAiChannelConnection>) =>
+      invoke<Awaited<ReturnType<TestAiChannelConnection>>>(
+        'settings:testAiChannelConnection',
         ...args
       ),
     getUsageOverview: (...args: Parameters<GetUsageOverview>) =>

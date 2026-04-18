@@ -1,4 +1,6 @@
 import Database from 'better-sqlite3'
+import { unlink, writeFile } from 'node:fs/promises'
+import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ChatEvent } from '@shared/models'
@@ -275,6 +277,129 @@ describe('AnthropicChatRuntime', () => {
     expect(skillRecords[0]?.skillId).toBe('powerpoint')
     expect(skillRecords[0]?.toolCallId).toBe('tool_skill_1')
     expect(events.at(-1)?.type).toBe('assistant.completed')
+  })
+
+  it('serializes tool image artifacts into Anthropic tool_result content blocks', async () => {
+    process.env.ANTHROPIC_API_KEY = 'test-key'
+    process.env.NOTEMARK_MODEL_PROVIDER = 'anthropic'
+    process.env.NOTEMARK_MODEL = 'claude-sonnet-4-5'
+
+    const imagePath = path.join(os.tmpdir(), `notemark-tool-image-${Date.now()}.png`)
+    await writeFile(
+      imagePath,
+      Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wn9v0wAAAAASUVORK5CYII=',
+        'base64'
+      )
+    )
+
+    try {
+      let streamRound = 0
+      messagesCreateMock.mockImplementation(async (params: { stream?: boolean }) => {
+        if (!params.stream) {
+          return {
+            content: [{ type: 'text', text: 'pong' }]
+          }
+        }
+
+        streamRound += 1
+        if (streamRound === 1) {
+          return toStream([
+            {
+              type: 'content_block_start',
+              index: 0,
+              content_block: {
+                type: 'tool_use',
+                id: 'tool_image_1',
+                name: 'artifact_tool',
+                input: {}
+              }
+            }
+          ])
+        }
+
+        return toStream([
+          {
+            type: 'content_block_start',
+            index: 0,
+            content_block: { type: 'text', text: '' }
+          },
+          {
+            type: 'content_block_delta',
+            index: 0,
+            delta: { type: 'text_delta', text: 'Analyzed image' }
+          }
+        ])
+      })
+
+      const artifactTool: Tool = {
+        name: 'artifact_tool',
+        label: 'Artifact Tool',
+        description: 'Returns an image artifact',
+        inputSchema: { type: 'object' },
+        execute: async () => ({
+          content: [{ type: 'text', text: 'Captured screenshot' }],
+          artifacts: [
+            {
+              id: 'artifact-image',
+              fileName: 'artifact.png',
+              mimeType: 'image/png',
+              filePath: imagePath,
+              sizeBytes: 68,
+              width: 1,
+              height: 1
+            }
+          ],
+          details: { summary: 'Captured screenshot' }
+        })
+      }
+
+      const runtime = new AnthropicChatRuntime({
+        toolsFactory: () => [artifactTool]
+      })
+
+      const events: ChatEvent[] = []
+      for await (const event of runtime.runTurn({
+        sessionId: 's_artifact',
+        userText: 'Inspect the screen',
+        history: []
+      })) {
+        events.push(event)
+      }
+
+      const toolCompleted = events.find(
+        (event): event is Extract<ChatEvent, { type: 'tool.completed' }> =>
+          event.type === 'tool.completed'
+      )
+      expect(toolCompleted?.artifacts).toHaveLength(1)
+
+      const secondCallArgs = messagesCreateMock.mock.calls[1]?.[0] as {
+        messages?: Array<{ role: string; content: unknown }>
+      }
+      const toolResultMessage = secondCallArgs.messages?.at(-1)
+      expect(toolResultMessage?.role).toBe('user')
+      expect(toolResultMessage?.content).toMatchObject([
+        {
+          type: 'tool_result',
+          tool_use_id: 'tool_image_1',
+          content: [
+            {
+              type: 'text',
+              text: 'Captured screenshot'
+            },
+            {
+              type: 'image',
+              source: {
+                type: 'base64',
+                media_type: 'image/png'
+              }
+            }
+          ]
+        }
+      ])
+    } finally {
+      await unlink(imagePath).catch(() => undefined)
+    }
   })
 
   it('injects session memory into the system prompt and only sends the latest user message', async () => {

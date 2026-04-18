@@ -1,10 +1,11 @@
 import { createNote, deleteNote, getNotes, readNote, writeNote } from './lib'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import type {
+  GetAiChannelSettings,
+  ClipboardImagePayload,
   CreateNote,
   CreateCronJob,
   DeleteNote,
-  GetAnthropicSettings,
   GetUsageOverview,
   GetNotes,
   ListCronJobs,
@@ -19,22 +20,24 @@ import type {
   RemoveCronJob,
   ResumeCronJob,
   RunCronJob,
-  SaveAnthropicSettings,
-  TestAnthropicConnection,
+  SaveAiChannelSettings,
+  SetActiveAiChannel,
+  TestAiChannelConnection,
   UpdateCronJob,
   WriteNote
 } from '@shared/types'
-import { BrowserWindow, app, ipcMain, powerMonitor, shell } from 'electron'
+import { BrowserWindow, app, clipboard, ipcMain, powerMonitor, shell } from 'electron'
 import { join } from 'node:path'
 import icon from '../../resources/icon.png?asset'
 import { CronScheduler, CronService, setCronService } from './agent/cron'
 import { ChatSupervisor } from './chat/supervisor'
 import {
-  getAnthropicSettings,
-  hydrateAnthropicSettings,
-  saveAnthropicSettings,
-  testAnthropicConnection
-} from './lib/anthropic-settings'
+  getAiChannelSettings,
+  hydrateAiChannelSettings,
+  saveAiChannelSettings,
+  setActiveAiChannel,
+  testAiChannelConnection
+} from './lib/ai-channel-settings'
 import { initDatabase } from './lib/database'
 import { seedBundledSkillsIntoUserDir } from './agent/skills/loadSkillsDir'
 
@@ -48,6 +51,27 @@ const toErrorText = (error: unknown): string => {
     return error.stack || error.message
   }
   return String(error)
+}
+
+const readClipboardImage = (): ClipboardImagePayload | null => {
+  const image = clipboard.readImage()
+  if (image.isEmpty()) {
+    return null
+  }
+
+  const buffer = image.toPNG()
+  const { width, height } = image.getSize()
+  if (!width || !height || buffer.length === 0) {
+    return null
+  }
+
+  return {
+    mimeType: 'image/png',
+    dataBase64: buffer.toString('base64'),
+    sizeBytes: buffer.length,
+    width,
+    height
+  }
 }
 
 const createStartupErrorWindow = (title: string, detail: string): void => {
@@ -260,21 +284,26 @@ function registerChatIpc(): void {
   ipcMain.handle('chat:sendMessage', async (_event, sessionId: string, input: Parameters<SendMessage>[1]) => {
     await chatSupervisor?.sendMessage(sessionId, input)
   })
+  ipcMain.handle('chat:readClipboardImage', () => readClipboardImage())
   ipcMain.handle('chat:cancelRun', async (_event, sessionId: string) => {
     await chatSupervisor?.cancelRun(sessionId)
   })
 }
 
 function registerSettingsIpc(): void {
-  ipcMain.handle('settings:getAnthropic', (_, ...args: Parameters<GetAnthropicSettings>) =>
-    getAnthropicSettings(...args)
+  ipcMain.handle('settings:getAiChannels', (_, ...args: Parameters<GetAiChannelSettings>) =>
+    getAiChannelSettings(...args)
   )
-  ipcMain.handle('settings:saveAnthropic', (_, ...args: Parameters<SaveAnthropicSettings>) =>
-    saveAnthropicSettings(...args)
+  ipcMain.handle('settings:saveAiChannels', (_, ...args: Parameters<SaveAiChannelSettings>) =>
+    saveAiChannelSettings(...args)
   )
   ipcMain.handle(
-    'settings:testAnthropicConnection',
-    (_, ...args: Parameters<TestAnthropicConnection>) => testAnthropicConnection(...args)
+    'settings:setActiveAiChannel',
+    (_, ...args: Parameters<SetActiveAiChannel>) => setActiveAiChannel(...args)
+  )
+  ipcMain.handle(
+    'settings:testAiChannelConnection',
+    (_, ...args: Parameters<TestAiChannelConnection>) => testAiChannelConnection(...args)
   )
   ipcMain.handle('settings:getUsageOverview', (_, ...args: Parameters<GetUsageOverview>) => {
     if (!chatSupervisor) {
@@ -362,8 +391,8 @@ app.whenReady().then(() => {
     } else {
       console.warn('[skills] bundled default skills directory was not found; skipping skill seed')
     }
-    void hydrateAnthropicSettings().catch((error: unknown) => {
-      console.error('Failed to hydrate Anthropic settings from ~/.deepclaw/.env', error)
+    void hydrateAiChannelSettings().catch((error: unknown) => {
+      console.error('Failed to hydrate active AI channel settings', error)
     })
     chatSupervisor = new ChatSupervisor()
     cronService.setOriginSessionPublisher(async (sessionId, payload) => {

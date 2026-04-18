@@ -1,53 +1,69 @@
-import type { ChatImageAttachment, SessionMeta } from '@shared/models'
-import type { PendingImageAttachment } from '@shared/types'
+import type { ChatImageAttachment, SessionMeta } from '@shared/models';
+import type {
+    AiChannelConfig,
+    AiChannelSettings,
+    ClipboardImagePayload,
+    PendingImageAttachment
+} from '@shared/types';
 import {
-  ChevronDown,
-  ChevronRight,
-  Compass,
-  Link2,
-  MessageSquare,
-  MoreHorizontal,
-  Pencil,
-  Plus,
-  Search,
-  Send,
-  Sparkles,
-  Square,
-  Trash2,
-  Wrench,
-  X,
-  Zap
-} from 'lucide-react'
+    ChevronDown,
+    ChevronRight,
+    Compass,
+    Link2,
+    LoaderCircle,
+    MessageSquare,
+    MoreHorizontal,
+    Pencil,
+    Plus,
+    Search,
+    Send,
+    Sparkles,
+    Square,
+    Trash2,
+    Wrench,
+    X,
+    Zap
+} from 'lucide-react';
 import {
-  useEffect,
-  useMemo,
-  useReducer,
-  useRef,
-  useState,
-  type ClipboardEvent,
-  type Ref
-} from 'react'
-import { toast } from 'sonner'
+    useEffect,
+    useMemo,
+    useReducer,
+    useRef,
+    useState,
+    type ClipboardEvent,
+    type Ref
+} from 'react';
+import { toast } from 'sonner';
 import {
-  buildFeedbackKey,
-  copyAssistantMessage,
-  getLatestAssistantMessageId,
-  getRetryPromptForAssistant,
-  toggleAssistantFeedback,
-  type AssistantFeedback
-} from '../chat/messageActions'
+    buildFeedbackKey,
+    copyAssistantMessage,
+    getLatestAssistantMessageId,
+    getRetryPromptForAssistant,
+    toggleAssistantFeedback,
+    type AssistantFeedback
+} from '../chat/messageActions';
 import {
-  chatViewReducer,
-  createInitialChatViewState,
-  selectVisibleSessions,
-  type AssistantTranscriptEntry,
-  type SystemTranscriptEntry,
-  type ToolGroupView,
-  type TranscriptEntry,
-  type UserTranscriptEntry
-} from '../chat/reducer'
-import { AssistantMessageActions } from '../components/AssistantMessageActions'
-import { AssistantMessageMarkdown } from '../components/AssistantMessageMarkdown'
+    chatViewReducer,
+    createInitialChatViewState,
+    selectVisibleSessions,
+    type AssistantTranscriptEntry,
+    type SystemTranscriptEntry,
+    type ToolGroupView,
+    type TranscriptEntry,
+    type UserTranscriptEntry
+} from '../chat/reducer';
+import { AssistantMessageActions } from '../components/AssistantMessageActions';
+import { AssistantMessageMarkdown } from '../components/AssistantMessageMarkdown';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuRadioGroup,
+    DropdownMenuRadioItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger
+} from '../components/ui/dropdown-menu';
 
 const INPUT_CHIPS = ['默认大模型', '技能', '找灵感']
 
@@ -69,6 +85,21 @@ const SUPPORTED_CHAT_IMAGE_TYPES = new Set<ChatImageAttachment['mimeType']>([
 type PendingComposerImage = PendingImageAttachment & {
   previewUrl: string
   sizeBytes: number
+  width: number
+  height: number
+}
+
+const chatImageDebug = (label: string, payload?: unknown): void => {
+  if (!import.meta.env.DEV) {
+    return
+  }
+
+  if (payload === undefined) {
+    console.debug(`[chat-image-debug] ${label}`)
+    return
+  }
+
+  console.debug(`[chat-image-debug] ${label}`, payload)
 }
 
 const formatClockTime = (timestamp: number): string =>
@@ -103,9 +134,10 @@ const mapSendErrorMessage = (error: unknown): string => {
     message.includes('not configured') ||
     message.includes('missing ANTHROPIC_API_KEY') ||
     message.includes('missing NOTEMARK_MODEL') ||
-    message.includes('only supports Anthropic provider')
+    message.includes('active AI channel') ||
+    message.includes('only supports Anthropic-compatible channels')
   ) {
-    return '模型配置不完整，请前往“设置”填写 Base URL、API Key、Model，并先执行“测试连接”。'
+    return '当前 AI Channel 配置不完整，请前往“设置”填写 Base URL、API Key、Model，并先执行“测试连接”。'
   }
 
   if (message.includes('Session not found')) {
@@ -123,11 +155,32 @@ const formatBytes = (value: number): string => {
   return `${Math.max(1, Math.round(value / 1024))} KB`
 }
 
+const formatAiChannelLabel = (channel: AiChannelConfig): string => `${channel.name} · ${channel.model}`
+
 const toFileSrc = (filePath: string): string => {
-  const normalized = filePath.replace(/\\/g, '/')
-  return /^[A-Za-z]:\//.test(normalized)
-    ? encodeURI(`file:///${normalized}`)
-    : encodeURI(`file://${normalized.startsWith('/') ? '' : '/'}${normalized}`)
+  if (!filePath) {
+    return filePath
+  }
+
+  const normalizedPath = filePath.replace(/\\/g, '/').replace(/^\/\/\?\//, '')
+  const encodePathSegments = (value: string): string =>
+    value
+      .split('/')
+      .map((segment) => encodeURIComponent(segment))
+      .join('/')
+
+  if (/^[A-Za-z]:\//.test(normalizedPath)) {
+    const drive = normalizedPath.slice(0, 2)
+    const tail = normalizedPath.slice(2)
+    return `file:///${drive}${encodePathSegments(tail)}`
+  }
+
+  if (/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(normalizedPath)) {
+    return normalizedPath
+  }
+
+  const encoded = encodePathSegments(normalizedPath)
+  return `file://${encoded.startsWith('/') ? '' : '/'}${encoded}`
 }
 
 const releasePendingImages = (images: PendingComposerImage[]): void => {
@@ -145,6 +198,71 @@ const readFileAsDataUrl = async (file: File): Promise<string> =>
     reader.onerror = () => reject(reader.error ?? new Error('Failed to read clipboard image.'))
     reader.readAsDataURL(file)
   })
+
+const readImageDimensions = async (src: string): Promise<{ width: number; height: number }> =>
+  new Promise((resolve, reject) => {
+    const image = new Image()
+    image.onload = () => {
+      resolve({ width: image.naturalWidth, height: image.naturalHeight })
+    }
+    image.onerror = () => {
+      reject(new Error('Failed to read image dimensions.'))
+    }
+    image.src = src
+  })
+
+const normalizeImageDimensions = (value?: { width: number; height: number } | null) => {
+  if (!value) {
+    return null
+  }
+
+  const width = Number.isFinite(value.width) ? Math.round(value.width) : 0
+  const height = Number.isFinite(value.height) ? Math.round(value.height) : 0
+  if (width <= 0 || height <= 0) {
+    return null
+  }
+
+  return { width, height }
+}
+
+const readImageDimensionsSafely = async (
+  src: string,
+  fallback?: { width: number; height: number }
+): Promise<{ width: number; height: number }> => {
+  try {
+    const measured = normalizeImageDimensions(await readImageDimensions(src))
+    if (measured) {
+      return measured
+    }
+  } catch (error) {
+    chatImageDebug('readImageDimensions failed', { error })
+  }
+
+  return normalizeImageDimensions(fallback) ?? { width: 0, height: 0 }
+}
+
+const buildPendingImageFromClipboardPayload = async (
+  payload: ClipboardImagePayload,
+  index = 0
+): Promise<PendingComposerImage> => {
+  const extension = MIME_TO_EXTENSION[payload.mimeType]
+  const previewUrl = `data:${payload.mimeType};base64,${payload.dataBase64}`
+  const dimensions = await readImageDimensionsSafely(previewUrl, {
+    width: payload.width,
+    height: payload.height
+  })
+
+  return {
+    id: crypto.randomUUID(),
+    fileName: `pasted-image-${Date.now()}-${index + 1}.${extension}`,
+    mimeType: payload.mimeType,
+    dataBase64: payload.dataBase64,
+    sizeBytes: payload.sizeBytes,
+    width: dimensions.width,
+    height: dimensions.height,
+    previewUrl
+  }
+}
 
 const ToolGroupPanel = ({ toolGroup }: { toolGroup: ToolGroupView }) => {
   const title =
@@ -204,6 +322,32 @@ const ToolGroupPanel = ({ toolGroup }: { toolGroup: ToolGroupView }) => {
             <div className="space-y-1.5 pt-2 text-[11.5px] leading-5 text-[var(--ink-soft)]">
               {call.argsSummary ? <p>{call.argsSummary}</p> : null}
               {call.outputSummary ? <p>{call.outputSummary}</p> : null}
+              {call.artifacts.length > 0 ? (
+                <div className="grid grid-cols-2 gap-2 pt-1 sm:grid-cols-3">
+                  {call.artifacts.map((artifact) => (
+                    <div
+                      key={artifact.id}
+                      className="overflow-hidden rounded-2xl border border-[#eadfd7] bg-white"
+                    >
+                      <img
+                        src={toFileSrc(artifact.filePath)}
+                        alt={artifact.fileName}
+                        className="h-28 w-full object-cover"
+                        loading="lazy"
+                      />
+                      <div className="border-t border-[#f1e8e2] px-3 py-2">
+                        <div className="line-clamp-1 text-[12px] font-medium text-[#3a3a3d]">
+                          {artifact.fileName}
+                        </div>
+                        <div className="mt-0.5 text-[11px] text-[#7f8088]">
+                          {artifact.width}脳{artifact.height}
+                          {artifact.sizeBytes ? ` 路 ${formatBytes(artifact.sizeBytes)}` : ''}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </div>
           </details>
         ))}
@@ -517,10 +661,14 @@ const InputBar = ({
   isRunning,
   isCancelling,
   currentSessionId,
+  aiChannelSettings,
+  isAiChannelsLoading,
+  isSwitchingAiChannel,
   textareaRef,
   onDraftChange,
   onPaste,
   onRemoveImage,
+  onActiveChannelChange,
   onSend,
   onCancel
 }: {
@@ -529,21 +677,32 @@ const InputBar = ({
   isRunning: boolean
   isCancelling: boolean
   currentSessionId: string | null
+  aiChannelSettings: AiChannelSettings
+  isAiChannelsLoading: boolean
+  isSwitchingAiChannel: boolean
   textareaRef?: Ref<HTMLTextAreaElement>
   onDraftChange: (value: string) => void
   onPaste: (event: ClipboardEvent<HTMLTextAreaElement>) => void
   onRemoveImage: (id: string) => void
+  onActiveChannelChange: (channelId: string) => void
   onSend: () => void
   onCancel: () => void
-}) => (
-  <div className="rounded-[28px] border border-[#ececf0] bg-[#f7f7f9] px-5 py-4 shadow-[0_10px_30px_rgba(15,15,20,0.06)]">
+}) => {
+  const activeChannel =
+    aiChannelSettings.channels.find((channel) => channel.id === aiChannelSettings.activeChannelId) ?? null
+  const activeChannelLabel = activeChannel ? formatAiChannelLabel(activeChannel) : '默认大模型'
+  const isModelSwitcherDisabled =
+    isAiChannelsLoading || isSwitchingAiChannel || aiChannelSettings.channels.length === 0
+
+  return (
+    <div className="rounded-[28px] border border-[#ececf0] bg-[#f7f7f9] px-5 py-4 shadow-[0_10px_30px_rgba(15,15,20,0.06)]">
     {pendingImages.length > 0 ? (
       <UserAttachmentGrid
         attachments={pendingImages.map((image) => ({
           id: image.id,
           fileName: image.fileName,
-          width: 0,
-          height: 0,
+          width: image.width,
+          height: image.height,
           sizeBytes: image.sizeBytes,
           src: image.previewUrl
         }))}
@@ -567,22 +726,74 @@ const InputBar = ({
       className="block min-h-[46px] w-full resize-none bg-transparent px-1 text-[15px] leading-7 text-[var(--ink-main)] outline-none placeholder:text-[#9b9ca5]"
     />
 
-    <div className="mt-3 flex items-center justify-between gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        {INPUT_CHIPS.map((chip) => (
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                disabled={isModelSwitcherDisabled}
+                className="inline-flex h-9 items-center gap-2 rounded-full bg-[#ececf1] px-2.5 pr-3 text-[12.5px] font-medium text-[#4e505a] transition hover:bg-[#e4e4eb] hover:text-[var(--ink-main)] disabled:cursor-not-allowed disabled:text-[#9ca0ad]"
+              >
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-[#8f919c]">
+                  <Zap className="h-4 w-4" />
+                </span>
+                <span className="max-w-[220px] truncate">
+                  {isAiChannelsLoading ? '加载模型中…' : activeChannelLabel}
+                </span>
+                {isSwitchingAiChannel ? (
+                  <LoaderCircle className="h-3.5 w-3.5 animate-spin text-[#737683]" />
+                ) : (
+                  <ChevronDown className="h-3.5 w-3.5 text-[#737683]" />
+                )}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="start"
+              side="top"
+              className="w-[320px] rounded-2xl border border-[#e7e8ef] bg-white p-1.5 shadow-[0_18px_48px_rgba(15,15,20,0.14)]"
+            >
+              <DropdownMenuLabel className="px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                切换模型
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {aiChannelSettings.channels.length === 0 ? (
+                <DropdownMenuItem disabled className="rounded-xl px-3 py-2 text-xs">
+                  暂无可用模型，请先在设置中新增 Channel
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuRadioGroup
+                  value={aiChannelSettings.activeChannelId ?? ''}
+                  onValueChange={onActiveChannelChange}
+                >
+                  {aiChannelSettings.channels.map((channel) => (
+                    <DropdownMenuRadioItem
+                      key={channel.id}
+                      value={channel.id}
+                      className="rounded-xl py-2.5 pl-8 pr-3 data-[state=checked]:bg-accent/70"
+                    >
+                      <div className="flex min-w-0 flex-col">
+                        <span className="truncate text-[13px] font-medium text-foreground">
+                          {channel.model}
+                        </span>
+                        <span className="truncate text-[11px] text-muted-foreground">
+                          {channel.name}
+                        </span>
+                      </div>
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        {INPUT_CHIPS.filter((chip) => chip !== '默认大模型').map((chip) => (
           <button
             key={chip}
             type="button"
             className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#ececf1] px-3.5 text-[12.5px] font-medium text-[#4e505a] transition hover:bg-[#e4e4eb] hover:text-[var(--ink-main)]"
           >
             <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-[#8f919c]">
-              {chip === '默认大模型' ? (
-                <Zap className="h-4 w-4" />
-              ) : chip === '技能' ? (
-                <Sparkles className="h-4 w-4" />
-              ) : (
-                <Compass className="h-4 w-4" />
-              )}
+              {chip === '技能' ? <Sparkles className="h-4 w-4" /> : <Compass className="h-4 w-4" />}
             </span>
             {chip}
             {chip !== '找灵感' ? <ChevronDown className="h-3.5 w-3.5" /> : null}
@@ -597,7 +808,7 @@ const InputBar = ({
         </button>
       </div>
 
-      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
         {isRunning ? (
           <button
             type="button"
@@ -621,8 +832,9 @@ const InputBar = ({
         </button>
       </div>
     </div>
-  </div>
-)
+    </div>
+  )
+}
 
 const EmptyState = ({
   draft,
@@ -630,10 +842,14 @@ const EmptyState = ({
   isRunning,
   isCancelling,
   currentSessionId,
+  aiChannelSettings,
+  isAiChannelsLoading,
+  isSwitchingAiChannel,
   textareaRef,
   onDraftChange,
   onPaste,
   onRemoveImage,
+  onActiveChannelChange,
   onSend,
   onCancel
 }: {
@@ -642,10 +858,14 @@ const EmptyState = ({
   isRunning: boolean
   isCancelling: boolean
   currentSessionId: string | null
+  aiChannelSettings: AiChannelSettings
+  isAiChannelsLoading: boolean
+  isSwitchingAiChannel: boolean
   textareaRef?: Ref<HTMLTextAreaElement>
   onDraftChange: (value: string) => void
   onPaste: (event: ClipboardEvent<HTMLTextAreaElement>) => void
   onRemoveImage: (id: string) => void
+  onActiveChannelChange: (channelId: string) => void
   onSend: () => void
   onCancel: () => void
 }) => (
@@ -660,10 +880,14 @@ const EmptyState = ({
         isRunning={isRunning}
         isCancelling={isCancelling}
         currentSessionId={currentSessionId}
+        aiChannelSettings={aiChannelSettings}
+        isAiChannelsLoading={isAiChannelsLoading}
+        isSwitchingAiChannel={isSwitchingAiChannel}
         textareaRef={textareaRef}
         onDraftChange={onDraftChange}
         onPaste={onPaste}
         onRemoveImage={onRemoveImage}
+        onActiveChannelChange={onActiveChannelChange}
         onSend={onSend}
         onCancel={onCancel}
       />
@@ -674,6 +898,12 @@ const EmptyState = ({
 export const ChatPage = () => {
   const AUTO_SCROLL_BOTTOM_THRESHOLD = 96
   const [sessions, setSessions] = useState<SessionMeta[]>([])
+  const [aiChannelSettings, setAiChannelSettings] = useState<AiChannelSettings>({
+    channels: [],
+    activeChannelId: null
+  })
+  const [isAiChannelsLoading, setIsAiChannelsLoading] = useState(true)
+  const [isSwitchingAiChannel, setIsSwitchingAiChannel] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
@@ -709,13 +939,51 @@ export const ChatPage = () => {
         : null,
     [latestAssistantMessageId, state.transcript]
   )
-
   useEffect(() => {
     currentSessionIdRef.current = currentSessionId
   }, [currentSessionId])
 
   useEffect(() => {
+    let disposed = false
+
+    const loadAiChannels = async (): Promise<void> => {
+      setIsAiChannelsLoading(true)
+
+      try {
+        const nextSettings = await window.context.getAiChannelSettings()
+        if (!disposed) {
+          setAiChannelSettings(nextSettings)
+        }
+      } catch (error) {
+        if (!disposed) {
+          toast.error(error instanceof Error ? error.message : 'Failed to load AI channels.')
+        }
+      } finally {
+        if (!disposed) {
+          setIsAiChannelsLoading(false)
+        }
+      }
+    }
+
+    void loadAiChannels()
+    return () => {
+      disposed = true
+    }
+  }, [])
+
+  useEffect(() => {
     pendingImagesRef.current = pendingImages
+    chatImageDebug('pendingImages updated', {
+      count: pendingImages.length,
+      images: pendingImages.map((image) => ({
+        id: image.id,
+        fileName: image.fileName,
+        mimeType: image.mimeType,
+        sizeBytes: image.sizeBytes,
+        width: image.width,
+        height: image.height
+      }))
+    })
   }, [pendingImages])
 
   useEffect(
@@ -856,6 +1124,16 @@ export const ChatPage = () => {
     const unsubscribe = window.context.subscribeChatEvents(currentSessionId, (event) => {
       if (disposed) return
 
+      const userMessageAttachments =
+        event.type === 'user.message' ? (event.attachments ?? []) : undefined
+
+      chatImageDebug('chat event received', {
+        sessionId: currentSessionId,
+        type: event.type,
+        attachmentCount: userMessageAttachments?.length,
+        attachmentNames: userMessageAttachments?.map((attachment) => attachment.fileName)
+      })
+
       dispatch({ type: 'event.received', event })
 
       if (
@@ -909,7 +1187,7 @@ export const ChatPage = () => {
   const removePendingImage = (imageId: string): void => {
     setPendingImages((current) => {
       const target = current.find((image) => image.id === imageId)
-      if (target) {
+      if (target?.previewUrl.startsWith('blob:')) {
         URL.revokeObjectURL(target.previewUrl)
       }
 
@@ -1003,6 +1281,20 @@ export const ChatPage = () => {
   ): Promise<void> => {
     if ((!message.trim() && attachments.length === 0) || state.isRunning) return
 
+    chatImageDebug('sendMessage request', {
+      sessionId,
+      textLength: message.length,
+      attachmentCount: attachments.length,
+      attachments: attachments.map((attachment) => ({
+        id: attachment.id,
+        fileName: attachment.fileName,
+        mimeType: attachment.mimeType,
+        sizeBytes: attachment.sizeBytes,
+        width: attachment.width,
+        height: attachment.height
+      }))
+    })
+
     if (options?.clearComposer) {
       setDraft('')
       setPendingImages([])
@@ -1022,14 +1314,28 @@ export const ChatPage = () => {
         }))
       })
 
+      chatImageDebug('sendMessage resolved', {
+        sessionId,
+        attachmentCount: attachments.length
+      })
+
       // Re-sync from persisted events after the turn settles in main process.
       // This prevents UI from getting stuck in "running" if any live IPC event was missed.
       const snapshot = await window.context.openSession(sessionId)
       if (currentSessionIdRef.current === sessionId) {
+        chatImageDebug('session snapshot reloaded', {
+          sessionId,
+          eventCount: snapshot.events.length
+        })
         dispatch({ type: 'snapshot.loaded', snapshot })
       }
       releasePendingImages(attachments)
     } catch (error) {
+      chatImageDebug('sendMessage failed', {
+        sessionId,
+        attachmentCount: attachments.length,
+        error
+      })
       if (options?.clearComposer) {
         setDraft(message)
         setPendingImages(attachments)
@@ -1123,6 +1429,7 @@ export const ChatPage = () => {
 
             const dataUrl = await readFileAsDataUrl(file)
             const [, dataBase64 = ''] = dataUrl.split(',', 2)
+            const dimensions = await readImageDimensionsSafely(dataUrl)
             const mimeType = file.type as ChatImageAttachment['mimeType']
             const fallbackName = `pasted-image-${Date.now()}-${index + 1}.${MIME_TO_EXTENSION[mimeType]}`
 
@@ -1132,6 +1439,8 @@ export const ChatPage = () => {
               mimeType,
               dataBase64,
               sizeBytes: file.size,
+              width: dimensions.width,
+              height: dimensions.height,
               previewUrl: dataUrl
             } satisfies PendingComposerImage
           })
@@ -1147,6 +1456,149 @@ export const ChatPage = () => {
         ...current,
         ...(nextImages.filter(Boolean) as PendingComposerImage[])
       ])
+    }
+  }
+
+  const handleComposerPasteWithFallback = async (
+    event: ClipboardEvent<HTMLTextAreaElement>
+  ): Promise<void> => {
+    const imageItems = Array.from(event.clipboardData.items).filter(
+      (item) => item.kind === 'file' && item.type.startsWith('image/')
+    )
+    const pastedText = event.clipboardData.getData('text/plain')
+    const hasDomImageItems = imageItems.length > 0
+
+    chatImageDebug('paste detected', {
+      hasDomImageItems,
+      domImageItemCount: imageItems.length,
+      clipboardItemTypes: Array.from(event.clipboardData.items).map((item) => ({
+        kind: item.kind,
+        type: item.type
+      })),
+      pastedTextLength: pastedText.length
+    })
+
+    if (pendingImages.length >= MAX_PENDING_IMAGES) {
+      if (hasDomImageItems) {
+        event.preventDefault()
+      }
+      toast.error(`You can attach up to ${MAX_PENDING_IMAGES} images.`)
+      return
+    }
+
+    const availableSlots = MAX_PENDING_IMAGES - pendingImages.length
+    const nextImages: PendingComposerImage[] = []
+
+    if (hasDomImageItems) {
+      event.preventDefault()
+
+      if (pastedText) {
+        insertTextAtComposerSelection(pastedText)
+      }
+
+      const acceptedItems = imageItems.slice(0, availableSlots)
+      if (acceptedItems.length < imageItems.length) {
+        toast.error(`You can attach up to ${MAX_PENDING_IMAGES} images.`)
+      }
+
+      try {
+        const domImages = await Promise.all(
+          acceptedItems.map(async (item, index) => {
+            const file = item.getAsFile()
+            if (!file) {
+              return null
+            }
+
+            if (!SUPPORTED_CHAT_IMAGE_TYPES.has(file.type as ChatImageAttachment['mimeType'])) {
+              toast.error(`Unsupported image format: ${file.type || 'unknown'}`)
+              return null
+            }
+
+            if (file.size > MAX_PENDING_IMAGE_BYTES) {
+              toast.error(`${file.name || `Image ${index + 1}`} exceeds the 8 MB limit.`)
+              return null
+            }
+
+            const dataUrl = await readFileAsDataUrl(file)
+            const [, dataBase64 = ''] = dataUrl.split(',', 2)
+            const dimensions = await readImageDimensionsSafely(dataUrl)
+            const mimeType = file.type as ChatImageAttachment['mimeType']
+            const fallbackName = `pasted-image-${Date.now()}-${index + 1}.${MIME_TO_EXTENSION[mimeType]}`
+
+            return {
+              id: crypto.randomUUID(),
+              fileName: file.name || fallbackName,
+              mimeType,
+              dataBase64,
+              sizeBytes: file.size,
+              width: dimensions.width,
+              height: dimensions.height,
+              previewUrl: dataUrl
+            } satisfies PendingComposerImage
+          })
+        )
+
+        const acceptedDomImages = domImages.filter(Boolean) as PendingComposerImage[]
+        chatImageDebug('paste resolved from DOM clipboardData', {
+          attachmentCount: acceptedDomImages.length,
+          attachments: acceptedDomImages.map((image) => ({
+            fileName: image.fileName,
+            mimeType: image.mimeType,
+            sizeBytes: image.sizeBytes,
+            width: image.width,
+            height: image.height
+          }))
+        })
+        nextImages.push(...acceptedDomImages)
+      } catch (error) {
+        chatImageDebug('paste failed while reading DOM clipboardData', { error })
+        toast.error(mapSendErrorMessage(error))
+        return
+      }
+    } else {
+      let clipboardImage: ClipboardImagePayload | null = null
+
+      chatImageDebug('paste falling back to Electron clipboard')
+
+      try {
+        clipboardImage = await window.context.readClipboardImage()
+      } catch (error) {
+        chatImageDebug('Electron clipboard read failed', { error })
+        toast.error(mapSendErrorMessage(error))
+        return
+      }
+
+      if (!clipboardImage) {
+        chatImageDebug('Electron clipboard has no image')
+        return
+      }
+
+      chatImageDebug('Electron clipboard returned image', {
+        mimeType: clipboardImage.mimeType,
+        sizeBytes: clipboardImage.sizeBytes,
+        width: clipboardImage.width,
+        height: clipboardImage.height
+      })
+
+      try {
+        const nextImage = await buildPendingImageFromClipboardPayload(clipboardImage)
+        chatImageDebug('paste resolved from Electron clipboard', {
+          fileName: nextImage.fileName,
+          mimeType: nextImage.mimeType,
+          sizeBytes: nextImage.sizeBytes,
+          width: nextImage.width,
+          height: nextImage.height
+        })
+        nextImages.push(nextImage)
+      } catch (error) {
+        chatImageDebug('paste failed while normalizing Electron clipboard image', { error })
+        toast.error(mapSendErrorMessage(error))
+        return
+      }
+    }
+
+    if (nextImages.length > 0) {
+      setPendingImages((current) => [...current, ...nextImages])
     }
   }
 
@@ -1191,6 +1643,24 @@ export const ChatPage = () => {
     if (!currentSessionId || !state.isRunning) return
     dispatch({ type: 'cancel.requested' })
     await window.context.cancelRun(currentSessionId)
+  }
+
+  const handleActiveChannelChange = async (channelId: string): Promise<void> => {
+    if (!channelId || channelId === aiChannelSettings.activeChannelId) {
+      return
+    }
+
+    setIsSwitchingAiChannel(true)
+
+    try {
+      const nextSettings = await window.context.setActiveAiChannel(channelId)
+      setAiChannelSettings(nextSettings)
+      toast.success('Switched active AI channel.')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to switch AI channel.')
+    } finally {
+      setIsSwitchingAiChannel(false)
+    }
   }
 
   return (
@@ -1258,15 +1728,6 @@ export const ChatPage = () => {
       </aside>
 
       <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--content-bg)]">
-        <header className="flex shrink-0 items-center justify-between gap-4 px-6 py-4">
-          {/* <div className="hidden items-center gap-2 text-[15px] font-semibold text-[#4f93ff] md:flex">
-            <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-[#f5f5f7]">
-              <Sparkles className="h-4 w-4" />
-            </span>
-            DeepClaw
-          </div> */}
-        </header>
-
         <div
           ref={transcriptRef}
           className={`min-h-0 flex-1 overflow-y-auto px-2 ${hasTranscript ? 'pb-2' : ''}`}
@@ -1316,10 +1777,14 @@ export const ChatPage = () => {
               isRunning={state.isRunning}
               isCancelling={state.isCancelling}
               currentSessionId={currentSessionId}
+              aiChannelSettings={aiChannelSettings}
+              isAiChannelsLoading={isAiChannelsLoading}
+              isSwitchingAiChannel={isSwitchingAiChannel}
               textareaRef={composerRef}
               onDraftChange={setDraft}
-              onPaste={(event) => void handleComposerPaste(event)}
+              onPaste={(event) => void handleComposerPasteWithFallback(event)}
               onRemoveImage={removePendingImage}
+              onActiveChannelChange={(channelId) => void handleActiveChannelChange(channelId)}
               onSend={() => void handleSend()}
               onCancel={() => void handleCancel()}
             />
@@ -1335,10 +1800,14 @@ export const ChatPage = () => {
                 isRunning={state.isRunning}
                 isCancelling={state.isCancelling}
                 currentSessionId={currentSessionId}
+                aiChannelSettings={aiChannelSettings}
+                isAiChannelsLoading={isAiChannelsLoading}
+                isSwitchingAiChannel={isSwitchingAiChannel}
                 textareaRef={composerRef}
                 onDraftChange={setDraft}
-                onPaste={(event) => void handleComposerPaste(event)}
+                onPaste={(event) => void handleComposerPasteWithFallback(event)}
                 onRemoveImage={removePendingImage}
+                onActiveChannelChange={(channelId) => void handleActiveChannelChange(channelId)}
                 onSend={() => void handleSend()}
                 onCancel={() => void handleCancel()}
               />

@@ -1,6 +1,13 @@
 import { randomUUID } from 'node:crypto'
+import { readFile } from 'node:fs/promises'
 import Anthropic from '@anthropic-ai/sdk'
-import type { MessageParam, RawMessageStreamEvent } from '@anthropic-ai/sdk/resources/messages'
+import type {
+  ImageBlockParam,
+  MessageParam,
+  RawMessageStreamEvent,
+  TextBlockParam,
+  ToolResultBlockParam
+} from '@anthropic-ai/sdk/resources/messages'
 import type { ChatEvent } from '@shared/models'
 import { ChatSessionStore } from '../chat/session-store'
 import {
@@ -20,6 +27,7 @@ import {
 } from './text-utils'
 import { executeToolWithFaultTolerance } from './tools/fault-tolerance'
 import { createTools, notifyOtherToolCall, type Tool } from './tools'
+import type { ToolExecuteResult } from './tools'
 import type { ChatRuntime, ConnectionTestResult, GenerateTitleArgs, RunTurnArgs } from './types'
 
 type RuntimeEventPayload = { type: ChatEvent['type'] } & Record<string, unknown>
@@ -145,6 +153,56 @@ const isToolExecutionError = (outputText: string): boolean => {
   }
 }
 
+const toToolResultContent = async (
+  result: ToolExecuteResult,
+  fallbackText: string
+): Promise<ToolResultBlockParam['content']> => {
+  const inlineTextBlocks =
+    result.content.length > 0
+      ? result.content.map(
+          (item) =>
+            ({
+              type: 'text',
+              text: item.text
+            }) satisfies TextBlockParam
+        )
+      : fallbackText.trim()
+        ? ([{ type: 'text', text: fallbackText.trim() }] satisfies TextBlockParam[])
+        : []
+
+  const artifactBlocks = await Promise.all(
+    (result.artifacts ?? []).map(async (artifact) => {
+      try {
+        const data = await readFile(artifact.filePath, { encoding: 'base64' })
+        return {
+          type: 'image',
+          source: {
+            type: 'base64',
+            media_type: artifact.mimeType,
+            data
+          }
+        } satisfies ImageBlockParam
+      } catch {
+        return {
+          type: 'text',
+          text: `Artifact unavailable: ${artifact.fileName} (${artifact.filePath})`
+        } satisfies TextBlockParam
+      }
+    })
+  )
+
+  const blocks = [...inlineTextBlocks, ...artifactBlocks]
+  if (blocks.length === 0) {
+    return fallbackText
+  }
+
+  if (artifactBlocks.length === 0 && inlineTextBlocks.length === 1) {
+    return inlineTextBlocks[0].text
+  }
+
+  return blocks
+}
+
 export class AnthropicChatRuntime implements ChatRuntime {
   private readonly usageStore: ChatSessionStore
 
@@ -162,9 +220,7 @@ export class AnthropicChatRuntime implements ChatRuntime {
     const config = resolveRuntimeConfig()
     const apiKey = getAnthropicApiKey()
     if (!apiKey) {
-      throw new Error(
-        'Chat runtime is missing ANTHROPIC_API_KEY for the configured Anthropic model.'
-      )
+      throw new Error('Chat runtime is missing ANTHROPIC_API_KEY for the active AI channel.')
     }
 
     return new Anthropic({
@@ -415,12 +471,7 @@ export class AnthropicChatRuntime implements ChatRuntime {
         toolGroupStarted = true
       }
 
-      const toolResultContent: Array<{
-        type: 'tool_result'
-        tool_use_id: string
-        content: string
-        is_error?: boolean
-      }> = []
+      const toolResultContent: ToolResultBlockParam[] = []
 
       for (const toolCall of toolCalls) {
         const started = Date.now()
@@ -451,7 +502,8 @@ export class AnthropicChatRuntime implements ChatRuntime {
             roundOutputTokens: usageForRound.outputTokens,
             roundCacheCreationTokens: usageForRound.cacheCreationTokens,
             roundCacheReadTokens: usageForRound.cacheReadTokens,
-            roundToolCallCount: Math.max(1, toolCalls.length)
+            roundToolCallCount: Math.max(1, toolCalls.length),
+            artifacts: []
           })
           toolResultContent.push({
             type: 'tool_result',
@@ -470,6 +522,7 @@ export class AnthropicChatRuntime implements ChatRuntime {
           const result = outcome.result
           const outputText = result.content.map((item) => item.text).join('\n')
           const outputSummary = result.details.summary || outputText || ''
+          const toolResultBlocks = await toToolResultContent(result, outputSummary)
           const skillReadPath =
             toolCall.name === 'read_file' ? getReadFilePath(toolCall.input) : null
           const skill = skillReadPath
@@ -514,6 +567,7 @@ export class AnthropicChatRuntime implements ChatRuntime {
             roundCacheCreationTokens: usageForRound.cacheCreationTokens,
             roundCacheReadTokens: usageForRound.cacheReadTokens,
             roundToolCallCount: Math.max(1, toolCalls.length),
+            artifacts: result.artifacts,
             errorCode: outcome.fault?.code,
             errorType: outcome.fault?.type,
             failureStage: outcome.fault?.stage,
@@ -527,7 +581,7 @@ export class AnthropicChatRuntime implements ChatRuntime {
           toolResultContent.push({
             type: 'tool_result',
             tool_use_id: toolCall.id,
-            content: outputText || outputSummary,
+            content: toolResultBlocks,
             is_error: outcome.isError || undefined
           })
         } catch (error) {
@@ -546,7 +600,8 @@ export class AnthropicChatRuntime implements ChatRuntime {
             roundOutputTokens: usageForRound.outputTokens,
             roundCacheCreationTokens: usageForRound.cacheCreationTokens,
             roundCacheReadTokens: usageForRound.cacheReadTokens,
-            roundToolCallCount: Math.max(1, toolCalls.length)
+            roundToolCallCount: Math.max(1, toolCalls.length),
+            artifacts: []
           })
           toolResultContent.push({
             type: 'tool_result',

@@ -1,9 +1,11 @@
 import { createBashTool, type BashToolOptions } from './BashTool'
 import { ChatSessionStore } from '../../chat/session-store'
+import { resolvePlatformShellKind } from '../utils'
 import { createCronTool } from './CronTool'
 import { createPatchTool, createReadFileTool, createWriteFileTool } from './FileSystemTool'
 import { createGetTimeTool } from './get-time'
 import { createPowerShellTool, type PowerShellToolOptions } from './PowerShellTool'
+import { createScreenShotTool } from './ScreenShotTool'
 import { createTodoTool } from './TodoTool'
 import { compareToolPriorityMetrics } from './priorities'
 import type {
@@ -56,6 +58,7 @@ const toolFactories: ToolFactory[] = [
   createReadFileTool,
   createWriteFileTool,
   createPatchTool,
+  createScreenShotTool,
   createTodoTool
 ]
 
@@ -76,7 +79,7 @@ export function createPlatformShellTool(
   platform: NodeJS.Platform = process.platform,
   options: PlatformShellToolOptions = {}
 ): Tool {
-  if (platform === 'win32') {
+  if (resolvePlatformShellKind(platform) === 'powershell') {
     const powerShellOptions: PowerShellToolOptions = { ...options }
     return createPowerShellTool(powerShellOptions)
   }
@@ -113,6 +116,7 @@ export {
   resetFileDedup
 } from './FileSystemTool'
 export { createPowerShellTool } from './PowerShellTool'
+export { createScreenShotTool } from './ScreenShotTool'
 
 export type {
   PostToolUseHook,

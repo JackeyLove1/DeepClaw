@@ -16,6 +16,7 @@ export type ToolCallView = {
   status: 'running' | 'completed' | 'error'
   argsSummary: string
   outputSummary: string
+  artifacts: ChatImageAttachment[]
   startedAt: number
   finishedAt?: number
   durationMs?: number
@@ -228,6 +229,7 @@ const applyToolCalled = (state: ChatViewState, event: ToolCalledEvent): ChatView
           status: 'running',
           argsSummary: event.argsSummary,
           outputSummary: '',
+          artifacts: [],
           startedAt: event.timestamp
         }
       ]
@@ -252,6 +254,7 @@ const applyToolCompleted = (state: ChatViewState, event: ToolCompletedEvent): Ch
         ...call,
         status: event.isError ? ('error' as const) : ('completed' as const),
         outputSummary: event.outputSummary,
+        artifacts: event.artifacts ?? call.artifacts,
         finishedAt: event.timestamp,
         durationMs: event.durationMs
       }

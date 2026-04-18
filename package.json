@@ -24,6 +24,7 @@
     "@electron-toolkit/utils": "^2.0.0",
     "@mdxeditor/editor": "^1.14.3",
     "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-dropdown-menu": "^2.1.16",
     "better-sqlite3": "^12.9.0",
     "bindings": "^1.5.0",
     "file-uri-to-path": "^2.0.0",

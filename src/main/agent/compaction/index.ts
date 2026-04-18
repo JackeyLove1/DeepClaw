@@ -220,9 +220,7 @@ ${transcript}`,
     const config = resolveRuntimeConfig()
     const apiKey = getAnthropicApiKey()
     if (!apiKey) {
-      throw new Error(
-        'Chat runtime is missing ANTHROPIC_API_KEY for the configured Anthropic model.'
-      )
+      throw new Error('Chat runtime is missing ANTHROPIC_API_KEY for the active AI channel.')
     }
 
     return new Anthropic({
