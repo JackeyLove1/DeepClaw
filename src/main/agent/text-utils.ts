@@ -1,5 +1,10 @@
+import { readFile } from 'node:fs/promises'
 import type { ChatEvent } from '@shared/models'
-import type { MessageParam } from '@anthropic-ai/sdk/resources/messages'
+import type {
+  ImageBlockParam,
+  MessageParam,
+  TextBlockParam
+} from '@anthropic-ai/sdk/resources/messages'
 
 export const clampText = (value: unknown, maxLength = 280): string => {
   const text = String(value ?? '')
@@ -60,28 +65,69 @@ export const fallbackTitle = (userText: string, createdAt = Date.now()): string 
   return `Chat ${new Date(createdAt).toLocaleString()}`
 }
 
-export const toAnthropicMessages = (history: ChatEvent[]): MessageParam[] => {
+const createUserContentBlocks = async (
+  event: Extract<ChatEvent, { type: 'user.message' }>
+): Promise<Array<TextBlockParam | ImageBlockParam>> => {
+  const attachmentBlocks = await Promise.all(
+    (event.attachments ?? []).map(async (attachment) => {
+      const data = await readFile(attachment.filePath, { encoding: 'base64' })
+      return {
+        type: 'image' as const,
+        source: {
+          type: 'base64' as const,
+          media_type: attachment.mimeType,
+          data
+        }
+      }
+    })
+  )
+
+  const text = event.text.trim()
+  if (!text) {
+    return attachmentBlocks
+  }
+
+  return [...attachmentBlocks, { type: 'text', text }]
+}
+
+export const toAnthropicMessages = async (history: ChatEvent[]): Promise<MessageParam[]> => {
   if (!Array.isArray(history)) return []
 
-  return history.flatMap((event): MessageParam[] => {
+  const messages: MessageParam[] = []
+
+  for (const event of history) {
     if (event.type === 'user.message') {
-      return [
-        {
+      const content = await createUserContentBlocks(event)
+      if (content.length === 0) {
+        continue
+      }
+
+      if (
+        content.length === 1 &&
+        content[0]?.type === 'text' &&
+        typeof content[0].text === 'string'
+      ) {
+        messages.push({
           role: 'user',
-          content: event.text
-        }
-      ]
+          content: content[0].text
+        })
+        continue
+      }
+
+      messages.push({
+        role: 'user',
+        content
+      })
+      continue
     }
 
     if (event.type === 'assistant.completed') {
-      return [
-        {
-          role: 'assistant',
-          content: event.text
-        }
-      ]
+      messages.push({
+        role: 'assistant',
+        content: event.text
+      })
     }
+  }
 
-    return []
-  })
+  return messages
 }

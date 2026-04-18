@@ -13,6 +13,7 @@ import type {
   ListToolCallRecords,
   ListToolStats,
   ListUsageRecords,
+  SendMessage,
   PauseCronJob,
   ReadNote,
   RemoveCronJob,
@@ -256,8 +257,8 @@ function registerChatIpc(): void {
   ipcMain.handle('chat:deleteSession', async (_event, sessionId: string) => {
     await chatSupervisor?.deleteSession(sessionId)
   })
-  ipcMain.handle('chat:sendMessage', async (_event, sessionId: string, text: string) => {
-    await chatSupervisor?.sendMessage(sessionId, text)
+  ipcMain.handle('chat:sendMessage', async (_event, sessionId: string, input: Parameters<SendMessage>[1]) => {
+    await chatSupervisor?.sendMessage(sessionId, input)
   })
   ipcMain.handle('chat:cancelRun', async (_event, sessionId: string) => {
     await chatSupervisor?.cancelRun(sessionId)

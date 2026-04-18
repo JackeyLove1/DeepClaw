@@ -1,4 +1,11 @@
-import type { ChatEvent, NoteContent, NoteInfo, SessionMeta, SessionSnapshot } from './models'
+import type {
+  ChatEvent,
+  ChatImageAttachment,
+  NoteContent,
+  NoteInfo,
+  SessionMeta,
+  SessionSnapshot
+} from './models'
 
 export type GetNotes = () => Promise<NoteInfo[]>
 export type ReadNote = (title: NoteInfo['title']) => Promise<NoteContent>
@@ -12,7 +19,18 @@ export type CreateSession = () => Promise<SessionMeta>
 export type OpenSession = (sessionId: string) => Promise<SessionSnapshot>
 export type UpdateSessionTitle = (sessionId: string, title: string) => Promise<SessionMeta>
 export type DeleteSession = (sessionId: string) => Promise<void>
-export type SendMessage = (sessionId: string, text: string) => Promise<void>
+export type PendingImageAttachment = Omit<
+  ChatImageAttachment,
+  'filePath' | 'sizeBytes' | 'width' | 'height'
+> & {
+  dataBase64: string
+  sizeBytes?: number
+}
+export interface SendMessageInput {
+  text: string
+  attachments: PendingImageAttachment[]
+}
+export type SendMessage = (sessionId: string, input: SendMessageInput) => Promise<void>
 export type CancelRun = (sessionId: string) => Promise<void>
 
 export type CronScheduleKind = 'delay' | 'interval' | 'cron' | 'datetime'

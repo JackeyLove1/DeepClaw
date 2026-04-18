@@ -206,10 +206,11 @@ export class AnthropicChatRuntime implements ChatRuntime {
   async *runTurn({
     sessionId,
     userText,
+    hasUserContent = Boolean(String(userText ?? '').trim()),
     history = [],
     signal
   }: RunTurnArgs): AsyncIterable<ChatEvent> {
-    if (!String(userText ?? '').trim()) {
+    if (!hasUserContent) {
       return
     }
 
@@ -222,7 +223,7 @@ export class AnthropicChatRuntime implements ChatRuntime {
       description: tool.description,
       input_schema: tool.inputSchema
     }))
-    const messages: MessageParam[] = toAnthropicMessages(history)
+    const messages: MessageParam[] = await toAnthropicMessages(history)
 
     const assistantMessageId = `assistant_${randomUUID()}`
     const toolGroupId = `tool_group_${randomUUID()}`

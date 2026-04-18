@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { BrowserWindow } from 'electron'
 import type { ChatEvent, SessionMeta, SessionSnapshot } from '@shared/models'
 import type {
+  SendMessageInput,
   SkillUsageRecord,
   ToolCallUsageRecord,
   ToolStatsRecord,
@@ -16,6 +17,7 @@ import {
 } from './session-store'
 import { validateRuntimeConfig } from '../agent/config'
 import { createChatRuntime } from '../agent'
+import { removeSessionAttachmentDir, savePendingImageAttachments } from './image-attachments'
 
 type ActiveRun = {
   abortController: AbortController
@@ -42,6 +44,7 @@ export class ChatSupervisor {
     runTurn: (args: {
       sessionId: string
       userText: string
+      hasUserContent?: boolean
       history: ChatEvent[]
       signal: AbortSignal
     }) => AsyncIterable<ChatEvent>
@@ -136,6 +139,7 @@ export class ChatSupervisor {
     }
 
     await this.store.deleteSession(sessionId)
+    await removeSessionAttachmentDir(sessionId)
   }
 
   async cancelRun(sessionId: string): Promise<void> {
@@ -158,9 +162,11 @@ export class ChatSupervisor {
     this.broadcast(event)
   }
 
-  async sendMessage(sessionId: string, text: string): Promise<void> {
-    const trimmed = text.trim()
-    if (!trimmed) {
+  async sendMessage(sessionId: string, input: SendMessageInput): Promise<void> {
+    const trimmed = input.text.trim()
+    const attachments = input.attachments ?? []
+
+    if (!trimmed && attachments.length === 0) {
       return
     }
 
@@ -180,13 +186,15 @@ export class ChatSupervisor {
 
     try {
       const snapshot = await this.store.openSession(sessionId)
+      const persistedAttachments = await savePendingImageAttachments(sessionId, attachments)
       const userEvent: ChatEvent = {
         type: 'user.message',
         eventId: createEventId('user.message'),
         sessionId,
         timestamp: Date.now(),
         messageId: `user_${randomUUID()}`,
-        text: trimmed
+        text: trimmed,
+        attachments: persistedAttachments
       }
 
       await this.store.appendEvent(sessionId, userEvent)
@@ -210,6 +218,7 @@ export class ChatSupervisor {
       for await (const event of this.runtime.runTurn({
         sessionId,
         userText: trimmed,
+        hasUserContent: Boolean(trimmed) || persistedAttachments.length > 0,
         history: [...snapshot.events, userEvent],
         signal: abortController.signal
       })) {

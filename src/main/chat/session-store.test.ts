@@ -46,7 +46,8 @@ describe('ChatSessionStore', () => {
       sessionId: meta.id,
       timestamp: Date.now(),
       messageId: 'user-1',
-      text: 'hello'
+      text: 'hello',
+      attachments: []
     }
 
     await store.appendEvent(meta.id, userEvent)
@@ -66,7 +67,8 @@ describe('ChatSessionStore', () => {
       sessionId: economicSession.id,
       timestamp: Date.now(),
       messageId: 'economic-user',
-      text: '请给我最新的通胀和CPI数据'
+      text: 'latest inflation and CPI data',
+      attachments: []
     })
 
     await store.appendEvent(otherSession.id, {
@@ -75,10 +77,11 @@ describe('ChatSessionStore', () => {
       sessionId: otherSession.id,
       timestamp: Date.now(),
       messageId: 'other-user',
-      text: '帮我起草一封邮件'
+      text: 'draft an email for me',
+      attachments: []
     })
 
-    const results = await store.searchSessions('通胀')
+    const results = await store.searchSessions('inflation')
     expect(results.map((session) => session.id)).toEqual([economicSession.id])
   })
 

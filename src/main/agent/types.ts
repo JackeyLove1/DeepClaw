@@ -23,6 +23,7 @@ export type ConnectionTestResult = {
 export type RunTurnArgs = {
   sessionId: string
   userText: string
+  hasUserContent?: boolean
   history?: ChatEvent[]
   signal?: AbortSignal
 }

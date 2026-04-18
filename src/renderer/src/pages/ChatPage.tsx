@@ -1,4 +1,5 @@
-import type { SessionMeta } from '@shared/models'
+import type { ChatImageAttachment, SessionMeta } from '@shared/models'
+import type { PendingImageAttachment } from '@shared/types'
 import {
   ChevronDown,
   ChevronRight,
@@ -14,9 +15,18 @@ import {
   Square,
   Trash2,
   Wrench,
+  X,
   Zap
 } from 'lucide-react'
-import { useEffect, useMemo, useReducer, useRef, useState, type Ref } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type Ref
+} from 'react'
 import { toast } from 'sonner'
 import {
   buildFeedbackKey,
@@ -40,6 +50,26 @@ import { AssistantMessageActions } from '../components/AssistantMessageActions'
 import { AssistantMessageMarkdown } from '../components/AssistantMessageMarkdown'
 
 const INPUT_CHIPS = ['默认大模型', '技能', '找灵感']
+
+const MAX_PENDING_IMAGES = 5
+const MAX_PENDING_IMAGE_BYTES = 8 * 1024 * 1024
+const MIME_TO_EXTENSION: Record<ChatImageAttachment['mimeType'], string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/gif': 'gif',
+  'image/webp': 'webp'
+}
+const SUPPORTED_CHAT_IMAGE_TYPES = new Set<ChatImageAttachment['mimeType']>([
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp'
+])
+
+type PendingComposerImage = PendingImageAttachment & {
+  previewUrl: string
+  sizeBytes: number
+}
 
 const formatClockTime = (timestamp: number): string =>
   new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(timestamp)
@@ -84,6 +114,37 @@ const mapSendErrorMessage = (error: unknown): string => {
 
   return message
 }
+
+const formatBytes = (value: number): string => {
+  if (value >= 1024 * 1024) {
+    return `${(value / (1024 * 1024)).toFixed(1)} MB`
+  }
+
+  return `${Math.max(1, Math.round(value / 1024))} KB`
+}
+
+const toFileSrc = (filePath: string): string => {
+  const normalized = filePath.replace(/\\/g, '/')
+  return /^[A-Za-z]:\//.test(normalized)
+    ? encodeURI(`file:///${normalized}`)
+    : encodeURI(`file://${normalized.startsWith('/') ? '' : '/'}${normalized}`)
+}
+
+const releasePendingImages = (images: PendingComposerImage[]): void => {
+  for (const image of images) {
+    if (image.previewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(image.previewUrl)
+    }
+  }
+}
+
+const readFileAsDataUrl = async (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result ?? ''))
+    reader.onerror = () => reject(reader.error ?? new Error('Failed to read clipboard image.'))
+    reader.readAsDataURL(file)
+  })
 
 const ToolGroupPanel = ({ toolGroup }: { toolGroup: ToolGroupView }) => {
   const title =
@@ -285,6 +346,58 @@ const SessionRow = ({
   </div>
 )
 
+const UserAttachmentGrid = ({
+  attachments,
+  allowRemove,
+  onRemove
+}: {
+  attachments: Array<
+    Pick<ChatImageAttachment, 'id' | 'fileName' | 'width' | 'height'> & {
+      src: string
+      sizeBytes?: number
+    }
+  >
+  allowRemove?: boolean
+  onRemove?: (id: string) => void
+}) => (
+  <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+    {attachments.map((attachment) => (
+      <div
+        key={attachment.id}
+        className="relative overflow-hidden rounded-2xl border border-[#eadfd7] bg-white"
+      >
+        <img
+          src={attachment.src}
+          alt={attachment.fileName}
+          className="h-32 w-full object-cover"
+          loading="lazy"
+        />
+        {allowRemove && onRemove ? (
+          <button
+            type="button"
+            onClick={() => onRemove(attachment.id)}
+            className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/65 text-white transition hover:bg-black/75"
+            aria-label={`移除 ${attachment.fileName}`}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        ) : null}
+        <div className="border-t border-[#f1e8e2] px-3 py-2">
+          <div className="line-clamp-1 text-[12px] font-medium text-[#3a3a3d]">
+            {attachment.fileName}
+          </div>
+          <div className="mt-0.5 text-[11px] text-[#7f8088]">
+            {attachment.width > 0 && attachment.height > 0
+              ? `${attachment.width}×${attachment.height}`
+              : '已粘贴图片'}
+            {attachment.sizeBytes ? ` · ${formatBytes(attachment.sizeBytes)}` : ''}
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+)
+
 const TranscriptItem = ({
   entry,
   showAssistantActions,
@@ -309,7 +422,15 @@ const TranscriptItem = ({
     return (
       <div className="flex justify-end pt-1">
         <div className="max-w-[90%] rounded-xl border border-[#f8e7e0] bg-[#fff6f2] px-4 py-2 text-[14px] leading-[1.6] tracking-[0.02em] text-black">
-          <p className="whitespace-pre-wrap">{message.text}</p>
+          {message.attachments.length > 0 ? (
+            <UserAttachmentGrid
+              attachments={message.attachments.map((attachment) => ({
+                ...attachment,
+                src: toFileSrc(attachment.filePath)
+              }))}
+            />
+          ) : null}
+          {message.text.trim() ? <p className="whitespace-pre-wrap">{message.text}</p> : null}
         </div>
       </div>
     )
@@ -392,28 +513,49 @@ const BootErrorState = ({ message }: { message: string }) => (
 
 const InputBar = ({
   draft,
+  pendingImages,
   isRunning,
   isCancelling,
   currentSessionId,
   textareaRef,
   onDraftChange,
+  onPaste,
+  onRemoveImage,
   onSend,
   onCancel
 }: {
   draft: string
+  pendingImages: PendingComposerImage[]
   isRunning: boolean
   isCancelling: boolean
   currentSessionId: string | null
   textareaRef?: Ref<HTMLTextAreaElement>
   onDraftChange: (value: string) => void
+  onPaste: (event: ClipboardEvent<HTMLTextAreaElement>) => void
+  onRemoveImage: (id: string) => void
   onSend: () => void
   onCancel: () => void
 }) => (
   <div className="rounded-[28px] border border-[#ececf0] bg-[#f7f7f9] px-5 py-4 shadow-[0_10px_30px_rgba(15,15,20,0.06)]">
+    {pendingImages.length > 0 ? (
+      <UserAttachmentGrid
+        attachments={pendingImages.map((image) => ({
+          id: image.id,
+          fileName: image.fileName,
+          width: 0,
+          height: 0,
+          sizeBytes: image.sizeBytes,
+          src: image.previewUrl
+        }))}
+        allowRemove
+        onRemove={onRemoveImage}
+      />
+    ) : null}
     <textarea
       ref={textareaRef}
       value={draft}
       onChange={(event) => onDraftChange(event.target.value)}
+      onPaste={onPaste}
       onKeyDown={(event) => {
         if (event.key === 'Enter' && !event.shiftKey) {
           event.preventDefault()
@@ -471,7 +613,7 @@ const InputBar = ({
         <button
           type="button"
           onClick={onSend}
-          disabled={!draft.trim() || isRunning || !currentSessionId}
+          disabled={(!draft.trim() && pendingImages.length === 0) || isRunning || !currentSessionId}
           className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#1f1f23] text-white transition hover:bg-[#2b2b31] disabled:cursor-not-allowed disabled:bg-[#e8e8ee] disabled:text-[#b8bac3]"
           aria-label="发送消息"
         >
@@ -484,20 +626,26 @@ const InputBar = ({
 
 const EmptyState = ({
   draft,
+  pendingImages,
   isRunning,
   isCancelling,
   currentSessionId,
   textareaRef,
   onDraftChange,
+  onPaste,
+  onRemoveImage,
   onSend,
   onCancel
 }: {
   draft: string
+  pendingImages: PendingComposerImage[]
   isRunning: boolean
   isCancelling: boolean
   currentSessionId: string | null
   textareaRef?: Ref<HTMLTextAreaElement>
   onDraftChange: (value: string) => void
+  onPaste: (event: ClipboardEvent<HTMLTextAreaElement>) => void
+  onRemoveImage: (id: string) => void
   onSend: () => void
   onCancel: () => void
 }) => (
@@ -508,11 +656,14 @@ const EmptyState = ({
     <div className="mt-8 w-full">
       <InputBar
         draft={draft}
+        pendingImages={pendingImages}
         isRunning={isRunning}
         isCancelling={isCancelling}
         currentSessionId={currentSessionId}
         textareaRef={textareaRef}
         onDraftChange={onDraftChange}
+        onPaste={onPaste}
+        onRemoveImage={onRemoveImage}
         onSend={onSend}
         onCancel={onCancel}
       />
@@ -526,6 +677,7 @@ export const ChatPage = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
+  const [pendingImages, setPendingImages] = useState<PendingComposerImage[]>([])
   const [isBooting, setIsBooting] = useState(true)
   const [bootError, setBootError] = useState<string | null>(null)
   const [menuSessionId, setMenuSessionId] = useState<string | null>(null)
@@ -538,6 +690,7 @@ export const ChatPage = () => {
   const [state, dispatch] = useReducer(chatViewReducer, undefined, createInitialChatViewState)
   const transcriptRef = useRef<HTMLDivElement>(null)
   const currentSessionIdRef = useRef<string | null>(null)
+  const pendingImagesRef = useRef<PendingComposerImage[]>([])
   const composerRef = useRef<HTMLTextAreaElement>(null)
   const shouldFocusComposerRef = useRef(false)
   const copyFeedbackTimeoutRef = useRef<number | null>(null)
@@ -561,17 +714,31 @@ export const ChatPage = () => {
     currentSessionIdRef.current = currentSessionId
   }, [currentSessionId])
 
+  useEffect(() => {
+    pendingImagesRef.current = pendingImages
+  }, [pendingImages])
+
   useEffect(
     () => () => {
       if (copyFeedbackTimeoutRef.current) {
         window.clearTimeout(copyFeedbackTimeoutRef.current)
       }
+      releasePendingImages(pendingImagesRef.current)
     },
     []
   )
 
   useEffect(() => {
     setCopiedAssistantId(null)
+  }, [currentSessionId])
+
+  useEffect(() => {
+    if (pendingImagesRef.current.length === 0) {
+      return
+    }
+
+    releasePendingImages(pendingImagesRef.current)
+    setPendingImages([])
   }, [currentSessionId])
 
   useEffect(() => {
@@ -739,6 +906,17 @@ export const ChatPage = () => {
     setBootError(null)
   }
 
+  const removePendingImage = (imageId: string): void => {
+    setPendingImages((current) => {
+      const target = current.find((image) => image.id === imageId)
+      if (target) {
+        URL.revokeObjectURL(target.previewUrl)
+      }
+
+      return current.filter((image) => image.id !== imageId)
+    })
+  }
+
   const createSession = async (): Promise<void> => {
     shouldFocusComposerRef.current = true
     const created = await window.context.createSession()
@@ -820,18 +998,29 @@ export const ChatPage = () => {
   const runMessage = async (
     sessionId: string,
     message: string,
-    options?: { clearDraft?: boolean }
+    attachments: PendingComposerImage[],
+    options?: { clearComposer?: boolean }
   ): Promise<void> => {
-    if (!message.trim() || state.isRunning) return
+    if ((!message.trim() && attachments.length === 0) || state.isRunning) return
 
-    if (options?.clearDraft) {
+    if (options?.clearComposer) {
       setDraft('')
+      setPendingImages([])
     }
 
     dispatch({ type: 'run.requested' })
 
     try {
-      await window.context.sendMessage(sessionId, message)
+      await window.context.sendMessage(sessionId, {
+        text: message,
+        attachments: attachments.map(({ id, fileName, mimeType, dataBase64, sizeBytes }) => ({
+          id,
+          fileName,
+          mimeType,
+          dataBase64,
+          sizeBytes
+        }))
+      })
 
       // Re-sync from persisted events after the turn settles in main process.
       // This prevents UI from getting stuck in "running" if any live IPC event was missed.
@@ -839,7 +1028,13 @@ export const ChatPage = () => {
       if (currentSessionIdRef.current === sessionId) {
         dispatch({ type: 'snapshot.loaded', snapshot })
       }
+      releasePendingImages(attachments)
     } catch (error) {
+      if (options?.clearComposer) {
+        setDraft(message)
+        setPendingImages(attachments)
+      }
+
       dispatch({
         type: 'event.received',
         event: {
@@ -855,7 +1050,104 @@ export const ChatPage = () => {
 
   const handleSend = async (): Promise<void> => {
     if (!currentSessionId) return
-    await runMessage(currentSessionId, draft, { clearDraft: true })
+    await runMessage(currentSessionId, draft, pendingImages, { clearComposer: true })
+  }
+
+  const insertTextAtComposerSelection = (text: string): void => {
+    if (!text) return
+
+    const composer = composerRef.current
+    if (!composer) {
+      setDraft((current) => `${current}${text}`)
+      return
+    }
+
+    const selectionStart = composer.selectionStart ?? composer.value.length
+    const selectionEnd = composer.selectionEnd ?? composer.value.length
+    const next = `${draft.slice(0, selectionStart)}${text}${draft.slice(selectionEnd)}`
+    const nextCaret = selectionStart + text.length
+
+    setDraft(next)
+    requestAnimationFrame(() => {
+      composer.focus()
+      composer.setSelectionRange(nextCaret, nextCaret)
+    })
+  }
+
+  const handleComposerPaste = async (event: ClipboardEvent<HTMLTextAreaElement>): Promise<void> => {
+    const imageItems = Array.from(event.clipboardData.items).filter(
+      (item) => item.kind === 'file' && item.type.startsWith('image/')
+    )
+    if (imageItems.length === 0) {
+      return
+    }
+
+    event.preventDefault()
+
+    const pastedText = event.clipboardData.getData('text/plain')
+    if (pastedText) {
+      insertTextAtComposerSelection(pastedText)
+    }
+
+    if (pendingImages.length >= MAX_PENDING_IMAGES) {
+      toast.error(`最多只能添加 ${MAX_PENDING_IMAGES} 张图片`)
+      return
+    }
+
+    const availableSlots = MAX_PENDING_IMAGES - pendingImages.length
+    const acceptedItems = imageItems.slice(0, availableSlots)
+    if (acceptedItems.length < imageItems.length) {
+      toast.error(`最多只能添加 ${MAX_PENDING_IMAGES} 张图片`)
+    }
+
+    let nextImages: Array<PendingComposerImage | null> = []
+
+    try {
+      nextImages = (
+        await Promise.all(
+          acceptedItems.map(async (item, index) => {
+            const file = item.getAsFile()
+            if (!file) {
+              return null
+            }
+
+            if (!SUPPORTED_CHAT_IMAGE_TYPES.has(file.type as ChatImageAttachment['mimeType'])) {
+              toast.error(`不支持的图片格式：${file.type || 'unknown'}`)
+              return null
+            }
+
+            if (file.size > MAX_PENDING_IMAGE_BYTES) {
+              toast.error(`${file.name || `图片 ${index + 1}`} 超过 8 MB 限制`)
+              return null
+            }
+
+            const dataUrl = await readFileAsDataUrl(file)
+            const [, dataBase64 = ''] = dataUrl.split(',', 2)
+            const mimeType = file.type as ChatImageAttachment['mimeType']
+            const fallbackName = `pasted-image-${Date.now()}-${index + 1}.${MIME_TO_EXTENSION[mimeType]}`
+
+            return {
+              id: crypto.randomUUID(),
+              fileName: file.name || fallbackName,
+              mimeType,
+              dataBase64,
+              sizeBytes: file.size,
+              previewUrl: dataUrl
+            } satisfies PendingComposerImage
+          })
+        )
+      ).filter(Boolean) as PendingComposerImage[]
+    } catch (error) {
+      toast.error(mapSendErrorMessage(error))
+      return
+    }
+
+    if (nextImages.length > 0) {
+      setPendingImages((current) => [
+        ...current,
+        ...(nextImages.filter(Boolean) as PendingComposerImage[])
+      ])
+    }
   }
 
   const handleCopyAssistant = async (message: AssistantTranscriptEntry): Promise<void> => {
@@ -892,7 +1184,7 @@ export const ChatPage = () => {
       retryPrompt ?? getRetryPromptForAssistant(state.transcript, latestAssistantMessageId)
     if (!prompt) return
 
-    await runMessage(currentSessionId, prompt)
+    await runMessage(currentSessionId, prompt, [])
   }
 
   const handleCancel = async (): Promise<void> => {
@@ -1020,11 +1312,14 @@ export const ChatPage = () => {
           ) : (
             <EmptyState
               draft={draft}
+              pendingImages={pendingImages}
               isRunning={state.isRunning}
               isCancelling={state.isCancelling}
               currentSessionId={currentSessionId}
               textareaRef={composerRef}
               onDraftChange={setDraft}
+              onPaste={(event) => void handleComposerPaste(event)}
+              onRemoveImage={removePendingImage}
               onSend={() => void handleSend()}
               onCancel={() => void handleCancel()}
             />
@@ -1036,11 +1331,14 @@ export const ChatPage = () => {
             <div className="mx-auto max-w-[860px]">
               <InputBar
                 draft={draft}
+                pendingImages={pendingImages}
                 isRunning={state.isRunning}
                 isCancelling={state.isCancelling}
                 currentSessionId={currentSessionId}
                 textareaRef={composerRef}
                 onDraftChange={setDraft}
+                onPaste={(event) => void handleComposerPaste(event)}
+                onRemoveImage={removePendingImage}
                 onSend={() => void handleSend()}
                 onCancel={() => void handleCancel()}
               />

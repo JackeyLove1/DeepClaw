@@ -39,7 +39,8 @@ describe('chat reducer', () => {
           sessionId: 'session-1',
           timestamp: 2,
           messageId: 'user-1',
-          text: 'hello'
+          text: 'hello',
+          attachments: []
         },
         {
           type: 'assistant.started',
@@ -184,6 +185,40 @@ describe('chat reducer', () => {
       kind: 'system',
       tone: 'muted',
       text: 'Cron: Daily briefing\n\nSummary ready'
+    })
+  })
+
+  it('stores user image attachments in transcript entries', () => {
+    const initial = createInitialChatViewState()
+    const state = applyChatEvent(initial, {
+      type: 'user.message',
+      eventId: 'user-image',
+      sessionId: 'session-1',
+      timestamp: 2,
+      messageId: 'user-1',
+      text: '',
+      attachments: [
+        {
+          id: 'image-1',
+          fileName: 'clipboard.png',
+          mimeType: 'image/png',
+          filePath: 'C:/temp/clipboard.png',
+          sizeBytes: 1024,
+          width: 800,
+          height: 600
+        }
+      ]
+    })
+
+    expect(state.transcript[0]).toMatchObject({
+      kind: 'user',
+      attachments: [
+        {
+          id: 'image-1',
+          fileName: 'clipboard.png',
+          mimeType: 'image/png'
+        }
+      ]
     })
   })
 })

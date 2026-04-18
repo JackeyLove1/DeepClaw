@@ -1,3 +1,6 @@
+import { unlink, writeFile } from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { ChatEvent } from '@shared/models'
 import {
@@ -38,7 +41,7 @@ describe('runtime text utils', () => {
     expect(sanitizeTitle('   ', 'fallback')).toBe('fallback')
   })
 
-  it('creates fallback title and maps user/assistant messages only', () => {
+  it('creates fallback title and maps user/assistant messages only', async () => {
     const history: ChatEvent[] = [
       {
         type: 'session.created',
@@ -74,7 +77,7 @@ describe('runtime text utils', () => {
     ]
 
     expect(fallbackTitle('')).toMatch(/^Chat /)
-    expect(toAnthropicMessages(history)).toEqual([
+    await expect(toAnthropicMessages(history)).resolves.toEqual([
       {
         role: 'user',
         content: 'Hello'
@@ -84,5 +87,61 @@ describe('runtime text utils', () => {
         content: 'Hi there'
       }
     ])
+  })
+
+  it('serializes user image attachments into Anthropic image blocks', async () => {
+    const imagePath = path.join(os.tmpdir(), `notemark-image-${Date.now()}.png`)
+    await writeFile(
+      imagePath,
+      Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wn9v0wAAAAASUVORK5CYII=',
+        'base64'
+      )
+    )
+
+    try {
+      const history: ChatEvent[] = [
+        {
+          type: 'user.message',
+          eventId: 'e-image',
+          sessionId: 's1',
+          timestamp: 2,
+          messageId: 'u-image',
+          text: 'What is in this image?',
+          attachments: [
+            {
+              id: 'image-1',
+              fileName: 'clipboard.png',
+              mimeType: 'image/png',
+              filePath: imagePath,
+              sizeBytes: 68,
+              width: 1,
+              height: 1
+            }
+          ]
+        }
+      ]
+
+      await expect(toAnthropicMessages(history)).resolves.toMatchObject([
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: {
+                type: 'base64',
+                media_type: 'image/png'
+              }
+            },
+            {
+              type: 'text',
+              text: 'What is in this image?'
+            }
+          ]
+        }
+      ])
+    } finally {
+      await unlink(imagePath).catch(() => undefined)
+    }
   })
 })

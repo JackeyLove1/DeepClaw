@@ -22,6 +22,16 @@ export type ChatEventBase = {
   timestamp: number
 }
 
+export type ChatImageAttachment = {
+  id: string
+  fileName: string
+  mimeType: 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp'
+  filePath: string
+  sizeBytes: number
+  width: number
+  height: number
+}
+
 export type SessionCreatedEvent = ChatEventBase & {
   type: 'session.created'
   meta: SessionMeta
@@ -31,6 +41,7 @@ export type UserMessageEvent = ChatEventBase & {
   type: 'user.message'
   messageId: string
   text: string
+  attachments?: ChatImageAttachment[]
 }
 
 export type AssistantStartedEvent = ChatEventBase & {

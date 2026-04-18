@@ -2,6 +2,7 @@ import type {
   AssistantCompletedEvent,
   AssistantDeltaEvent,
   AssistantStartedEvent,
+  ChatImageAttachment,
   ChatEvent,
   SessionMeta,
   SessionSnapshot,
@@ -34,6 +35,7 @@ export type UserTranscriptEntry = {
   kind: 'user'
   id: string
   text: string
+  attachments: ChatImageAttachment[]
   createdAt: number
 }
 
@@ -306,6 +308,7 @@ export const applyChatEvent = (state: ChatViewState, event: ChatEvent): ChatView
           kind: 'user',
           id: event.messageId,
           text: event.text,
+          attachments: event.attachments ?? [],
           createdAt: event.timestamp
         }
       ]
