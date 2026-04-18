@@ -12,7 +12,8 @@ export const TOOL_PRIORITIES: Record<string, number> = {
   bash: 60,
   powershell: 60,
   get_time: 50,
-  todo: 50
+  todo: 50,
+  cronjob: 45
 }
 
 /**

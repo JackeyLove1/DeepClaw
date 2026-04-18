@@ -53,6 +53,7 @@ export type SystemTranscriptEntry = {
   text: string
   tone: 'error' | 'muted'
   createdAt: number
+  source?: 'system' | 'cron'
 }
 
 export type TranscriptEntry = UserTranscriptEntry | AssistantTranscriptEntry | SystemTranscriptEntry
@@ -374,7 +375,8 @@ export const applyChatEvent = (state: ChatViewState, event: ChatEvent): ChatView
           id: event.eventId,
           text: event.message,
           tone: 'error',
-          createdAt: event.timestamp
+          createdAt: event.timestamp,
+          source: 'system'
         }
       ]
       return nextState
@@ -398,7 +400,30 @@ export const applyChatEvent = (state: ChatViewState, event: ChatEvent): ChatView
             id: event.eventId,
             text: 'The current run was cancelled.',
             tone: 'muted',
-            createdAt: event.timestamp
+            createdAt: event.timestamp,
+            source: 'system'
+          }
+        ]
+      }
+
+    case 'cron.delivery':
+      nextState.meta = nextState.meta
+        ? {
+            ...nextState.meta,
+            updatedAt: event.timestamp
+          }
+        : nextState.meta
+      return {
+        ...nextState,
+        transcript: [
+          ...nextState.transcript,
+          {
+            kind: 'system',
+            id: event.eventId,
+            text: `Cron: ${event.jobName}\n\n${event.text}`,
+            tone: event.status === 'error' ? 'error' : 'muted',
+            createdAt: event.timestamp,
+            source: 'cron'
           }
         ]
       }

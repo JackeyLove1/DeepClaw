@@ -163,4 +163,27 @@ describe('chat reducer', () => {
     expect(visible[0]?.updatedAt).toBe(11)
     expect(visible[visible.length - 1]?.updatedAt).toBe(2)
   })
+
+  it('renders cron deliveries as system transcript entries', () => {
+    const initial = createInitialChatViewState()
+    const state = applyChatEvent(initial, {
+      type: 'cron.delivery',
+      eventId: 'cron-delivery',
+      sessionId: 'session-1',
+      timestamp: 10,
+      jobId: 'job-1',
+      runId: 'run-1',
+      jobName: 'Daily briefing',
+      status: 'success',
+      deliverTarget: 'origin_session',
+      text: 'Summary ready'
+    })
+
+    expect(state.transcript).toHaveLength(1)
+    expect(state.transcript[0]).toMatchObject({
+      kind: 'system',
+      tone: 'muted',
+      text: 'Cron: Daily briefing\n\nSummary ready'
+    })
+  })
 })

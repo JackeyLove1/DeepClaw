@@ -1,22 +1,27 @@
 ---
 sidebar_position: 11
 title: "Cron Internals"
-description: "How Hermes stores, schedules, edits, pauses, skill-loads, and delivers cron jobs"
+description: "How DeepClaw stores, schedules, runs, and delivers cron jobs in the Electron + TypeScript runtime"
 ---
 
 # Cron Internals
 
-The cron subsystem provides scheduled task execution — from simple one-shot delays to recurring cron-expression jobs with skill injection and cross-platform delivery.
+The cron subsystem provides scheduled task execution inside the Electron main process. It supports one-shot delays, recurring intervals, standard 5-field cron expressions, and absolute ISO timestamps.
+
+This document describes the TypeScript implementation that lives in the current repository. It no longer reflects the old Python/Hermes `jobs.json` design.
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `cron/jobs.py` | Job model, storage, atomic read/write to `jobs.json` |
-| `cron/scheduler.py` | Scheduler loop — due-job detection, execution, repeat tracking |
-| `tools/cronjob_tools.py` | Model-facing `cronjob` tool registration and handler |
-| `gateway/run.py` | Gateway integration — cron ticking in the long-running loop |
-| `hermes_cli/cron.py` | CLI `hermes cron` subcommands |
+| `src/main/agent/cron/service.ts` | High-level CRUD, validation, execution, delivery |
+| `src/main/agent/cron/repository.ts` | SQLite persistence for `cron_jobs` and `cron_runs` |
+| `src/main/agent/cron/scheduler.ts` | 30-second background tick, bounded concurrency, resume catch-up |
+| `src/main/agent/cron/executor.ts` | Fresh runtime execution with skills injection and `cronjob` recursion guard |
+| `src/main/agent/cron/schedule.ts` | Schedule kind detection and next-run calculation |
+| `src/main/agent/tools/CronTool/index.ts` | Agent-facing `cronjob` tool |
+| `src/main/index.ts` | Main-process startup, IPC registration, power-resume wiring |
+| `src/shared/types.ts` | Shared IPC contracts and cron DTOs |
 
 ## Scheduling Model
 
@@ -24,174 +29,198 @@ Four schedule formats are supported:
 
 | Format | Example | Behavior |
 |--------|---------|----------|
-| **Relative delay** | `30m`, `2h`, `1d` | One-shot, fires after the specified duration |
-| **Interval** | `every 2h`, `every 30m` | Recurring, fires at regular intervals |
-| **Cron expression** | `0 9 * * *` | Standard 5-field cron syntax (minute, hour, day, month, weekday) |
-| **ISO timestamp** | `2025-01-15T09:00:00` | One-shot, fires at the exact time |
+| Relative delay | `30m`, `2h`, `1d` | One-shot, runs once after the given duration |
+| Interval | `every 2h`, `every 30m` | Recurring, recomputed from the last completed run |
+| Cron expression | `0 9 * * *` | Standard 5-field cron syntax |
+| ISO timestamp | `2026-04-18T09:00:00Z` | One-shot, runs at the exact timestamp |
 
-The model-facing surface is a single `cronjob` tool with action-style operations: `create`, `list`, `update`, `pause`, `resume`, `run`, `remove`.
+`detectScheduleKind()` and `computeNextRunAt()` in `schedule.ts` are the source of truth for parsing and rescheduling.
 
-## Job Storage
+### Timezone Semantics
 
-Jobs are stored in `~/.hermes/cron/jobs.json` with atomic write semantics (write to temp file, then rename). Each job record contains:
+- Cron jobs default to the local machine timezone.
+- Each job can persist an optional `timezone`.
+- Cron matching is evaluated minute-by-minute in the target timezone.
+
+## Public Surface
+
+The agent-facing surface is a single `cronjob` tool with these actions:
+
+- `create`
+- `list`
+- `update`
+- `pause`
+- `resume`
+- `run`
+- `remove`
+
+The same service is also exposed through IPC:
+
+- `cron:listJobs`
+- `cron:listRuns`
+- `cron:createJob`
+- `cron:updateJob`
+- `cron:pauseJob`
+- `cron:resumeJob`
+- `cron:removeJob`
+- `cron:runJob`
+
+`CronTool` delegates to `CronService`. The tool and IPC APIs do not implement separate business logic.
+
+## Storage Model
+
+Cron state is stored in the main SQLite database under `~/.deepclaw/deepclaw.db`.
+
+### `cron_jobs`
+
+Each row stores:
 
 ```json
 {
-  "id": "job_abc123",
+  "id": "cron_...",
   "name": "Daily briefing",
-  "prompt": "Summarize today's AI news and funding rounds",
+  "prompt": "Summarize today's work queue",
   "schedule": "0 9 * * *",
-  "skills": ["ai-funding-daily-report"],
-  "deliver": "telegram:-1001234567890",
-  "repeat": null,
+  "scheduleKind": "cron",
+  "timezone": "Asia/Shanghai",
   "state": "scheduled",
-  "next_run": "2025-01-16T09:00:00Z",
-  "run_count": 42,
-  "created_at": "2025-01-01T00:00:00Z",
-  "model": null,
-  "provider": null,
-  "script": null
+  "nextRunAt": 1776493200000,
+  "lastRunAt": null,
+  "sourceSessionId": "session_...",
+  "deliver": "origin_session",
+  "skills": ["productivity/powerpoint"],
+  "script": null,
+  "runCount": 0,
+  "maxRuns": null,
+  "misfirePolicy": "run_once_on_resume",
+  "createdAt": 1776460800000,
+  "updatedAt": 1776460800000
 }
 ```
 
-### Job Lifecycle States
+Job states:
 
 | State | Meaning |
 |-------|---------|
-| `scheduled` | Active, will fire at next scheduled time |
-| `paused` | Suspended — won't fire until resumed |
-| `completed` | Repeat count exhausted or one-shot that has fired |
-| `running` | Currently executing (transient state) |
+| `scheduled` | Active and eligible for future execution |
+| `paused` | Suspended until resumed |
+| `running` | Claimed by the scheduler or a manual run |
+| `completed` | No future execution remains |
 
-### Backward Compatibility
+### `cron_runs`
 
-Older jobs may have a single `skill` field instead of the `skills` array. The scheduler normalizes this at load time — single `skill` is promoted to `skills: [skill]`.
+Each execution writes a separate run record:
+
+```json
+{
+  "id": "cron_run_...",
+  "jobId": "cron_...",
+  "triggerKind": "scheduled",
+  "status": "success",
+  "startedAt": 1776493200000,
+  "finishedAt": 1776493204123,
+  "linkedSessionId": "session_...",
+  "outputPreview": "Cron Job: Daily briefing ...",
+  "outputPath": null,
+  "errorText": null,
+  "model": "claude-sonnet-4-5",
+  "inputTokens": 1234,
+  "outputTokens": 456,
+  "cacheCreationTokens": 0,
+  "cacheReadTokens": 0,
+  "nextRunAt": 1776579600000
+}
+```
+
+The run table is the primary observability layer. Cron execution history is not modeled as ordinary chat sessions.
 
 ## Scheduler Runtime
 
-### Tick Cycle
+`CronScheduler` runs in the Electron main process.
 
-The scheduler runs on a periodic tick (default: every 60 seconds):
+- Tick interval: `30s`
+- Global concurrency: `2`
+- Same job re-entry: disallowed
+- Resume behavior: on startup or OS resume, due jobs are re-checked and at most one recovery execution is performed for each overdue schedule
+
+### Tick Flow
 
 ```text
-tick()
-  1. Acquire scheduler lock (prevents overlapping ticks)
-  2. Load all jobs from jobs.json
-  3. Filter to due jobs (next_run <= now AND state == "scheduled")
-  4. For each due job:
-     a. Set state to "running"
-     b. Create fresh AIAgent session (no conversation history)
-     c. Load attached skills in order (injected as user messages)
-     d. Run the job prompt through the agent
-     e. Deliver the response to the configured target
-     f. Update run_count, compute next_run
-     g. If repeat count exhausted → state = "completed"
-     h. Otherwise → state = "scheduled"
-  5. Write updated jobs back to jobs.json
-  6. Release scheduler lock
+drain()
+  1. Determine free worker slots (max 2)
+  2. Claim due jobs in SQLite by moving state from scheduled -> running
+  3. For each claimed job:
+     a. Insert a running row into cron_runs
+     b. Execute with a fresh AnthropicChatRuntime
+     c. Deliver the result
+     d. Increment runCount
+     e. Compute nextRunAt from the finished time
+     f. Move job back to scheduled or completed
+     g. Finalize the cron_runs row
 ```
 
-### Gateway Integration
+The repository performs due-job claiming in SQLite so the scheduler does not full-scan or rewrite a JSON file on every tick.
 
-In gateway mode, the scheduler tick is integrated into the gateway's main event loop. The gateway calls `scheduler.tick()` on its periodic maintenance cycle, which runs alongside message handling.
+## Execution Model
 
-In CLI mode, cron jobs only fire when `hermes cron` commands are run or during active CLI sessions.
+Each cron run executes in a fresh runtime context:
 
-### Fresh Session Isolation
+- No prior conversation history
+- No dependence on previous cron turns unless written to files or DB
+- `cronjob` tool disabled during cron execution
 
-Each cron job runs in a completely fresh agent session:
+`CronExecutor` creates an `AnthropicChatRuntime` with `createTools({ includeCronTool: false })` to prevent recursive scheduling from inside a cron run.
 
-- No conversation history from previous runs
-- No memory of previous cron executions (unless persisted to memory/files)
-- The prompt must be self-contained — cron jobs cannot ask clarifying questions
-- The `cronjob` toolset is disabled (recursion guard)
+## Skill Injection
 
-## Skill-Backed Jobs
+Cron jobs can attach installed skill ids through `skills`.
 
-A cron job can attach one or more skills via the `skills` field. At execution time:
+At execution time:
 
-1. Skills are loaded in the specified order
-2. Each skill's SKILL.md content is injected as context
-3. The job's prompt is appended as the task instruction
-4. The agent processes the combined skill context + prompt
+1. Installed skills are loaded from `~/.deepclaw/skills`
+2. Requested skills are validated by id
+3. Matching `SKILL.md` bodies are injected into the cron prompt in the configured order
+4. The job prompt is appended after the injected skill context
 
-This enables reusable, tested workflows without pasting full instructions into cron prompts. For example:
-
-```
-Create a daily funding report → attach "ai-funding-daily-report" skill
-```
-
-### Script-Backed Jobs
-
-Jobs can also attach a Python script via the `script` field. The script runs *before* each agent turn, and its stdout is injected into the prompt as context. This enables data collection and change detection patterns:
-
-```python
-# ~/.hermes/scripts/check_competitors.py
-import requests, json
-# Fetch competitor release notes, diff against last run
-# Print summary to stdout — agent analyzes and reports
-```
-
-The script timeout defaults to 120 seconds. `_get_script_timeout()` resolves the limit through a three-layer chain:
-
-1. **Module-level override** — `_SCRIPT_TIMEOUT` (for tests/monkeypatching). Only used when it differs from the default.
-2. **Environment variable** — `HERMES_CRON_SCRIPT_TIMEOUT`
-3. **Config** — `cron.script_timeout_seconds` in `config.yaml` (read via `load_config()`)
-4. **Default** — 120 seconds
-
-### Provider Recovery
-
-`run_job()` passes the user's configured fallback providers and credential pool into the `AIAgent` instance:
-
-- **Fallback providers** — reads `fallback_providers` (list) or `fallback_model` (legacy dict) from `config.yaml`, matching the gateway's `_load_fallback_model()` pattern. Passed as `fallback_model=` to `AIAgent.__init__`, which normalizes both formats into a fallback chain.
-- **Credential pool** — loads via `load_pool(provider)` from `agent.credential_pool` using the resolved runtime provider name. Only passed when the pool has credentials (`pool.has_credentials()`). Enables same-provider key rotation on 429/rate-limit errors.
-
-This mirrors the gateway's behavior — without it, cron agents would fail on rate limits without attempting recovery.
+This keeps cron prompts compact while still reusing bundled or user-installed workflows.
 
 ## Delivery Model
 
-Cron job results can be delivered to any supported platform:
+v1 supports two delivery targets:
 
-| Target | Syntax | Example |
-|--------|--------|---------|
-| Origin chat | `origin` | Deliver to the chat where the job was created |
-| Local file | `local` | Save to `~/.hermes/cron/output/` |
-| Telegram | `telegram` or `telegram:<chat_id>` | `telegram:-1001234567890` |
-| Discord | `discord` or `discord:#channel` | `discord:#engineering` |
-| Slack | `slack` | Deliver to Slack home channel |
-| WhatsApp | `whatsapp` | Deliver to WhatsApp home |
-| Signal | `signal` | Deliver to Signal |
-| Matrix | `matrix` | Deliver to Matrix home room |
-| Mattermost | `mattermost` | Deliver to Mattermost home |
-| Email | `email` | Deliver via email |
-| SMS | `sms` | Deliver via SMS |
-| Home Assistant | `homeassistant` | Deliver to HA conversation |
-| DingTalk | `dingtalk` | Deliver to DingTalk |
-| Feishu | `feishu` | Deliver to Feishu |
-| WeCom | `wecom` | Deliver to WeCom |
-| BlueBubbles | `bluebubbles` | Deliver to iMessage via BlueBubbles |
+| Target | Meaning |
+|--------|---------|
+| `origin_session` | Publish a `cron.delivery` chat event into the source session |
+| `local_file` | Write Markdown output to `~/.deepclaw/cron/output/` |
 
-For Telegram topics, use the format `telegram:<chat_id>:<thread_id>` (e.g., `telegram:-1001234567890:17585`).
+### Origin Session Delivery
 
-### Response Wrapping
+- Used when the job was created from a chat session or when `sourceSessionId` is provided
+- Stored as a dedicated `cron.delivery` event
+- Shown in the chat UI as a system-style transcript entry
+- Not replayed into future model turns as ordinary assistant conversation
 
-By default (`cron.wrap_response: true`), cron deliveries are wrapped with:
-- A header identifying the cron job name and task
-- A footer noting the agent cannot see the delivered message in conversation
+### Local File Delivery
 
-The `[SILENT]` prefix in a cron response suppresses delivery entirely — useful for jobs that only need to write to files or perform side effects.
+- The service writes a timestamped `.md` file under `~/.deepclaw/cron/output/`
+- The absolute path is stored on the `cron_runs` row
 
-### Session Isolation
+## Script Support
 
-Cron deliveries are NOT mirrored into gateway session conversation history. They exist only in the cron job's own session. This prevents message alternation violations in the target chat's conversation.
+The data model reserves a `script` field for future preprocessors.
 
-## Recursion Guard
+Current behavior:
 
-Cron-run sessions have the `cronjob` toolset disabled. This prevents:
-- A scheduled job from creating new cron jobs
-- Recursive scheduling that could explode token usage
-- Accidental mutation of the job schedule from within a job
+- `script` is persisted as `null`
+- Non-null script values are rejected during create/update
+- There is no Python or shell pre-step in v1
 
-## Locking
+## Optimization Notes
 
-The scheduler uses file-based locking to prevent overlapping ticks from executing the same due-job batch twice. This is important in gateway mode where multiple maintenance cycles could overlap if a previous tick takes longer than the tick interval.
+Compared with the old Python-style design, the current implementation is optimized in several ways:
+
+- SQLite replaces full-file `jobs.json` rewrites
+- Due-job claiming is indexed and transactional
+- Execution history is split into `cron_runs` instead of overloading chat sessions
+- Concurrency is bounded to avoid multiple heavy agent runs overwhelming the desktop process
+- Origin-session delivery uses a dedicated event type instead of pretending to be a normal assistant turn

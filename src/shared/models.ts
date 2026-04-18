@@ -120,6 +120,16 @@ export type SessionCancelledEvent = ChatEventBase & {
   type: 'session.cancelled'
 }
 
+export type CronDeliveryEvent = ChatEventBase & {
+  type: 'cron.delivery'
+  jobId: string
+  runId: string
+  jobName: string
+  status: 'success' | 'error'
+  deliverTarget: 'origin_session'
+  text: string
+}
+
 export type ChatEvent =
   | SessionCreatedEvent
   | UserMessageEvent
@@ -132,6 +142,7 @@ export type ChatEvent =
   | SessionTitleUpdatedEvent
   | SessionErrorEvent
   | SessionCancelledEvent
+  | CronDeliveryEvent
 
 export type ToolCallEvent = ToolCalledEvent | ToolCompletedEvent
 

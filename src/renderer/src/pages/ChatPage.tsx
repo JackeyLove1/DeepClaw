@@ -696,7 +696,8 @@ export const ChatPage = () => {
         event.type === 'assistant.completed' ||
         event.type === 'session.title.updated' ||
         event.type === 'session.error' ||
-        event.type === 'session.cancelled'
+        event.type === 'session.cancelled' ||
+        event.type === 'cron.delivery'
       ) {
         void refreshSessions()
       }

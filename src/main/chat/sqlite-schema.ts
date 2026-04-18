@@ -136,6 +136,61 @@ export const ensureChatSchema = (db: Database.Database): void => {
   `)
 
   db.exec(`
+    CREATE TABLE IF NOT EXISTS cron_jobs (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      prompt TEXT NOT NULL,
+      schedule TEXT NOT NULL,
+      scheduleKind TEXT NOT NULL,
+      timezone TEXT,
+      state TEXT NOT NULL,
+      nextRunAt INTEGER,
+      lastRunAt INTEGER,
+      sourceSessionId TEXT,
+      deliver TEXT NOT NULL,
+      skillsJson TEXT NOT NULL DEFAULT '[]',
+      script TEXT,
+      runCount INTEGER NOT NULL DEFAULT 0,
+      maxRuns INTEGER,
+      misfirePolicy TEXT NOT NULL DEFAULT 'run_once_on_resume',
+      createdAt INTEGER NOT NULL,
+      updatedAt INTEGER NOT NULL
+    );
+  `)
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_cron_jobs_state_nextRunAt ON cron_jobs(state, nextRunAt);
+    CREATE INDEX IF NOT EXISTS idx_cron_jobs_updatedAt ON cron_jobs(updatedAt DESC);
+  `)
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS cron_runs (
+      id TEXT PRIMARY KEY,
+      jobId TEXT NOT NULL,
+      triggerKind TEXT NOT NULL,
+      status TEXT NOT NULL,
+      startedAt INTEGER NOT NULL,
+      finishedAt INTEGER,
+      linkedSessionId TEXT,
+      outputPreview TEXT NOT NULL DEFAULT '',
+      outputPath TEXT,
+      errorText TEXT,
+      model TEXT,
+      inputTokens INTEGER NOT NULL DEFAULT 0,
+      outputTokens INTEGER NOT NULL DEFAULT 0,
+      cacheCreationTokens INTEGER NOT NULL DEFAULT 0,
+      cacheReadTokens INTEGER NOT NULL DEFAULT 0,
+      nextRunAt INTEGER
+    );
+  `)
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_cron_runs_job_startedAt ON cron_runs(jobId, startedAt DESC);
+    CREATE INDEX IF NOT EXISTS idx_cron_runs_startedAt ON cron_runs(startedAt DESC);
+    CREATE INDEX IF NOT EXISTS idx_cron_runs_status ON cron_runs(status, startedAt DESC);
+  `)
+
+  db.exec(`
     CREATE TRIGGER IF NOT EXISTS chat_events_ai AFTER INSERT ON chat_events BEGIN
       INSERT INTO chat_events_fts(rowid, searchableText) VALUES (new.id, new.searchableText);
     END;

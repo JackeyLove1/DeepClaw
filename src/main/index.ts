@@ -2,22 +2,31 @@ import { createNote, deleteNote, getNotes, readNote, writeNote } from './lib'
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import type {
   CreateNote,
+  CreateCronJob,
   DeleteNote,
   GetAnthropicSettings,
   GetUsageOverview,
   GetNotes,
+  ListCronJobs,
+  ListCronRuns,
   ListSkillUsageRecords,
   ListToolCallRecords,
   ListToolStats,
   ListUsageRecords,
+  PauseCronJob,
   ReadNote,
-  TestAnthropicConnection,
+  RemoveCronJob,
+  ResumeCronJob,
+  RunCronJob,
   SaveAnthropicSettings,
+  TestAnthropicConnection,
+  UpdateCronJob,
   WriteNote
 } from '@shared/types'
-import { BrowserWindow, app, ipcMain, shell } from 'electron'
+import { BrowserWindow, app, ipcMain, powerMonitor, shell } from 'electron'
 import { join } from 'node:path'
 import icon from '../../resources/icon.png?asset'
+import { CronScheduler, CronService, setCronService } from './agent/cron'
 import { ChatSupervisor } from './chat/supervisor'
 import {
   getAnthropicSettings,
@@ -30,6 +39,8 @@ import { seedBundledSkillsIntoUserDir } from './agent/skills/loadSkillsDir'
 
 let mainWindow: BrowserWindow | null = null
 let chatSupervisor: ChatSupervisor | null = null
+let cronService: CronService | null = null
+let cronScheduler: CronScheduler | null = null
 
 const toErrorText = (error: unknown): string => {
   if (error instanceof Error) {
@@ -296,6 +307,37 @@ function registerSettingsIpc(): void {
   })
 }
 
+function registerCronIpc(): void {
+  if (!cronService) {
+    throw new Error('Cron service is not initialized.')
+  }
+
+  ipcMain.handle('cron:listJobs', (_, ...args: Parameters<ListCronJobs>) =>
+    cronService?.listJobs(...args)
+  )
+  ipcMain.handle('cron:listRuns', (_, ...args: Parameters<ListCronRuns>) =>
+    cronService?.listRuns(...args)
+  )
+  ipcMain.handle('cron:createJob', (_, ...args: Parameters<CreateCronJob>) =>
+    cronService?.createJob(...args)
+  )
+  ipcMain.handle('cron:updateJob', (_, ...args: Parameters<UpdateCronJob>) =>
+    cronService?.updateJob(...args)
+  )
+  ipcMain.handle('cron:pauseJob', (_, ...args: Parameters<PauseCronJob>) =>
+    cronService?.pauseJob(...args)
+  )
+  ipcMain.handle('cron:resumeJob', (_, ...args: Parameters<ResumeCronJob>) =>
+    cronService?.resumeJob(...args)
+  )
+  ipcMain.handle('cron:removeJob', async (_, ...args: Parameters<RemoveCronJob>) => {
+    await cronService?.removeJob(...args)
+  })
+  ipcMain.handle('cron:runJob', (_, ...args: Parameters<RunCronJob>) =>
+    cronService?.runJob(...args)
+  )
+}
+
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.deepclaw.notemark')
 
@@ -308,6 +350,8 @@ app.whenReady().then(() => {
 
   try {
     initDatabase()
+    cronService = new CronService()
+    setCronService(cronService)
     const skillSeedResult = seedBundledSkillsIntoUserDir()
     if (skillSeedResult.sourceDir) {
       console.info(
@@ -321,6 +365,29 @@ app.whenReady().then(() => {
       console.error('Failed to hydrate Anthropic settings from ~/.deepclaw/.env', error)
     })
     chatSupervisor = new ChatSupervisor()
+    cronService.setOriginSessionPublisher(async (sessionId, payload) => {
+      if (!chatSupervisor) {
+        return
+      }
+
+      await chatSupervisor.publishExternalEvent(sessionId, {
+        type: 'cron.delivery',
+        eventId: `cron.delivery_${payload.run.id}`,
+        sessionId,
+        timestamp: Date.now(),
+        jobId: payload.job.id,
+        runId: payload.run.id,
+        jobName: payload.job.name,
+        status: payload.status,
+        deliverTarget: 'origin_session',
+        text: payload.text
+      })
+    })
+    cronScheduler = new CronScheduler(cronService)
+    cronScheduler.start()
+    powerMonitor.on('resume', () => {
+      cronScheduler?.notifyResume()
+    })
     if (mainWindow && !mainWindow.isDestroyed()) {
       chatSupervisor.attachWindow(mainWindow)
     }
@@ -328,6 +395,7 @@ app.whenReady().then(() => {
     registerNoteIpc()
     registerChatIpc()
     registerSettingsIpc()
+    registerCronIpc()
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) {
@@ -358,6 +426,7 @@ process.on('unhandledRejection', (reason) => {
 })
 
 app.on('window-all-closed', () => {
+  cronScheduler?.stop()
   if (process.platform !== 'darwin') {
     app.quit()
   }

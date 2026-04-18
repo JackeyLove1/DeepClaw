@@ -143,6 +143,21 @@ export class ChatSupervisor {
     activeRun?.abortController.abort()
   }
 
+  async publishExternalEvent(
+    sessionId: string,
+    event: ChatEvent,
+    metaUpdate?: Partial<SessionMeta>
+  ): Promise<void> {
+    const current = await this.store.readMeta(sessionId)
+    await this.store.appendEvent(sessionId, event)
+    await this.store.updateMeta(sessionId, {
+      ...current,
+      updatedAt: event.timestamp,
+      ...metaUpdate
+    })
+    this.broadcast(event)
+  }
+
   async sendMessage(sessionId: string, text: string): Promise<void> {
     const trimmed = text.trim()
     if (!trimmed) {

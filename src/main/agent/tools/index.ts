@@ -1,5 +1,6 @@
 import { createBashTool, type BashToolOptions } from './BashTool'
 import { ChatSessionStore } from '../../chat/session-store'
+import { createCronTool } from './CronTool'
 import { createPatchTool, createReadFileTool, createWriteFileTool } from './FileSystemTool'
 import { createGetTimeTool } from './get-time'
 import { createPowerShellTool, type PowerShellToolOptions } from './PowerShellTool'
@@ -68,6 +69,7 @@ export type CreateToolsOptions = {
   platform?: NodeJS.Platform
   shellTool?: PlatformShellToolOptions
   budgetConfig?: BudgetConfig
+  includeCronTool?: boolean
 }
 
 export function createPlatformShellTool(
@@ -93,6 +95,7 @@ export function createTools(options: CreateToolsOptions = {}): Tool[] {
   const config = options.budgetConfig ?? DEFAULT_BUDGET
   const baseTools = [
     ...toolFactories.map((factory) => factory()),
+    ...(options.includeCronTool === false ? [] : [createCronTool()]),
     createPlatformShellTool(options.platform, options.shellTool)
   ]
   const withPersistence = baseTools.map((tool) => withResultPersistence(tool, config))

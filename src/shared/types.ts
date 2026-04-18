@@ -15,6 +15,85 @@ export type DeleteSession = (sessionId: string) => Promise<void>
 export type SendMessage = (sessionId: string, text: string) => Promise<void>
 export type CancelRun = (sessionId: string) => Promise<void>
 
+export type CronScheduleKind = 'delay' | 'interval' | 'cron' | 'datetime'
+export type CronJobState = 'scheduled' | 'paused' | 'running' | 'completed'
+export type CronRunStatus = 'running' | 'success' | 'error'
+export type CronRunTriggerKind = 'scheduled' | 'manual' | 'recovered'
+export type CronDeliverTarget = 'origin_session' | 'local_file'
+export type CronMisfirePolicy = 'run_once_on_resume'
+
+export interface CronJob {
+  id: string
+  name: string
+  prompt: string
+  schedule: string
+  scheduleKind: CronScheduleKind
+  timezone: string | null
+  state: CronJobState
+  nextRunAt: number | null
+  lastRunAt: number | null
+  sourceSessionId: string | null
+  deliver: CronDeliverTarget
+  skills: string[]
+  script: string | null
+  runCount: number
+  maxRuns: number | null
+  misfirePolicy: CronMisfirePolicy
+  createdAt: number
+  updatedAt: number
+}
+
+export interface CronRun {
+  id: string
+  jobId: string
+  triggerKind: CronRunTriggerKind
+  status: CronRunStatus
+  startedAt: number
+  finishedAt: number | null
+  linkedSessionId: string | null
+  outputPreview: string
+  outputPath: string | null
+  errorText: string | null
+  model: string | null
+  inputTokens: number
+  outputTokens: number
+  cacheCreationTokens: number
+  cacheReadTokens: number
+  nextRunAt: number | null
+}
+
+export interface CreateCronJobInput {
+  name: string
+  prompt: string
+  schedule: string
+  timezone?: string | null
+  deliver?: CronDeliverTarget
+  skills?: string[]
+  script?: string | null
+  maxRuns?: number | null
+  sourceSessionId?: string | null
+}
+
+export interface UpdateCronJobInput {
+  name?: string
+  prompt?: string
+  schedule?: string
+  timezone?: string | null
+  deliver?: CronDeliverTarget
+  skills?: string[]
+  script?: string | null
+  maxRuns?: number | null
+}
+
+export type ListCronJobs = () => Promise<CronJob[]>
+export type ListCronRuns = (limit?: number) => Promise<CronRun[]>
+export type CreateCronJob = (input: CreateCronJobInput) => Promise<CronJob>
+export type UpdateCronJob = (jobId: string, input: UpdateCronJobInput) => Promise<CronJob>
+export type PauseCronJob = (jobId: string) => Promise<CronJob>
+export type ResumeCronJob = (jobId: string) => Promise<CronJob>
+export type RemoveCronJob = (jobId: string) => Promise<void>
+export type RunCronJob = (jobId: string) => Promise<CronRun>
+
 export type ChatListener = (event: ChatEvent) => void
 export type Unsubscribe = () => void
 export type SubscribeChatEvents = (sessionId: string, listener: ChatListener) => Unsubscribe

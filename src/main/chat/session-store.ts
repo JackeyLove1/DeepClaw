@@ -75,6 +75,10 @@ const extractSearchableText = (event: ChatEvent): string => {
     return event.text
   }
 
+  if (event.type === 'cron.delivery') {
+    return `${event.jobName} ${event.text}`.trim()
+  }
+
   return ''
 }
 

@@ -1,24 +1,32 @@
 import type {
   CancelRun,
   CreateNote,
+  CreateCronJob,
   CreateSession,
   DeleteSession,
   DeleteNote,
   GetAnthropicSettings,
   GetNotes,
   GetUsageOverview,
+  ListCronJobs,
+  ListCronRuns,
   ListSkillUsageRecords,
   ListToolCallRecords,
   ListToolStats,
   ListUsageRecords,
   ListSessions,
   OpenSession,
+  PauseCronJob,
   ReadNote,
+  RemoveCronJob,
+  ResumeCronJob,
+  RunCronJob,
   SaveAnthropicSettings,
   SearchSessions,
   SendMessage,
   SubscribeChatEvents,
   TestAnthropicConnection,
+  UpdateCronJob,
   UpdateSessionTitle,
   WindowClose,
   WindowIsMaximized,
@@ -57,6 +65,14 @@ declare global {
       listToolCallRecords: ListToolCallRecords
       listToolStats: ListToolStats
       listSkillUsageRecords: ListSkillUsageRecords
+      listCronJobs: ListCronJobs
+      listCronRuns: ListCronRuns
+      createCronJob: CreateCronJob
+      updateCronJob: UpdateCronJob
+      pauseCronJob: PauseCronJob
+      resumeCronJob: ResumeCronJob
+      removeCronJob: RemoveCronJob
+      runCronJob: RunCronJob
     }
   }
 }

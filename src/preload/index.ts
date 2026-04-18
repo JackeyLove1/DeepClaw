@@ -1,6 +1,7 @@
 import type { ChatEvent } from '@shared/models'
 import type {
   CancelRun,
+  CreateCronJob,
   CreateNote,
   CreateSession,
   DeleteSession,
@@ -9,17 +10,24 @@ import type {
   GetNotes,
   ListSkillUsageRecords,
   GetUsageOverview,
+  ListCronJobs,
+  ListCronRuns,
   ListToolCallRecords,
   ListToolStats,
   ListUsageRecords,
   ListSessions,
   OpenSession,
+  PauseCronJob,
   ReadNote,
+  RemoveCronJob,
+  ResumeCronJob,
+  RunCronJob,
   SaveAnthropicSettings,
   SearchSessions,
   SendMessage,
   SubscribeChatEvents,
   TestAnthropicConnection,
+  UpdateCronJob,
   UpdateSessionTitle,
   WindowClose,
   WindowIsMaximized,
@@ -109,7 +117,23 @@ try {
       invoke<Awaited<ReturnType<ListSkillUsageRecords>>>(
         'settings:listSkillUsageRecords',
         ...args
-      )
+      ),
+    listCronJobs: (...args: Parameters<ListCronJobs>) =>
+      invoke<Awaited<ReturnType<ListCronJobs>>>('cron:listJobs', ...args),
+    listCronRuns: (...args: Parameters<ListCronRuns>) =>
+      invoke<Awaited<ReturnType<ListCronRuns>>>('cron:listRuns', ...args),
+    createCronJob: (...args: Parameters<CreateCronJob>) =>
+      invoke<Awaited<ReturnType<CreateCronJob>>>('cron:createJob', ...args),
+    updateCronJob: (...args: Parameters<UpdateCronJob>) =>
+      invoke<Awaited<ReturnType<UpdateCronJob>>>('cron:updateJob', ...args),
+    pauseCronJob: (...args: Parameters<PauseCronJob>) =>
+      invoke<Awaited<ReturnType<PauseCronJob>>>('cron:pauseJob', ...args),
+    resumeCronJob: (...args: Parameters<ResumeCronJob>) =>
+      invoke<Awaited<ReturnType<ResumeCronJob>>>('cron:resumeJob', ...args),
+    removeCronJob: (...args: Parameters<RemoveCronJob>) =>
+      invoke<Awaited<ReturnType<RemoveCronJob>>>('cron:removeJob', ...args),
+    runCronJob: (...args: Parameters<RunCronJob>) =>
+      invoke<Awaited<ReturnType<RunCronJob>>>('cron:runJob', ...args)
   })
 } catch (error) {
   console.error(error)
