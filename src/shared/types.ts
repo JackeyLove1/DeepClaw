@@ -29,6 +29,7 @@ export type PendingImageAttachment = Omit<
 export interface SendMessageInput {
   text: string
   attachments: PendingImageAttachment[]
+  skills?: string[]
 }
 export type SendMessage = (sessionId: string, input: SendMessageInput) => Promise<void>
 export interface ClipboardImagePayload {
@@ -237,6 +238,13 @@ export interface SkillUsageRecord {
   timestamp: number
 }
 
+export interface InstalledSkillSummary {
+  skillId: string
+  name: string
+  description: string
+  tags: string[]
+}
+
 export type GetAiChannelSettings = () => Promise<AiChannelSettings>
 export type SaveAiChannelSettings = (settings: AiChannelSettings) => Promise<AiChannelSettings>
 export type SetActiveAiChannel = (
@@ -250,3 +258,4 @@ export type ListUsageRecords = (limit?: number) => Promise<UsageRecord[]>
 export type ListToolCallRecords = (limit?: number) => Promise<ToolCallUsageRecord[]>
 export type ListToolStats = (limit?: number) => Promise<ToolStatsRecord[]>
 export type ListSkillUsageRecords = (limit?: number) => Promise<SkillUsageRecord[]>
+export type ListInstalledSkills = () => Promise<InstalledSkillSummary[]>

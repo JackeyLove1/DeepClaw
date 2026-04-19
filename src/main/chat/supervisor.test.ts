@@ -32,6 +32,7 @@ const buildRuntime = (
     sessionId: string
     userText: string
     hasUserContent?: boolean
+    selectedSkills?: string[]
     sessionMemory?: string | null
     history: ChatEvent[]
     signal: AbortSignal

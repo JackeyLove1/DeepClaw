@@ -92,16 +92,29 @@ ${formatInstalledSkillsSection(installedSkills)}`
 
 const buildRuntimeSystemPrompt = (
   installedSkills: readonly InstalledSkill[],
-  sessionMemory?: string | null
+  sessionMemory?: string | null,
+  selectedSkills: string[] = []
 ): string => {
   const basePrompt = buildSystemPrompt(installedSkills)
+  const selectedSkillSet = new Set(selectedSkills.map((item) => item.trim()).filter(Boolean))
+  const selectedInstalledSkills = installedSkills.filter((skill) => selectedSkillSet.has(skill.skillId))
+  const selectedSkillsSection =
+    selectedInstalledSkills.length > 0
+      ? [
+          'User-selected skills for this turn (prioritize these when relevant):',
+          ...selectedInstalledSkills.map(
+            (skill) =>
+              `- ${skill.skillId} | ${skill.name}: ${clampText(skill.description, 220)} | details: ~/.deepclaw/skills/${skill.skillId}/SKILL.md`
+          )
+        ].join('\n')
+      : ''
   const memory = sessionMemory?.trim()
 
   if (!memory) {
-    return basePrompt
+    return selectedSkillsSection ? `${basePrompt}\n\n${selectedSkillsSection}` : basePrompt
   }
 
-  return `${basePrompt}
+  return `${selectedSkillsSection ? `${basePrompt}\n\n${selectedSkillsSection}` : basePrompt}
 
 Session memory:
 ${memory}
@@ -229,8 +242,8 @@ export class AnthropicChatRuntime implements ChatRuntime {
     })
   }
 
-  private getSystemPrompt(sessionMemory?: string | null): string {
-    return buildRuntimeSystemPrompt(this.installedSkills, sessionMemory)
+  private getSystemPrompt(sessionMemory?: string | null, selectedSkills: string[] = []): string {
+    return buildRuntimeSystemPrompt(this.installedSkills, sessionMemory, selectedSkills)
   }
 
   async testConnection(): Promise<ConnectionTestResult> {
@@ -282,6 +295,7 @@ export class AnthropicChatRuntime implements ChatRuntime {
     sessionId,
     userText,
     hasUserContent = Boolean(String(userText ?? '').trim()),
+    selectedSkills = [],
     sessionMemory = null,
     history = [],
     signal
@@ -335,7 +349,7 @@ export class AnthropicChatRuntime implements ChatRuntime {
         {
           model: config.model,
           max_tokens: 2048,
-          system: this.getSystemPrompt(sessionMemory),
+          system: this.getSystemPrompt(sessionMemory, selectedSkills),
           tools: anthropicTools,
           messages,
           stream: true

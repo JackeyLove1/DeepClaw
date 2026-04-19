@@ -10,6 +10,7 @@ import type {
   GetNotes,
   ListCronJobs,
   ListCronRuns,
+  ListInstalledSkills,
   ListSkillUsageRecords,
   ListToolCallRecords,
   ListToolStats,
@@ -40,7 +41,7 @@ import {
   testAiChannelConnection
 } from './lib/ai-channel-settings'
 import { initDatabase } from './lib/database'
-import { seedBundledSkillsIntoUserDir } from './agent/skills/loadSkillsDir'
+import { loadInstalledSkillsFromDir, seedBundledSkillsIntoUserDir } from './agent/skills/loadSkillsDir'
 
 let mainWindow: BrowserWindow | null = null
 let chatSupervisor: ChatSupervisor | null = null
@@ -321,6 +322,27 @@ function registerChatIpc(): void {
   ipcMain.handle('chat:cancelRun', async (_event, sessionId: string) => {
     await chatSupervisor?.cancelRun(sessionId)
   })
+  ipcMain.handle(
+    'chat:listInstalledSkills',
+    async (_event, ..._args: Parameters<ListInstalledSkills>) => {
+      const dedupedSkills = new Map<string, Awaited<ReturnType<ListInstalledSkills>>[number]>()
+      for (const skill of loadInstalledSkillsFromDir()) {
+        const key = skill.skillId.trim().toLowerCase()
+        if (!key || dedupedSkills.has(key)) {
+          continue
+        }
+
+        dedupedSkills.set(key, {
+          skillId: skill.skillId,
+          name: skill.name,
+          description: skill.description,
+          tags: skill.tags
+        })
+      }
+
+      return [...dedupedSkills.values()]
+    }
+  )
 }
 
 function registerSettingsIpc(): void {

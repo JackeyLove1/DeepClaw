@@ -3,9 +3,11 @@ import type {
     AiChannelConfig,
     AiChannelSettings,
     ClipboardImagePayload,
+  InstalledSkillSummary,
     PendingImageAttachment
 } from '@shared/types';
 import {
+    Check,
     ChevronDown,
     ChevronRight,
     Compass,
@@ -64,8 +66,6 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger
 } from '../components/ui/dropdown-menu';
-
-const INPUT_CHIPS = ['默认大模型', '技能', '找灵感']
 
 const MAX_PENDING_IMAGES = 5
 const MAX_PENDING_IMAGE_BYTES = 8 * 1024 * 1024
@@ -664,12 +664,16 @@ const InputBar = ({
   isCancelling,
   currentSessionId,
   aiChannelSettings,
+  installedSkills,
+  selectedSkillIds,
   isAiChannelsLoading,
+  isInstalledSkillsLoading,
   isSwitchingAiChannel,
   textareaRef,
   onDraftChange,
   onPaste,
   onRemoveImage,
+  onToggleSkill,
   onActiveChannelChange,
   onSend,
   onCancel
@@ -680,12 +684,16 @@ const InputBar = ({
   isCancelling: boolean
   currentSessionId: string | null
   aiChannelSettings: AiChannelSettings
+  installedSkills: InstalledSkillSummary[]
+  selectedSkillIds: string[]
   isAiChannelsLoading: boolean
+  isInstalledSkillsLoading: boolean
   isSwitchingAiChannel: boolean
   textareaRef?: Ref<HTMLTextAreaElement>
   onDraftChange: (value: string) => void
   onPaste: (event: ClipboardEvent<HTMLTextAreaElement>) => void
   onRemoveImage: (id: string) => void
+  onToggleSkill: (skillId: string) => void
   onActiveChannelChange: (channelId: string) => void
   onSend: () => void
   onCancel: () => void
@@ -695,6 +703,31 @@ const InputBar = ({
   const activeChannelLabel = activeChannel ? formatAiChannelLabel(activeChannel) : '默认大模型'
   const isModelSwitcherDisabled =
     isAiChannelsLoading || isSwitchingAiChannel || aiChannelSettings.channels.length === 0
+  const [skillSearchQuery, setSkillSearchQuery] = useState('')
+  const dedupedSkills = useMemo(() => {
+    const skillMap = new Map<string, InstalledSkillSummary>()
+    for (const skill of installedSkills) {
+      const key = skill.skillId.trim().toLowerCase()
+      if (!key || skillMap.has(key)) {
+        continue
+      }
+      skillMap.set(key, skill)
+    }
+    return [...skillMap.values()]
+  }, [installedSkills])
+  const filteredSkills = useMemo(() => {
+    const normalized = skillSearchQuery.trim().toLowerCase()
+    if (!normalized) {
+      return dedupedSkills
+    }
+
+    return dedupedSkills.filter((skill) =>
+      [skill.skillId, skill.name, skill.description, skill.tags.join(' ')]
+        .join(' ')
+        .toLowerCase()
+        .includes(normalized)
+    )
+  }, [dedupedSkills, skillSearchQuery])
 
   return (
     <div className="rounded-[28px] border border-[#ececf0] bg-[#f7f7f9] px-5 py-4 shadow-[0_10px_30px_rgba(15,15,20,0.06)]">
@@ -788,19 +821,95 @@ const InputBar = ({
               )}
             </DropdownMenuContent>
           </DropdownMenu>
-        {INPUT_CHIPS.filter((chip) => chip !== '默认大模型').map((chip) => (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#ececf1] px-3.5 text-[12.5px] font-medium text-[#4e505a] transition hover:bg-[#e4e4eb] hover:text-[var(--ink-main)]"
+              >
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-[#8f919c]">
+                  <Sparkles className="h-4 w-4" />
+                </span>
+                {selectedSkillIds.length > 0 ? `技能 ${selectedSkillIds.length}` : '技能'}
+                <ChevronDown className="h-3.5 w-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="start"
+              side="top"
+              className="w-[360px] rounded-2xl border border-[#e7e8ef] bg-white p-2 shadow-[0_18px_48px_rgba(15,15,20,0.14)]"
+            >
+              <div className="flex h-9 items-center gap-2 rounded-full bg-[#f3f3f6] px-3">
+                <Search className="h-3.5 w-3.5 text-[#8c8f9c]" />
+                <input
+                  value={skillSearchQuery}
+                  onChange={(event) => setSkillSearchQuery(event.target.value)}
+                  onKeyDown={(event) => event.stopPropagation()}
+                  placeholder="搜索技能"
+                  className="w-full bg-transparent text-[13px] text-[#32343b] outline-none placeholder:text-[#9a9cab]"
+                />
+              </div>
+              <div className="mt-2 max-h-[320px] overflow-y-auto rounded-xl border border-[#f0f1f4]">
+                {isInstalledSkillsLoading ? (
+                  <div className="px-3 py-4 text-[12px] text-[#8a8d99]">正在加载技能...</div>
+                ) : filteredSkills.length === 0 ? (
+                  <div className="px-3 py-4 text-[12px] text-[#8a8d99]">未找到匹配技能</div>
+                ) : (
+                  <ul className="divide-y divide-[#f0f1f4]">
+                    {filteredSkills.map((skill) => {
+                      const isSelected = selectedSkillIds.includes(skill.skillId)
+                      return (
+                      <li
+                        key={skill.skillId}
+                        className={`px-3 py-2.5 transition ${
+                          isSelected ? 'bg-[#eef1ff]' : 'hover:bg-[#f7f7fa]'
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => onToggleSkill(skill.skillId)}
+                          className="flex w-full items-start gap-2 text-left"
+                        >
+                          <span className="mt-0.5 rounded-md bg-[#edf2ff] p-1 text-[#5b6ee1]">
+                            <Sparkles className="h-3.5 w-3.5" />
+                          </span>
+                          <div className="min-w-0">
+                            <div className="line-clamp-1 text-[14px] font-medium text-[#23242a]">
+                              {skill.name}
+                            </div>
+                            <div className="line-clamp-1 text-[12px] text-[#7f828f]">
+                              {skill.skillId}
+                            </div>
+                            <p className="mt-1 line-clamp-2 text-[12px] leading-5 text-[#5f626f]">
+                              {skill.description}
+                            </p>
+                          </div>
+                          <span
+                            className={`mt-0.5 ml-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
+                              isSelected
+                                ? 'bg-[#5b6ee1] text-white'
+                                : 'border border-[#d8dbe7] text-transparent'
+                            }`}
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                          </span>
+                        </button>
+                      </li>
+                    )})}
+                  </ul>
+                )}
+              </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <button
-            key={chip}
             type="button"
             className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#ececf1] px-3.5 text-[12.5px] font-medium text-[#4e505a] transition hover:bg-[#e4e4eb] hover:text-[var(--ink-main)]"
           >
             <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-[#8f919c]">
-              {chip === '技能' ? <Sparkles className="h-4 w-4" /> : <Compass className="h-4 w-4" />}
+              <Compass className="h-4 w-4" />
             </span>
-            {chip}
-            {chip !== '找灵感' ? <ChevronDown className="h-3.5 w-3.5" /> : null}
+            找灵感
           </button>
-        ))}
         <button
           type="button"
           className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#ececf1] text-[#6d707c] transition hover:bg-[#e4e4eb] hover:text-[var(--ink-main)]"
@@ -845,12 +954,16 @@ const EmptyState = ({
   isCancelling,
   currentSessionId,
   aiChannelSettings,
+  installedSkills,
+  selectedSkillIds,
   isAiChannelsLoading,
+  isInstalledSkillsLoading,
   isSwitchingAiChannel,
   textareaRef,
   onDraftChange,
   onPaste,
   onRemoveImage,
+  onToggleSkill,
   onActiveChannelChange,
   onSend,
   onCancel
@@ -861,12 +974,16 @@ const EmptyState = ({
   isCancelling: boolean
   currentSessionId: string | null
   aiChannelSettings: AiChannelSettings
+  installedSkills: InstalledSkillSummary[]
+  selectedSkillIds: string[]
   isAiChannelsLoading: boolean
+  isInstalledSkillsLoading: boolean
   isSwitchingAiChannel: boolean
   textareaRef?: Ref<HTMLTextAreaElement>
   onDraftChange: (value: string) => void
   onPaste: (event: ClipboardEvent<HTMLTextAreaElement>) => void
   onRemoveImage: (id: string) => void
+  onToggleSkill: (skillId: string) => void
   onActiveChannelChange: (channelId: string) => void
   onSend: () => void
   onCancel: () => void
@@ -883,12 +1000,16 @@ const EmptyState = ({
         isCancelling={isCancelling}
         currentSessionId={currentSessionId}
         aiChannelSettings={aiChannelSettings}
+        installedSkills={installedSkills}
+        selectedSkillIds={selectedSkillIds}
         isAiChannelsLoading={isAiChannelsLoading}
+        isInstalledSkillsLoading={isInstalledSkillsLoading}
         isSwitchingAiChannel={isSwitchingAiChannel}
         textareaRef={textareaRef}
         onDraftChange={onDraftChange}
         onPaste={onPaste}
         onRemoveImage={onRemoveImage}
+        onToggleSkill={onToggleSkill}
         onActiveChannelChange={onActiveChannelChange}
         onSend={onSend}
         onCancel={onCancel}
@@ -904,7 +1025,10 @@ export const ChatPage = () => {
     channels: [],
     activeChannelId: null
   })
+  const [installedSkills, setInstalledSkills] = useState<InstalledSkillSummary[]>([])
+  const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>([])
   const [isAiChannelsLoading, setIsAiChannelsLoading] = useState(true)
+  const [isInstalledSkillsLoading, setIsInstalledSkillsLoading] = useState(true)
   const [isSwitchingAiChannel, setIsSwitchingAiChannel] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
@@ -978,6 +1102,42 @@ export const ChatPage = () => {
   }, [])
 
   useEffect(() => {
+    let disposed = false
+
+    const loadInstalledSkills = async (): Promise<void> => {
+      setIsInstalledSkillsLoading(true)
+
+      try {
+        const skills = await window.context.listInstalledSkills()
+        const dedupedSkills = new Map<string, InstalledSkillSummary>()
+        for (const skill of skills) {
+          const key = skill.skillId.trim().toLowerCase()
+          if (!key || dedupedSkills.has(key)) {
+            continue
+          }
+          dedupedSkills.set(key, skill)
+        }
+        if (!disposed) {
+          setInstalledSkills([...dedupedSkills.values()])
+        }
+      } catch (error) {
+        if (!disposed) {
+          toast.error(error instanceof Error ? error.message : 'Failed to load installed skills.')
+        }
+      } finally {
+        if (!disposed) {
+          setIsInstalledSkillsLoading(false)
+        }
+      }
+    }
+
+    void loadInstalledSkills()
+    return () => {
+      disposed = true
+    }
+  }, [])
+
+  useEffect(() => {
     pendingImagesRef.current = pendingImages
     chatImageDebug('pendingImages updated', {
       count: pendingImages.length,
@@ -1009,6 +1169,7 @@ export const ChatPage = () => {
   useEffect(() => {
     setResolvedAttachmentSrcById({})
     resolvedAttachmentAttemptedIdsRef.current.clear()
+    setSelectedSkillIds([])
   }, [currentSessionId])
 
   useEffect(() => {
@@ -1341,6 +1502,7 @@ export const ChatPage = () => {
     sessionId: string,
     message: string,
     attachments: PendingComposerImage[],
+    skills: string[],
     options?: { clearComposer?: boolean }
   ): Promise<void> => {
     if ((!message.trim() && attachments.length === 0) || state.isRunning) return
@@ -1349,6 +1511,8 @@ export const ChatPage = () => {
       sessionId,
       textLength: message.length,
       attachmentCount: attachments.length,
+      skillCount: skills.length,
+      skills,
       attachments: attachments.map((attachment) => ({
         id: attachment.id,
         fileName: attachment.fileName,
@@ -1369,6 +1533,7 @@ export const ChatPage = () => {
     try {
       await window.context.sendMessage(sessionId, {
         text: message,
+        skills,
         attachments: attachments.map(({ id, fileName, mimeType, dataBase64, sizeBytes }) => ({
           id,
           fileName,
@@ -1420,7 +1585,7 @@ export const ChatPage = () => {
 
   const handleSend = async (): Promise<void> => {
     if (!currentSessionId) return
-    await runMessage(currentSessionId, draft, pendingImages, { clearComposer: true })
+    await runMessage(currentSessionId, draft, pendingImages, selectedSkillIds, { clearComposer: true })
   }
 
   const insertTextAtComposerSelection = (text: string): void => {
@@ -1700,7 +1865,20 @@ export const ChatPage = () => {
       retryPrompt ?? getRetryPromptForAssistant(state.transcript, latestAssistantMessageId)
     if (!prompt) return
 
-    await runMessage(currentSessionId, prompt, [])
+    await runMessage(currentSessionId, prompt, [], selectedSkillIds)
+  }
+
+  const toggleSkillSelection = (skillId: string): void => {
+    const normalized = skillId.trim()
+    if (!normalized) {
+      return
+    }
+
+    setSelectedSkillIds((current) =>
+      current.includes(normalized)
+        ? current.filter((item) => item !== normalized)
+        : [...current, normalized]
+    )
   }
 
   const handleCancel = async (): Promise<void> => {
@@ -1846,12 +2024,16 @@ export const ChatPage = () => {
               isCancelling={state.isCancelling}
               currentSessionId={currentSessionId}
               aiChannelSettings={aiChannelSettings}
+              installedSkills={installedSkills}
+              selectedSkillIds={selectedSkillIds}
               isAiChannelsLoading={isAiChannelsLoading}
+              isInstalledSkillsLoading={isInstalledSkillsLoading}
               isSwitchingAiChannel={isSwitchingAiChannel}
               textareaRef={composerRef}
               onDraftChange={setDraft}
               onPaste={(event) => void handleComposerPasteWithFallback(event)}
               onRemoveImage={removePendingImage}
+              onToggleSkill={toggleSkillSelection}
               onActiveChannelChange={(channelId) => void handleActiveChannelChange(channelId)}
               onSend={() => void handleSend()}
               onCancel={() => void handleCancel()}
@@ -1869,12 +2051,16 @@ export const ChatPage = () => {
                 isCancelling={state.isCancelling}
                 currentSessionId={currentSessionId}
                 aiChannelSettings={aiChannelSettings}
+                installedSkills={installedSkills}
+                selectedSkillIds={selectedSkillIds}
                 isAiChannelsLoading={isAiChannelsLoading}
+                isInstalledSkillsLoading={isInstalledSkillsLoading}
                 isSwitchingAiChannel={isSwitchingAiChannel}
                 textareaRef={composerRef}
                 onDraftChange={setDraft}
                 onPaste={(event) => void handleComposerPasteWithFallback(event)}
                 onRemoveImage={removePendingImage}
+                onToggleSkill={toggleSkillSelection}
                 onActiveChannelChange={(channelId) => void handleActiveChannelChange(channelId)}
                 onSend={() => void handleSend()}
                 onCancel={() => void handleCancel()}

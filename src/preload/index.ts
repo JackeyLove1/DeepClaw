@@ -12,6 +12,7 @@ import type {
   GetUsageOverview,
   ListCronJobs,
   ListCronRuns,
+  ListInstalledSkills,
   ListToolCallRecords,
   ListToolStats,
   ListUsageRecords,
@@ -130,6 +131,8 @@ try {
         'settings:listSkillUsageRecords',
         ...args
       ),
+    listInstalledSkills: (...args: Parameters<ListInstalledSkills>) =>
+      invoke<Awaited<ReturnType<ListInstalledSkills>>>('chat:listInstalledSkills', ...args),
     listCronJobs: (...args: Parameters<ListCronJobs>) =>
       invoke<Awaited<ReturnType<ListCronJobs>>>('cron:listJobs', ...args),
     listCronRuns: (...args: Parameters<ListCronRuns>) =>

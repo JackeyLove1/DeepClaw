@@ -40,6 +40,7 @@ type ChatRuntimeLike = {
     sessionId: string
     userText: string
     hasUserContent?: boolean
+    selectedSkills?: string[]
     sessionMemory?: string | null
     history: ChatEvent[]
     signal: AbortSignal
@@ -192,6 +193,13 @@ export class ChatSupervisor {
   async sendMessage(sessionId: string, input: SendMessageInput): Promise<void> {
     const trimmed = input.text.trim()
     const attachments = input.attachments ?? []
+    const selectedSkills = Array.from(
+      new Set(
+        (input.skills ?? [])
+          .map((skillId) => skillId.trim())
+          .filter(Boolean)
+      )
+    )
 
     if (!trimmed && attachments.length === 0) {
       return
@@ -253,6 +261,7 @@ export class ChatSupervisor {
         sessionId,
         userText: trimmed,
         hasUserContent: Boolean(trimmed) || persistedAttachments.length > 0,
+        selectedSkills,
         sessionMemory: sessionMemory.summary,
         history: sessionMemory.summary ? [userEvent] : [...snapshot.events, userEvent],
         signal: abortController.signal
