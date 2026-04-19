@@ -402,6 +402,110 @@ describe('AnthropicChatRuntime', () => {
     }
   })
 
+  it('keeps canvas artifacts out of Anthropic tool_result image blocks', async () => {
+    process.env.ANTHROPIC_API_KEY = 'test-key'
+    process.env.NOTEMARK_MODEL_PROVIDER = 'anthropic'
+    process.env.NOTEMARK_MODEL = 'claude-sonnet-4-5'
+
+    let streamRound = 0
+    messagesCreateMock.mockImplementation(async (params: { stream?: boolean }) => {
+      if (!params.stream) {
+        return {
+          content: [{ type: 'text', text: 'pong' }]
+        }
+      }
+
+      streamRound += 1
+      if (streamRound === 1) {
+        return toStream([
+          {
+            type: 'content_block_start',
+            index: 0,
+            content_block: {
+              type: 'tool_use',
+              id: 'tool_canvas_1',
+              name: 'canvas_tool',
+              input: {}
+            }
+          }
+        ])
+      }
+
+      return toStream([
+        {
+          type: 'content_block_start',
+          index: 0,
+          content_block: { type: 'text', text: '' }
+        },
+        {
+          type: 'content_block_delta',
+          index: 0,
+          delta: { type: 'text_delta', text: 'Canvas ready' }
+        }
+      ])
+    })
+
+    const canvasTool: Tool = {
+      name: 'canvas_tool',
+      label: 'Canvas Tool',
+      description: 'Returns a canvas artifact',
+      inputSchema: { type: 'object' },
+      execute: async () => ({
+        content: [{ type: 'text', text: 'Saved canvas preview' }],
+        artifacts: [
+          {
+            kind: 'canvas',
+            id: 'canvas-1',
+            title: 'Concept preview',
+            fileName: 'index.html',
+            mimeType: 'text/html',
+            filePath: 'C:/temp/canvas/index.html',
+            sizeBytes: 2048,
+            createdAt: Date.now()
+          }
+        ],
+        details: { summary: 'Saved canvas preview' }
+      })
+    }
+
+    const runtime = new AnthropicChatRuntime({
+      toolsFactory: () => [canvasTool]
+    })
+
+    const events: ChatEvent[] = []
+    for await (const event of runtime.runTurn({
+      sessionId: 's_canvas',
+      userText: 'Build a concept explainer',
+      history: []
+    })) {
+      events.push(event)
+    }
+
+    const toolCompleted = events.find(
+      (event): event is Extract<ChatEvent, { type: 'tool.completed' }> =>
+        event.type === 'tool.completed'
+    )
+    expect(toolCompleted?.artifacts).toHaveLength(1)
+
+    const secondCallArgs = messagesCreateMock.mock.calls[1]?.[0] as {
+      messages?: Array<{ role: string; content: unknown }>
+    }
+    const toolResultMessage = secondCallArgs.messages?.at(-1)
+    expect(toolResultMessage?.role).toBe('user')
+    expect(toolResultMessage?.content).toMatchObject([
+      {
+        type: 'tool_result',
+        tool_use_id: 'tool_canvas_1',
+        content: [
+          {
+            type: 'text',
+            text: 'Saved canvas preview'
+          }
+        ]
+      }
+    ])
+  })
+
   it('injects persistent memory and session memory into the system prompt', async () => {
     process.env.ANTHROPIC_API_KEY = 'test-key'
     process.env.NOTEMARK_MODEL_PROVIDER = 'anthropic'

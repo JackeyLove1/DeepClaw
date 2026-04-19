@@ -1,5 +1,6 @@
 import type {
   ChatEvent,
+  ChatCanvasArtifact,
   ChatImageAttachment,
   NoteContent,
   NoteInfo,
@@ -44,6 +45,9 @@ export type ResolveChatAttachmentDataUrl = (
   filePath: string,
   mimeType: ChatImageAttachment['mimeType']
 ) => Promise<string | null>
+export type ReadCanvasArtifactHtml = (
+  artifact: Pick<ChatCanvasArtifact, 'filePath'>
+) => Promise<string>
 export type CancelRun = (sessionId: string) => Promise<void>
 
 export type CronScheduleKind = 'delay' | 'interval' | 'cron' | 'datetime'
@@ -250,9 +254,7 @@ export type SaveAiChannelSettings = (settings: AiChannelSettings) => Promise<AiC
 export type SetActiveAiChannel = (
   channelId: AiChannelConfig['id'] | null
 ) => Promise<AiChannelSettings>
-export type TestAiChannelConnection = (
-  channel: AiChannelConfig
-) => Promise<ConnectionCheckResult>
+export type TestAiChannelConnection = (channel: AiChannelConfig) => Promise<ConnectionCheckResult>
 export type GetUsageOverview = () => Promise<UsageOverview>
 export type ListUsageRecords = (limit?: number) => Promise<UsageRecord[]>
 export type ListToolCallRecords = (limit?: number) => Promise<ToolCallUsageRecord[]>

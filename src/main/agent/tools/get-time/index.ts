@@ -4,7 +4,11 @@ import { getToolPriority } from '../priorities'
 import { defineTool, lazySchema, toolExecuteResultSchema } from '../schema'
 import type { Tool } from '../types'
 
-const getTimeInputSchema = lazySchema(() => z.strictObject({}))
+const getTimeInputSchema = lazySchema(() =>
+  z.strictObject({
+    task_id: z.string().optional()
+  })
+)
 const getTimeOutputSchema = lazySchema(() => toolExecuteResultSchema)
 
 export function createGetTimeTool(): Tool {

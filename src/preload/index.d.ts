@@ -19,6 +19,7 @@ import type {
   OpenSession,
   PauseCronJob,
   ReadClipboardImage,
+  ReadCanvasArtifactHtml,
   ResolveChatAttachmentDataUrl,
   ReadNote,
   RemoveCronJob,
@@ -57,6 +58,7 @@ declare global {
       sendMessage: SendMessage
       readClipboardImage: ReadClipboardImage
       resolveChatAttachmentDataUrl: ResolveChatAttachmentDataUrl
+      readCanvasArtifactHtml: ReadCanvasArtifactHtml
       cancelRun: CancelRun
       subscribeChatEvents: SubscribeChatEvents
       windowMinimize: WindowMinimize

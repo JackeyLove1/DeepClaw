@@ -1,71 +1,88 @@
-import type { ChatImageAttachment, SessionMeta } from '@shared/models';
 import type {
-    AiChannelConfig,
-    AiChannelSettings,
-    ClipboardImagePayload,
+  ChatCanvasArtifact,
+  ChatImageAttachment,
+  ChatToolArtifact,
+  SessionMeta
+} from '@shared/models'
+import type {
+  AiChannelConfig,
+  AiChannelSettings,
+  ClipboardImagePayload,
   InstalledSkillSummary,
-    PendingImageAttachment
-} from '@shared/types';
+  PendingImageAttachment
+} from '@shared/types'
 import {
-    Check,
-    ChevronDown,
-    ChevronRight,
-    Compass,
-    Link2,
-    LoaderCircle,
-    MessageSquare,
-    MoreHorizontal,
-    Pencil,
-    Plus,
-    Search,
-    Send,
-    Sparkles,
-    Square,
-    Trash2,
-    Wrench,
-    X,
-    Zap
-} from 'lucide-react';
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Compass,
+  FileCode2,
+  Link2,
+  LoaderCircle,
+  MessageSquare,
+  Monitor,
+  MoreHorizontal,
+  PanelRightOpen,
+  Pencil,
+  Plus,
+  RefreshCw,
+  Search,
+  Send,
+  Sparkles,
+  Smartphone,
+  Square,
+  Trash2,
+  Wrench,
+  X,
+  Zap
+} from 'lucide-react'
 import {
-    useEffect,
-    useMemo,
-    useReducer,
-    useRef,
-    useState,
-    type ClipboardEvent,
-    type Ref
-} from 'react';
-import { toast } from 'sonner';
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+  type ClipboardEvent,
+  type Ref
+} from 'react'
+import { toast } from 'sonner'
 import {
-    buildFeedbackKey,
-    copyAssistantMessage,
-    getLatestAssistantMessageId,
-    getRetryPromptForAssistant,
-    toggleAssistantFeedback,
-    type AssistantFeedback
-} from '../chat/messageActions';
+  buildFeedbackKey,
+  copyAssistantMessage,
+  getLatestAssistantMessageId,
+  getRetryPromptForAssistant,
+  toggleAssistantFeedback,
+  type AssistantFeedback
+} from '../chat/messageActions'
 import {
-    chatViewReducer,
-    createInitialChatViewState,
-    selectVisibleSessions,
-    type AssistantTranscriptEntry,
-    type SystemTranscriptEntry,
-    type ToolGroupView,
-    type TranscriptEntry,
-    type UserTranscriptEntry
-} from '../chat/reducer';
-import { AssistantMessageActions } from '../components/AssistantMessageActions';
-import { AssistantMessageMarkdown } from '../components/AssistantMessageMarkdown';
+  chatViewReducer,
+  createInitialChatViewState,
+  selectVisibleSessions,
+  type AssistantTranscriptEntry,
+  type SystemTranscriptEntry,
+  type ToolGroupView,
+  type TranscriptEntry,
+  type UserTranscriptEntry
+} from '../chat/reducer'
+import { AssistantMessageActions } from '../components/AssistantMessageActions'
+import { AssistantMessageMarkdown } from '../components/AssistantMessageMarkdown'
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuRadioGroup,
-    DropdownMenuRadioItem,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger
-} from '../components/ui/dropdown-menu';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle
+} from '../components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from '../components/ui/dropdown-menu'
 
 const MAX_PENDING_IMAGES = 5
 const MAX_PENDING_IMAGE_BYTES = 8 * 1024 * 1024
@@ -88,6 +105,23 @@ type PendingComposerImage = PendingImageAttachment & {
   width: number
   height: number
 }
+
+type CanvasViewportMode = 'desktop' | 'mobile'
+
+type CanvasArtifactView = {
+  artifact: ChatCanvasArtifact
+  toolCallId: string
+  toolName: string
+  outputSummary: string
+  assistantMessageId: string
+  timestamp: number
+}
+
+const isCanvasArtifact = (artifact: ChatToolArtifact): artifact is ChatCanvasArtifact =>
+  'kind' in artifact && artifact.kind === 'canvas'
+
+const isImageArtifact = (artifact: ChatToolArtifact): artifact is ChatImageAttachment =>
+  !isCanvasArtifact(artifact)
 
 const chatImageDebug = (label: string, payload?: unknown): void => {
   if (!import.meta.env.DEV) {
@@ -155,7 +189,8 @@ const formatBytes = (value: number): string => {
   return `${Math.max(1, Math.round(value / 1024))} KB`
 }
 
-const formatAiChannelLabel = (channel: AiChannelConfig): string => `${channel.name} · ${channel.model}`
+const formatAiChannelLabel = (channel: AiChannelConfig): string =>
+  `${channel.name} · ${channel.model}`
 
 const toFileSrc = (filePath: string): string => {
   if (!filePath) {
@@ -264,7 +299,151 @@ const buildPendingImageFromClipboardPayload = async (
   }
 }
 
-const ToolGroupPanel = ({ toolGroup }: { toolGroup: ToolGroupView }) => {
+const collectCanvasArtifacts = (transcript: TranscriptEntry[]): CanvasArtifactView[] =>
+  transcript.flatMap((entry) => {
+    if (entry.kind !== 'assistant' || !entry.toolGroup) {
+      return []
+    }
+
+    return entry.toolGroup.calls.flatMap((call) =>
+      call.artifacts.filter(isCanvasArtifact).map((artifact) => ({
+        artifact,
+        toolCallId: call.id,
+        toolName: call.name,
+        outputSummary: call.outputSummary,
+        assistantMessageId: entry.id,
+        timestamp: artifact.createdAt || entry.completedAt || entry.createdAt
+      }))
+    )
+  })
+
+const CanvasPreviewPanel = ({
+  activeCanvas,
+  html,
+  isLoading,
+  error,
+  viewport,
+  iframeKey,
+  onViewportChange,
+  onReload
+}: {
+  activeCanvas: CanvasArtifactView | null
+  html: string
+  isLoading: boolean
+  error: string | null
+  viewport: CanvasViewportMode
+  iframeKey: string
+  onViewportChange: (viewport: CanvasViewportMode) => void
+  onReload: () => void
+}) => {
+  const frameWidthClassName = viewport === 'mobile' ? 'mx-auto w-[390px] max-w-full' : 'w-full'
+
+  return (
+    <div className="flex h-full min-h-0 flex-col bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(246,246,249,0.96))]">
+      <div className="border-b border-[var(--border-soft)] px-4 py-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--ink-faint)]">
+              <FileCode2 className="h-4 w-4" />
+              Canvas
+            </div>
+            <div className="mt-2 truncate text-[17px] font-semibold text-[var(--ink-main)]">
+              {activeCanvas?.artifact.title ?? 'No canvas selected'}
+            </div>
+            <div className="mt-1 text-[12px] text-[var(--ink-soft)]">
+              {activeCanvas
+                ? `${activeCanvas.toolName} · ${formatClockTime(activeCanvas.timestamp)}`
+                : 'Run the canvas tool to preview generated HTML here.'}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onReload}
+            disabled={!activeCanvas || isLoading}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-[var(--border-soft)] bg-white text-[var(--ink-subtle)] transition hover:bg-[#f1f1f4] disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label="Reload canvas preview"
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+
+        {activeCanvas ? (
+          <div className="mt-4 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onViewportChange('desktop')}
+              className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[12px] font-medium transition ${
+                viewport === 'desktop'
+                  ? 'bg-[var(--ink-main)] text-white'
+                  : 'bg-white text-[var(--ink-subtle)] hover:bg-[#f1f1f4]'
+              }`}
+            >
+              <Monitor className="h-3.5 w-3.5" />
+              Desktop
+            </button>
+            <button
+              type="button"
+              onClick={() => onViewportChange('mobile')}
+              className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[12px] font-medium transition ${
+                viewport === 'mobile'
+                  ? 'bg-[var(--ink-main)] text-white'
+                  : 'bg-white text-[var(--ink-subtle)] hover:bg-[#f1f1f4]'
+              }`}
+            >
+              <Smartphone className="h-3.5 w-3.5" />
+              Mobile
+            </button>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto p-4">
+        {!activeCanvas ? (
+          <div className="flex h-full min-h-[320px] items-center justify-center rounded-[28px] border border-dashed border-[var(--border-soft)] bg-white/75 px-6 text-center text-[13px] leading-6 text-[var(--ink-soft)]">
+            The latest HTML canvas artifact will appear here.
+          </div>
+        ) : isLoading ? (
+          <div className="flex h-full min-h-[320px] items-center justify-center rounded-[28px] border border-[var(--border-soft)] bg-white/80 text-[13px] text-[var(--ink-soft)]">
+            Loading canvas preview…
+          </div>
+        ) : error ? (
+          <div className="rounded-[28px] border border-rose-200 bg-rose-50 px-5 py-4 text-[13px] leading-6 text-rose-700">
+            {error}
+          </div>
+        ) : (
+          <div className={`${frameWidthClassName} h-full`}>
+            <div className="overflow-hidden rounded-[28px] border border-[var(--border-soft)] bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
+              <div className="flex items-center gap-2 border-b border-[var(--border-soft)] px-4 py-3 text-[11px] uppercase tracking-[0.16em] text-[var(--ink-faint)]">
+                <span className="inline-flex h-2.5 w-2.5 rounded-full bg-[#f59e0b]" />
+                <span className="inline-flex h-2.5 w-2.5 rounded-full bg-[#f97316]" />
+                <span className="inline-flex h-2.5 w-2.5 rounded-full bg-[#10b981]" />
+                <span className="ml-2 truncate">{activeCanvas.artifact.fileName}</span>
+              </div>
+              <iframe
+                key={iframeKey}
+                title={activeCanvas.artifact.title}
+                sandbox="allow-scripts"
+                srcDoc={html}
+                className="h-[680px] w-full bg-white"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+const ToolGroupPanel = ({
+  toolGroup,
+  activeCanvasArtifactId,
+  onPreviewCanvas
+}: {
+  toolGroup: ToolGroupView
+  activeCanvasArtifactId: string | null
+  onPreviewCanvas: (artifact: ChatCanvasArtifact) => void
+}) => {
   const title =
     toolGroup.status === 'running'
       ? '思考中'
@@ -322,9 +501,38 @@ const ToolGroupPanel = ({ toolGroup }: { toolGroup: ToolGroupView }) => {
             <div className="space-y-1.5 pt-2 text-[11.5px] leading-5 text-[var(--ink-soft)]">
               {call.argsSummary ? <p>{call.argsSummary}</p> : null}
               {call.outputSummary ? <p>{call.outputSummary}</p> : null}
-              {call.artifacts.length > 0 ? (
+              {call.artifacts.filter(isCanvasArtifact).length > 0 ? (
+                <div className="grid gap-2 pt-1">
+                  {call.artifacts.filter(isCanvasArtifact).map((artifact) => (
+                    <button
+                      key={artifact.id}
+                      type="button"
+                      onClick={() => onPreviewCanvas(artifact)}
+                      className={`flex items-center justify-between gap-3 rounded-2xl border px-3 py-3 text-left transition ${
+                        activeCanvasArtifactId === artifact.id
+                          ? 'border-[#d2c2b6] bg-[#f7f1eb]'
+                          : 'border-[#eadfd7] bg-white hover:border-[#d8c3b2] hover:bg-[#fbf7f3]'
+                      }`}
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 text-[12px] font-semibold text-[#312d2a]">
+                          <FileCode2 className="h-4 w-4 shrink-0" />
+                          <span className="truncate">{artifact.title}</span>
+                        </div>
+                        <div className="mt-1 text-[11px] text-[#7f8088]">
+                          HTML canvas · {formatBytes(artifact.sizeBytes)}
+                        </div>
+                      </div>
+                      <span className="rounded-full bg-[#efe3d8] px-2.5 py-1 text-[10px] font-semibold text-[#5d4738]">
+                        {activeCanvasArtifactId === artifact.id ? 'Open' : 'Preview'}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              {call.artifacts.filter(isImageArtifact).length > 0 ? (
                 <div className="grid grid-cols-2 gap-2 pt-1 sm:grid-cols-3">
-                  {call.artifacts.map((artifact) => (
+                  {call.artifacts.filter(isImageArtifact).map((artifact) => (
                     <div
                       key={artifact.id}
                       className="overflow-hidden rounded-2xl border border-[#eadfd7] bg-white"
@@ -548,7 +756,9 @@ const TranscriptItem = ({
   copied,
   feedback,
   disableRetry,
+  activeCanvasArtifactId,
   resolveUserAttachmentSrc,
+  onPreviewCanvas,
   onCopy,
   onFeedback,
   onRetry
@@ -558,7 +768,9 @@ const TranscriptItem = ({
   copied: boolean
   feedback: AssistantFeedback
   disableRetry: boolean
+  activeCanvasArtifactId: string | null
   resolveUserAttachmentSrc: (attachment: ChatImageAttachment) => string
+  onPreviewCanvas: (artifact: ChatCanvasArtifact) => void
   onCopy: () => void
   onFeedback: (value: Exclude<AssistantFeedback, null>) => void
   onRetry: () => void
@@ -600,7 +812,11 @@ const TranscriptItem = ({
         <div className="rounded-2xl bg-transparent px-1 py-1 text-[16px] font-normal leading-[1.48] tracking-tight text-[var(--ink-main)]">
           {message.toolGroup ? (
             <div className="mb-4 max-w-[780px]">
-              <ToolGroupPanel toolGroup={message.toolGroup} />
+              <ToolGroupPanel
+                toolGroup={message.toolGroup}
+                activeCanvasArtifactId={activeCanvasArtifactId}
+                onPreviewCanvas={onPreviewCanvas}
+              />
             </div>
           ) : null}
           {message.text.trim() ? (
@@ -699,7 +915,9 @@ const InputBar = ({
   onCancel: () => void
 }) => {
   const activeChannel =
-    aiChannelSettings.channels.find((channel) => channel.id === aiChannelSettings.activeChannelId) ?? null
+    aiChannelSettings.channels.find(
+      (channel) => channel.id === aiChannelSettings.activeChannelId
+    ) ?? null
   const activeChannelLabel = activeChannel ? formatAiChannelLabel(activeChannel) : '默认大模型'
   const isModelSwitcherDisabled =
     isAiChannelsLoading || isSwitchingAiChannel || aiChannelSettings.channels.length === 0
@@ -731,35 +949,35 @@ const InputBar = ({
 
   return (
     <div className="rounded-[28px] border border-[#ececf0] bg-[#f7f7f9] px-5 py-4 shadow-[0_10px_30px_rgba(15,15,20,0.06)]">
-    {pendingImages.length > 0 ? (
-      <UserAttachmentGrid
-        attachments={pendingImages.map((image) => ({
-          id: image.id,
-          fileName: image.fileName,
-          width: image.width,
-          height: image.height,
-          sizeBytes: image.sizeBytes,
-          src: image.previewUrl
-        }))}
-        allowRemove
-        onRemove={onRemoveImage}
+      {pendingImages.length > 0 ? (
+        <UserAttachmentGrid
+          attachments={pendingImages.map((image) => ({
+            id: image.id,
+            fileName: image.fileName,
+            width: image.width,
+            height: image.height,
+            sizeBytes: image.sizeBytes,
+            src: image.previewUrl
+          }))}
+          allowRemove
+          onRemove={onRemoveImage}
+        />
+      ) : null}
+      <textarea
+        ref={textareaRef}
+        value={draft}
+        onChange={(event) => onDraftChange(event.target.value)}
+        onPaste={onPaste}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault()
+            onSend()
+          }
+        }}
+        rows={1}
+        placeholder="输入你的问题或任务描述..."
+        className="block min-h-[46px] w-full resize-none bg-transparent px-1 text-[15px] leading-7 text-[var(--ink-main)] outline-none placeholder:text-[#9b9ca5]"
       />
-    ) : null}
-    <textarea
-      ref={textareaRef}
-      value={draft}
-      onChange={(event) => onDraftChange(event.target.value)}
-      onPaste={onPaste}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' && !event.shiftKey) {
-          event.preventDefault()
-          onSend()
-        }
-      }}
-      rows={1}
-      placeholder="输入你的问题或任务描述..."
-      className="block min-h-[46px] w-full resize-none bg-transparent px-1 text-[15px] leading-7 text-[var(--ink-main)] outline-none placeholder:text-[#9b9ca5]"
-    />
 
       <div className="mt-3 flex items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
@@ -859,43 +1077,44 @@ const InputBar = ({
                     {filteredSkills.map((skill) => {
                       const isSelected = selectedSkillIds.includes(skill.skillId)
                       return (
-                      <li
-                        key={skill.skillId}
-                        className={`px-3 py-2.5 transition ${
-                          isSelected ? 'bg-[#eef1ff]' : 'hover:bg-[#f7f7fa]'
-                        }`}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => onToggleSkill(skill.skillId)}
-                          className="flex w-full items-start gap-2 text-left"
+                        <li
+                          key={skill.skillId}
+                          className={`px-3 py-2.5 transition ${
+                            isSelected ? 'bg-[#eef1ff]' : 'hover:bg-[#f7f7fa]'
+                          }`}
                         >
-                          <span className="mt-0.5 rounded-md bg-[#edf2ff] p-1 text-[#5b6ee1]">
-                            <Sparkles className="h-3.5 w-3.5" />
-                          </span>
-                          <div className="min-w-0">
-                            <div className="line-clamp-1 text-[14px] font-medium text-[#23242a]">
-                              {skill.name}
-                            </div>
-                            <div className="line-clamp-1 text-[12px] text-[#7f828f]">
-                              {skill.skillId}
-                            </div>
-                            <p className="mt-1 line-clamp-2 text-[12px] leading-5 text-[#5f626f]">
-                              {skill.description}
-                            </p>
-                          </div>
-                          <span
-                            className={`mt-0.5 ml-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
-                              isSelected
-                                ? 'bg-[#5b6ee1] text-white'
-                                : 'border border-[#d8dbe7] text-transparent'
-                            }`}
+                          <button
+                            type="button"
+                            onClick={() => onToggleSkill(skill.skillId)}
+                            className="flex w-full items-start gap-2 text-left"
                           >
-                            <Check className="h-3.5 w-3.5" />
-                          </span>
-                        </button>
-                      </li>
-                    )})}
+                            <span className="mt-0.5 rounded-md bg-[#edf2ff] p-1 text-[#5b6ee1]">
+                              <Sparkles className="h-3.5 w-3.5" />
+                            </span>
+                            <div className="min-w-0">
+                              <div className="line-clamp-1 text-[14px] font-medium text-[#23242a]">
+                                {skill.name}
+                              </div>
+                              <div className="line-clamp-1 text-[12px] text-[#7f828f]">
+                                {skill.skillId}
+                              </div>
+                              <p className="mt-1 line-clamp-2 text-[12px] leading-5 text-[#5f626f]">
+                                {skill.description}
+                              </p>
+                            </div>
+                            <span
+                              className={`mt-0.5 ml-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
+                                isSelected
+                                  ? 'bg-[#5b6ee1] text-white'
+                                  : 'border border-[#d8dbe7] text-transparent'
+                              }`}
+                            >
+                              <Check className="h-3.5 w-3.5" />
+                            </span>
+                          </button>
+                        </li>
+                      )
+                    })}
                   </ul>
                 )}
               </div>
@@ -910,39 +1129,41 @@ const InputBar = ({
             </span>
             找灵感
           </button>
-        <button
-          type="button"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#ececf1] text-[#6d707c] transition hover:bg-[#e4e4eb] hover:text-[var(--ink-main)]"
-          aria-label="关联内容"
-        >
-          <Link2 className="h-4 w-4" />
-        </button>
-      </div>
-
-        <div className="flex items-center gap-2">
-        {isRunning ? (
           <button
             type="button"
-            onClick={onCancel}
-            disabled={isCancelling}
-            className="inline-flex h-10 items-center gap-2 rounded-full border border-[#dddde3] bg-white px-4 text-[13px] font-medium text-[var(--ink-soft)] transition hover:bg-[#f3f3f7] disabled:opacity-50"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#ececf1] text-[#6d707c] transition hover:bg-[#e4e4eb] hover:text-[var(--ink-main)]"
+            aria-label="关联内容"
           >
-            <Square className="h-3.5 w-3.5 fill-current" strokeWidth={0} />
-            {isCancelling ? '停止中…' : '停止'}
+            <Link2 className="h-4 w-4" />
           </button>
-        ) : null}
+        </div>
 
-        <button
-          type="button"
-          onClick={onSend}
-          disabled={(!draft.trim() && pendingImages.length === 0) || isRunning || !currentSessionId}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#1f1f23] text-white transition hover:bg-[#2b2b31] disabled:cursor-not-allowed disabled:bg-[#e8e8ee] disabled:text-[#b8bac3]"
-          aria-label="发送消息"
-        >
-          <Send className="h-4 w-4" />
-        </button>
+        <div className="flex items-center gap-2">
+          {isRunning ? (
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={isCancelling}
+              className="inline-flex h-10 items-center gap-2 rounded-full border border-[#dddde3] bg-white px-4 text-[13px] font-medium text-[var(--ink-soft)] transition hover:bg-[#f3f3f7] disabled:opacity-50"
+            >
+              <Square className="h-3.5 w-3.5 fill-current" strokeWidth={0} />
+              {isCancelling ? '停止中…' : '停止'}
+            </button>
+          ) : null}
+
+          <button
+            type="button"
+            onClick={onSend}
+            disabled={
+              (!draft.trim() && pendingImages.length === 0) || isRunning || !currentSessionId
+            }
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#1f1f23] text-white transition hover:bg-[#2b2b31] disabled:cursor-not-allowed disabled:bg-[#e8e8ee] disabled:text-[#b8bac3]"
+            aria-label="发送消息"
+          >
+            <Send className="h-4 w-4" />
+          </button>
+        </div>
       </div>
-    </div>
     </div>
   )
 }
@@ -1046,6 +1267,13 @@ export const ChatPage = () => {
   const [assistantFeedbackByKey, setAssistantFeedbackByKey] = useState<
     Record<string, AssistantFeedback>
   >({})
+  const [selectedCanvasArtifactId, setSelectedCanvasArtifactId] = useState<string | null>(null)
+  const [canvasPreviewHtml, setCanvasPreviewHtml] = useState('')
+  const [canvasPreviewError, setCanvasPreviewError] = useState<string | null>(null)
+  const [isCanvasPreviewLoading, setIsCanvasPreviewLoading] = useState(false)
+  const [canvasViewport, setCanvasViewport] = useState<CanvasViewportMode>('desktop')
+  const [isCanvasDialogOpen, setIsCanvasDialogOpen] = useState(false)
+  const [canvasReloadNonce, setCanvasReloadNonce] = useState(0)
   const [state, dispatch] = useReducer(chatViewReducer, undefined, createInitialChatViewState)
   const transcriptRef = useRef<HTMLDivElement>(null)
   const currentSessionIdRef = useRef<string | null>(null)
@@ -1058,6 +1286,18 @@ export const ChatPage = () => {
   const hasTranscript = state.transcript.length > 0
 
   const visibleSessions = useMemo(() => selectVisibleSessions(sessions), [sessions])
+  const canvasArtifacts = useMemo(
+    () => collectCanvasArtifacts(state.transcript),
+    [state.transcript]
+  )
+  const latestCanvasArtifactId = canvasArtifacts.at(-1)?.artifact.id ?? null
+  const activeCanvas = useMemo(
+    () =>
+      canvasArtifacts.find((item) => item.artifact.id === selectedCanvasArtifactId) ??
+      canvasArtifacts.at(-1) ??
+      null,
+    [canvasArtifacts, selectedCanvasArtifactId]
+  )
   const latestAssistantMessageId = useMemo(
     () => getLatestAssistantMessageId(state.transcript),
     [state.transcript]
@@ -1068,6 +1308,13 @@ export const ChatPage = () => {
         ? getRetryPromptForAssistant(state.transcript, latestAssistantMessageId)
         : null,
     [latestAssistantMessageId, state.transcript]
+  )
+  const canvasIframeKey = useMemo(
+    () =>
+      activeCanvas
+        ? `${activeCanvas.artifact.id}:${canvasReloadNonce}:${canvasViewport}`
+        : 'canvas',
+    [activeCanvas, canvasReloadNonce, canvasViewport]
   )
   useEffect(() => {
     currentSessionIdRef.current = currentSessionId
@@ -1170,7 +1417,61 @@ export const ChatPage = () => {
     setResolvedAttachmentSrcById({})
     resolvedAttachmentAttemptedIdsRef.current.clear()
     setSelectedSkillIds([])
+    setSelectedCanvasArtifactId(null)
+    setCanvasPreviewHtml('')
+    setCanvasPreviewError(null)
+    setCanvasReloadNonce(0)
+    setCanvasViewport('desktop')
+    setIsCanvasDialogOpen(false)
   }, [currentSessionId])
+
+  useEffect(() => {
+    setSelectedCanvasArtifactId(latestCanvasArtifactId)
+  }, [latestCanvasArtifactId, currentSessionId])
+
+  useEffect(() => {
+    if (!activeCanvas) {
+      setCanvasPreviewHtml('')
+      setCanvasPreviewError(null)
+      setIsCanvasPreviewLoading(false)
+      return
+    }
+
+    let disposed = false
+    setIsCanvasPreviewLoading(true)
+    setCanvasPreviewError(null)
+
+    const loadCanvasPreview = async (): Promise<void> => {
+      try {
+        const html = await window.context.readCanvasArtifactHtml({
+          filePath: activeCanvas.artifact.filePath
+        })
+        if (disposed) {
+          return
+        }
+
+        setCanvasPreviewHtml(html)
+      } catch (error) {
+        if (disposed) {
+          return
+        }
+
+        setCanvasPreviewHtml('')
+        setCanvasPreviewError(
+          error instanceof Error ? error.message : 'Failed to load canvas preview.'
+        )
+      } finally {
+        if (!disposed) {
+          setIsCanvasPreviewLoading(false)
+        }
+      }
+    }
+
+    void loadCanvasPreview()
+    return () => {
+      disposed = true
+    }
+  }, [activeCanvas, canvasReloadNonce])
 
   useEffect(() => {
     if (pendingImagesRef.current.length === 0) {
@@ -1585,7 +1886,9 @@ export const ChatPage = () => {
 
   const handleSend = async (): Promise<void> => {
     if (!currentSessionId) return
-    await runMessage(currentSessionId, draft, pendingImages, selectedSkillIds, { clearComposer: true })
+    await runMessage(currentSessionId, draft, pendingImages, selectedSkillIds, {
+      clearComposer: true
+    })
   }
 
   const insertTextAtComposerSelection = (text: string): void => {
@@ -1908,6 +2211,18 @@ export const ChatPage = () => {
   const resolveUserAttachmentSrc = (attachment: ChatImageAttachment): string =>
     resolvedAttachmentSrcById[attachment.id] ?? toFileSrc(attachment.filePath)
 
+  const handlePreviewCanvas = (artifact: ChatCanvasArtifact): void => {
+    setSelectedCanvasArtifactId(artifact.id)
+    setCanvasPreviewError(null)
+    if (window.innerWidth < 1280) {
+      setIsCanvasDialogOpen(true)
+    }
+  }
+
+  const handleReloadCanvas = (): void => {
+    setCanvasReloadNonce((current) => current + 1)
+  }
+
   return (
     <>
       <aside className="flex h-full w-[248px] shrink-0 flex-col border-r border-[#dddddd] bg-[#efefef] px-3 py-4">
@@ -1972,79 +2287,68 @@ export const ChatPage = () => {
         </div>
       </aside>
 
-      <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--content-bg)]">
-        <div
-          ref={transcriptRef}
-          className={`min-h-0 flex-1 overflow-y-auto px-2 ${hasTranscript ? 'pb-2' : ''}`}
-        >
-          {isBooting ? (
-            <div className="flex h-full items-center justify-center text-[14px] text-[var(--ink-soft)]">
-              正在加载会话…
-            </div>
-          ) : bootError ? (
-            <BootErrorState message={bootError} />
-          ) : hasTranscript ? (
-            <div className="mx-auto flex w-full max-w-[860px] flex-col gap-6 px-6 py-6">
-              {state.transcript.map((entry) => {
-                const showAssistantActions =
-                  entry.kind === 'assistant' && entry.id === latestAssistantMessageId
+      <section className="flex min-h-0 min-w-0 flex-1 overflow-hidden bg-[var(--content-bg)]">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <div
+            ref={transcriptRef}
+            className={`min-h-0 flex-1 overflow-y-auto px-2 ${hasTranscript ? 'pb-2' : ''}`}
+          >
+            {isBooting ? (
+              <div className="flex h-full items-center justify-center text-[14px] text-[var(--ink-soft)]">
+                正在加载会话…
+              </div>
+            ) : bootError ? (
+              <BootErrorState message={bootError} />
+            ) : hasTranscript ? (
+              <div className="mx-auto flex w-full max-w-[860px] flex-col gap-6 px-6 py-6">
+                {activeCanvas ? (
+                  <div className="flex justify-end xl:hidden">
+                    <button
+                      type="button"
+                      onClick={() => setIsCanvasDialogOpen(true)}
+                      className="inline-flex items-center gap-2 rounded-full border border-[var(--border-soft)] bg-white px-4 py-2 text-[12px] font-semibold text-[var(--ink-main)] shadow-[0_8px_24px_rgba(15,23,42,0.08)] transition hover:bg-[#f3f3f6]"
+                    >
+                      <PanelRightOpen className="h-4 w-4" />
+                      {activeCanvas.artifact.title}
+                    </button>
+                  </div>
+                ) : null}
 
-                const feedbackKey =
-                  currentSessionId && entry.kind === 'assistant'
-                    ? buildFeedbackKey(currentSessionId, entry.id)
-                    : null
+                {state.transcript.map((entry) => {
+                  const showAssistantActions =
+                    entry.kind === 'assistant' && entry.id === latestAssistantMessageId
 
-                return (
-                  <TranscriptItem
-                    key={entry.id}
-                    entry={entry}
-                    showAssistantActions={showAssistantActions}
-                    copied={entry.kind === 'assistant' && copiedAssistantId === entry.id}
-                    feedback={feedbackKey ? (assistantFeedbackByKey[feedbackKey] ?? null) : null}
-                    disableRetry={!retryPrompt || state.isRunning}
-                    resolveUserAttachmentSrc={resolveUserAttachmentSrc}
-                    onCopy={() => {
-                      if (entry.kind !== 'assistant') return
-                      void handleCopyAssistant(entry)
-                    }}
-                    onFeedback={(value) => {
-                      if (entry.kind !== 'assistant') return
-                      handleFeedback(entry.id, value)
-                    }}
-                    onRetry={() => void handleRetryLatestAssistant()}
-                  />
-                )
-              })}
-            </div>
-          ) : (
-            <EmptyState
-              draft={draft}
-              pendingImages={pendingImages}
-              isRunning={state.isRunning}
-              isCancelling={state.isCancelling}
-              currentSessionId={currentSessionId}
-              aiChannelSettings={aiChannelSettings}
-              installedSkills={installedSkills}
-              selectedSkillIds={selectedSkillIds}
-              isAiChannelsLoading={isAiChannelsLoading}
-              isInstalledSkillsLoading={isInstalledSkillsLoading}
-              isSwitchingAiChannel={isSwitchingAiChannel}
-              textareaRef={composerRef}
-              onDraftChange={setDraft}
-              onPaste={(event) => void handleComposerPasteWithFallback(event)}
-              onRemoveImage={removePendingImage}
-              onToggleSkill={toggleSkillSelection}
-              onActiveChannelChange={(channelId) => void handleActiveChannelChange(channelId)}
-              onSend={() => void handleSend()}
-              onCancel={() => void handleCancel()}
-            />
-          )}
-        </div>
+                  const feedbackKey =
+                    currentSessionId && entry.kind === 'assistant'
+                      ? buildFeedbackKey(currentSessionId, entry.id)
+                      : null
 
-        {hasTranscript ? (
-          <div className="shrink-0 px-6 pb-4 pt-2">
-            <div className="mx-auto max-w-[860px]">
-              <InputBar
+                  return (
+                    <TranscriptItem
+                      key={entry.id}
+                      entry={entry}
+                      showAssistantActions={showAssistantActions}
+                      copied={entry.kind === 'assistant' && copiedAssistantId === entry.id}
+                      feedback={feedbackKey ? (assistantFeedbackByKey[feedbackKey] ?? null) : null}
+                      disableRetry={!retryPrompt || state.isRunning}
+                      activeCanvasArtifactId={activeCanvas?.artifact.id ?? null}
+                      resolveUserAttachmentSrc={resolveUserAttachmentSrc}
+                      onPreviewCanvas={handlePreviewCanvas}
+                      onCopy={() => {
+                        if (entry.kind !== 'assistant') return
+                        void handleCopyAssistant(entry)
+                      }}
+                      onFeedback={(value) => {
+                        if (entry.kind !== 'assistant') return
+                        handleFeedback(entry.id, value)
+                      }}
+                      onRetry={() => void handleRetryLatestAssistant()}
+                    />
+                  )
+                })}
+              </div>
+            ) : (
+              <EmptyState
                 draft={draft}
                 pendingImages={pendingImages}
                 isRunning={state.isRunning}
@@ -2065,10 +2369,78 @@ export const ChatPage = () => {
                 onSend={() => void handleSend()}
                 onCancel={() => void handleCancel()}
               />
-            </div>
+            )}
           </div>
+
+          {hasTranscript ? (
+            <div className="shrink-0 px-6 pb-4 pt-2">
+              <div className="mx-auto max-w-[860px]">
+                <InputBar
+                  draft={draft}
+                  pendingImages={pendingImages}
+                  isRunning={state.isRunning}
+                  isCancelling={state.isCancelling}
+                  currentSessionId={currentSessionId}
+                  aiChannelSettings={aiChannelSettings}
+                  installedSkills={installedSkills}
+                  selectedSkillIds={selectedSkillIds}
+                  isAiChannelsLoading={isAiChannelsLoading}
+                  isInstalledSkillsLoading={isInstalledSkillsLoading}
+                  isSwitchingAiChannel={isSwitchingAiChannel}
+                  textareaRef={composerRef}
+                  onDraftChange={setDraft}
+                  onPaste={(event) => void handleComposerPasteWithFallback(event)}
+                  onRemoveImage={removePendingImage}
+                  onToggleSkill={toggleSkillSelection}
+                  onActiveChannelChange={(channelId) => void handleActiveChannelChange(channelId)}
+                  onSend={() => void handleSend()}
+                  onCancel={() => void handleCancel()}
+                />
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        {activeCanvas ? (
+          <aside className="hidden w-[420px] shrink-0 border-l border-[var(--border-soft)] xl:flex">
+            <CanvasPreviewPanel
+              activeCanvas={activeCanvas}
+              html={canvasPreviewHtml}
+              isLoading={isCanvasPreviewLoading}
+              error={canvasPreviewError}
+              viewport={canvasViewport}
+              iframeKey={canvasIframeKey}
+              onViewportChange={setCanvasViewport}
+              onReload={handleReloadCanvas}
+            />
+          </aside>
         ) : null}
       </section>
+
+      {activeCanvas ? (
+        <Dialog open={isCanvasDialogOpen} onOpenChange={setIsCanvasDialogOpen}>
+          <DialogContent className="max-w-[min(1000px,96vw)] border-none bg-transparent p-0 shadow-none">
+            <DialogHeader className="sr-only">
+              <DialogTitle>{activeCanvas.artifact.title}</DialogTitle>
+              <DialogDescription>
+                Preview generated HTML content inside a sandboxed iframe.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="h-[85vh] overflow-hidden rounded-[32px] border border-[var(--border-soft)] bg-white shadow-[0_24px_80px_rgba(15,23,42,0.22)] xl:hidden">
+              <CanvasPreviewPanel
+                activeCanvas={activeCanvas}
+                html={canvasPreviewHtml}
+                isLoading={isCanvasPreviewLoading}
+                error={canvasPreviewError}
+                viewport={canvasViewport}
+                iframeKey={canvasIframeKey}
+                onViewportChange={setCanvasViewport}
+                onReload={handleReloadCanvas}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      ) : null}
     </>
   )
 }

@@ -17,6 +17,7 @@ import type {
   ListUsageRecords,
   SendMessage,
   PauseCronJob,
+  ReadCanvasArtifactHtml,
   ReadNote,
   RemoveCronJob,
   ResumeCronJob,
@@ -33,6 +34,7 @@ import { readFile } from 'node:fs/promises'
 import icon from '../../resources/icon.png?asset'
 import { CronScheduler, CronService, setCronService } from './agent/cron'
 import { ChatSupervisor } from './chat/supervisor'
+import { readCanvasArtifactHtml } from './chat/canvas-artifacts'
 import {
   getAiChannelSettings,
   hydrateAiChannelSettings,
@@ -42,7 +44,10 @@ import {
 } from './lib/ai-channel-settings'
 import { initDatabase } from './lib/database'
 import { runPreInstallScript } from './lib/script-runner'
-import { loadInstalledSkillsFromDir, seedBundledSkillsIntoUserDir } from './agent/skills/loadSkillsDir'
+import {
+  loadInstalledSkillsFromDir,
+  seedBundledSkillsIntoUserDir
+} from './agent/skills/loadSkillsDir'
 
 let mainWindow: BrowserWindow | null = null
 let chatSupervisor: ChatSupervisor | null = null
@@ -311,14 +316,22 @@ function registerChatIpc(): void {
   ipcMain.handle('chat:deleteSession', async (_event, sessionId: string) => {
     await chatSupervisor?.deleteSession(sessionId)
   })
-  ipcMain.handle('chat:sendMessage', async (_event, sessionId: string, input: Parameters<SendMessage>[1]) => {
-    await chatSupervisor?.sendMessage(sessionId, input)
-  })
+  ipcMain.handle(
+    'chat:sendMessage',
+    async (_event, sessionId: string, input: Parameters<SendMessage>[1]) => {
+      await chatSupervisor?.sendMessage(sessionId, input)
+    }
+  )
   ipcMain.handle('chat:readClipboardImage', () => readClipboardImage())
   ipcMain.handle(
     'chat:resolveAttachmentDataUrl',
     (_event, filePath: string, mimeType: ClipboardImagePayload['mimeType']) =>
       resolveChatAttachmentDataUrl(filePath, mimeType)
+  )
+  ipcMain.handle(
+    'chat:readCanvasArtifactHtml',
+    (_event, ...args: Parameters<ReadCanvasArtifactHtml>) =>
+      readCanvasArtifactHtml(args[0].filePath)
   )
   ipcMain.handle('chat:cancelRun', async (_event, sessionId: string) => {
     await chatSupervisor?.cancelRun(sessionId)
@@ -353,9 +366,8 @@ function registerSettingsIpc(): void {
   ipcMain.handle('settings:saveAiChannels', (_, ...args: Parameters<SaveAiChannelSettings>) =>
     saveAiChannelSettings(...args)
   )
-  ipcMain.handle(
-    'settings:setActiveAiChannel',
-    (_, ...args: Parameters<SetActiveAiChannel>) => setActiveAiChannel(...args)
+  ipcMain.handle('settings:setActiveAiChannel', (_, ...args: Parameters<SetActiveAiChannel>) =>
+    setActiveAiChannel(...args)
   )
   ipcMain.handle(
     'settings:testAiChannelConnection',
@@ -385,12 +397,15 @@ function registerSettingsIpc(): void {
     }
     return chatSupervisor.listToolStats(...args)
   })
-  ipcMain.handle('settings:listSkillUsageRecords', (_, ...args: Parameters<ListSkillUsageRecords>) => {
-    if (!chatSupervisor) {
-      throw new Error('Chat supervisor is not initialized.')
+  ipcMain.handle(
+    'settings:listSkillUsageRecords',
+    (_, ...args: Parameters<ListSkillUsageRecords>) => {
+      if (!chatSupervisor) {
+        throw new Error('Chat supervisor is not initialized.')
+      }
+      return chatSupervisor.listSkillUsageRecords(...args)
     }
-    return chatSupervisor.listSkillUsageRecords(...args)
-  })
+  )
 }
 
 function registerCronIpc(): void {

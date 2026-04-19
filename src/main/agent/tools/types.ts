@@ -1,4 +1,4 @@
-import type { ChatImageAttachment } from '@shared/models'
+import type { ChatToolArtifact } from '@shared/models'
 
 export type ToolResultTextBlock = {
   type: 'text'
@@ -7,7 +7,7 @@ export type ToolResultTextBlock = {
 
 export type ToolExecuteResult = {
   content: ToolResultTextBlock[]
-  artifacts?: ChatImageAttachment[]
+  artifacts?: ChatToolArtifact[]
   details: { summary: string; [key: string]: unknown }
 }
 

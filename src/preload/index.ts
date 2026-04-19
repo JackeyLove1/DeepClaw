@@ -20,6 +20,7 @@ import type {
   OpenSession,
   PauseCronJob,
   ReadClipboardImage,
+  ReadCanvasArtifactHtml,
   ResolveChatAttachmentDataUrl,
   ReadNote,
   RemoveCronJob,
@@ -118,6 +119,8 @@ try {
         'chat:resolveAttachmentDataUrl',
         ...args
       ),
+    readCanvasArtifactHtml: (...args: Parameters<ReadCanvasArtifactHtml>) =>
+      invoke<Awaited<ReturnType<ReadCanvasArtifactHtml>>>('chat:readCanvasArtifactHtml', ...args),
     cancelRun: (...args: Parameters<CancelRun>) =>
       invoke<Awaited<ReturnType<CancelRun>>>('chat:cancelRun', ...args),
     subscribeChatEvents,
@@ -150,10 +153,7 @@ try {
     listToolStats: (...args: Parameters<ListToolStats>) =>
       invoke<Awaited<ReturnType<ListToolStats>>>('settings:listToolStats', ...args),
     listSkillUsageRecords: (...args: Parameters<ListSkillUsageRecords>) =>
-      invoke<Awaited<ReturnType<ListSkillUsageRecords>>>(
-        'settings:listSkillUsageRecords',
-        ...args
-      ),
+      invoke<Awaited<ReturnType<ListSkillUsageRecords>>>('settings:listSkillUsageRecords', ...args),
     listInstalledSkills: (...args: Parameters<ListInstalledSkills>) =>
       invoke<Awaited<ReturnType<ListInstalledSkills>>>('chat:listInstalledSkills', ...args),
     listCronJobs: (...args: Parameters<ListCronJobs>) =>

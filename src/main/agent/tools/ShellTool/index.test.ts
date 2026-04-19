@@ -164,4 +164,16 @@ describe('shell tools', () => {
       })
     ).rejects.toThrow(/Invalid input for tool "get_time"/)
   })
+
+  it('accepts optional task_id for get_time tool', async () => {
+    const tool = createGetTimeTool()
+
+    await expect(
+      tool.execute('tool_8', {
+        task_id: 'session-1'
+      })
+    ).resolves.toMatchObject({
+      content: [{ type: 'text' }]
+    })
+  })
 })

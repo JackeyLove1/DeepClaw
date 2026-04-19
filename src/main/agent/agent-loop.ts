@@ -8,7 +8,7 @@ import type {
   TextBlockParam,
   ToolResultBlockParam
 } from '@anthropic-ai/sdk/resources/messages'
-import type { ChatEvent } from '@shared/models'
+import type { ChatCanvasArtifact, ChatEvent, ChatImageAttachment } from '@shared/models'
 import { ChatSessionStore } from '../chat/session-store'
 import {
   findInstalledSkillByFilePath,
@@ -179,6 +179,10 @@ const isToolExecutionError = (outputText: string): boolean => {
   }
 }
 
+const isImageArtifact = (
+  artifact: ChatImageAttachment | ChatCanvasArtifact
+): artifact is ChatImageAttachment => !('kind' in artifact && artifact.kind === 'canvas')
+
 const toToolResultContent = async (
   result: ToolExecuteResult,
   fallbackText: string
@@ -197,7 +201,7 @@ const toToolResultContent = async (
         : []
 
   const artifactBlocks = await Promise.all(
-    (result.artifacts ?? []).map(async (artifact) => {
+    (result.artifacts ?? []).filter(isImageArtifact).map(async (artifact) => {
       try {
         const data = await readFile(artifact.filePath, { encoding: 'base64' })
         return {

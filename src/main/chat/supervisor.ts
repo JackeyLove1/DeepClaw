@@ -24,6 +24,7 @@ import {
 import { validateRuntimeConfig } from '../agent/config'
 import { createChatRuntime } from '../agent'
 import { getPersistentMemoryRepository } from '../agent/memory'
+import { removeSessionCanvasDir } from './canvas-artifacts'
 import { removeSessionAttachmentDir, savePendingImageAttachments } from './image-attachments'
 
 type ActiveRun = {
@@ -184,6 +185,7 @@ export class ChatSupervisor {
     this.persistentMemorySnapshots.delete(sessionId)
     await this.store.deleteSession(sessionId)
     await removeSessionAttachmentDir(sessionId)
+    await removeSessionCanvasDir(sessionId)
   }
 
   async cancelRun(sessionId: string): Promise<void> {

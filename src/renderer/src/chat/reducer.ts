@@ -3,6 +3,7 @@ import type {
   AssistantDeltaEvent,
   AssistantStartedEvent,
   ChatImageAttachment,
+  ChatToolArtifact,
   ChatEvent,
   SessionMeta,
   SessionSnapshot,
@@ -16,7 +17,7 @@ export type ToolCallView = {
   status: 'running' | 'completed' | 'error'
   argsSummary: string
   outputSummary: string
-  artifacts: ChatImageAttachment[]
+  artifacts: ChatToolArtifact[]
   startedAt: number
   finishedAt?: number
   durationMs?: number

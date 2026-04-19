@@ -32,6 +32,19 @@ export type ChatImageAttachment = {
   height: number
 }
 
+export type ChatCanvasArtifact = {
+  kind: 'canvas'
+  id: string
+  title: string
+  fileName: string
+  mimeType: 'text/html'
+  filePath: string
+  sizeBytes: number
+  createdAt: number
+}
+
+export type ChatToolArtifact = ChatImageAttachment | ChatCanvasArtifact
+
 export type SessionCreatedEvent = ChatEventBase & {
   type: 'session.created'
   meta: SessionMeta
@@ -88,7 +101,7 @@ export type ToolCompletedEvent = ChatEventBase & {
   roundCacheCreationTokens: number
   roundCacheReadTokens: number
   roundToolCallCount: number
-  artifacts?: ChatImageAttachment[]
+  artifacts?: ChatToolArtifact[]
   errorCode?: string
   errorType?: string
   failureStage?: string

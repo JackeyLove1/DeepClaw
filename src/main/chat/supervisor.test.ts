@@ -9,7 +9,15 @@ vi.mock('./image-attachments', () => ({
   savePendingImageAttachments: vi.fn(async () => [])
 }))
 
+vi.mock('./canvas-artifacts', () => ({
+  removeSessionCanvasDir: vi.fn(async () => undefined),
+  readCanvasArtifactHtml: vi.fn(async () => '<html></html>'),
+  saveCanvasArtifact: vi.fn()
+}))
+
 import { ChatSupervisor } from './supervisor'
+import { removeSessionAttachmentDir } from './image-attachments'
+import { removeSessionCanvasDir } from './canvas-artifacts'
 
 const ORIGINAL_ENV = { ...process.env }
 const cleanupDatabases: Database.Database[] = []
@@ -69,6 +77,7 @@ const sendInput: SendMessageInput = {
 
 afterEach(() => {
   resetEnv()
+  vi.clearAllMocks()
 
   for (const database of cleanupDatabases.splice(0)) {
     database.close()
@@ -76,6 +85,23 @@ afterEach(() => {
 })
 
 describe('ChatSupervisor session memory flow', () => {
+  it('removes both image and canvas artifact directories when deleting a session', async () => {
+    const store = createStore()
+    const session = await store.createSession('session-delete')
+    const supervisor = new ChatSupervisor(store, {
+      runtime: buildRuntime(async function* () {}),
+      sessionMemoryCompactor: {
+        bootstrapSessionMemory: vi.fn(async () => ''),
+        extendSessionMemory: vi.fn(async () => '')
+      }
+    })
+
+    await supervisor.deleteSession(session.id)
+
+    expect(removeSessionAttachmentDir).toHaveBeenCalledWith(session.id)
+    expect(removeSessionCanvasDir).toHaveBeenCalledWith(session.id)
+  })
+
   it('bootstraps hidden session memory from prior transcript and updates it after the turn', async () => {
     process.env.ANTHROPIC_API_KEY = 'test-key'
     process.env.NOTEMARK_MODEL_PROVIDER = 'anthropic'

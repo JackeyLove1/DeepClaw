@@ -239,4 +239,82 @@ describe('chat reducer', () => {
       ]
     })
   })
+
+  it('replays canvas artifacts on tool calls without breaking image artifacts', () => {
+    const initial = createInitialChatViewState()
+    const started = applyChatEvent(initial, {
+      type: 'assistant.started',
+      eventId: 'assistant-start-canvas',
+      sessionId: 'session-1',
+      timestamp: 3,
+      messageId: 'assistant-1'
+    })
+
+    const grouped = applyChatEvent(started, {
+      type: 'tool.group.started',
+      eventId: 'group-start-canvas',
+      sessionId: 'session-1',
+      timestamp: 4,
+      assistantMessageId: 'assistant-1',
+      groupId: 'group-1'
+    })
+
+    const called = applyChatEvent(grouped, {
+      type: 'tool.called',
+      eventId: 'tool-called-canvas',
+      sessionId: 'session-1',
+      timestamp: 5,
+      assistantMessageId: 'assistant-1',
+      groupId: 'group-1',
+      requestRound: 1,
+      toolCallId: 'tool-1',
+      toolName: 'canvas',
+      argsSummary: '{"title":"Preview"}'
+    })
+
+    const completed = applyChatEvent(called, {
+      type: 'tool.completed',
+      eventId: 'tool-completed-canvas',
+      sessionId: 'session-1',
+      timestamp: 6,
+      assistantMessageId: 'assistant-1',
+      groupId: 'group-1',
+      requestRound: 1,
+      toolCallId: 'tool-1',
+      toolName: 'canvas',
+      outputSummary: 'Saved canvas preview',
+      durationMs: 8,
+      isError: false,
+      artifacts: [
+        {
+          kind: 'canvas',
+          id: 'canvas-1',
+          title: 'Preview',
+          fileName: 'index.html',
+          mimeType: 'text/html',
+          filePath: 'C:/temp/canvas/index.html',
+          sizeBytes: 2048,
+          createdAt: 6
+        }
+      ],
+      roundInputTokens: 12,
+      roundOutputTokens: 6,
+      roundCacheCreationTokens: 0,
+      roundCacheReadTokens: 0,
+      roundToolCallCount: 1
+    })
+
+    const assistant = completed.transcript.find((entry) => entry.kind === 'assistant')
+    expect(assistant?.kind).toBe('assistant')
+    if (assistant?.kind === 'assistant') {
+      expect(assistant.toolGroup?.calls[0]?.artifacts).toMatchObject([
+        {
+          kind: 'canvas',
+          id: 'canvas-1',
+          title: 'Preview',
+          mimeType: 'text/html'
+        }
+      ])
+    }
+  })
 })

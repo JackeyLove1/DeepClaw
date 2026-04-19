@@ -34,9 +34,22 @@ const toolResultArtifactSchema = z.strictObject({
   height: z.number()
 })
 
+const toolResultCanvasArtifactSchema = z.strictObject({
+  kind: z.literal('canvas'),
+  id: z.string(),
+  title: z.string(),
+  fileName: z.string(),
+  mimeType: z.literal('text/html'),
+  filePath: z.string(),
+  sizeBytes: z.number(),
+  createdAt: z.number()
+})
+
 export const toolExecuteResultSchema = z.strictObject({
   content: z.array(toolResultTextBlockSchema),
-  artifacts: z.array(toolResultArtifactSchema).optional(),
+  artifacts: z
+    .array(z.union([toolResultArtifactSchema, toolResultCanvasArtifactSchema]))
+    .optional(),
   details: z.object({ summary: z.string() }).catchall(z.unknown())
 })
 

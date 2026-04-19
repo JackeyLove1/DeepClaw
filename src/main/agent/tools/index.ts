@@ -1,6 +1,7 @@
 import { createBashTool, type BashToolOptions } from './BashTool'
 import { ChatSessionStore } from '../../chat/session-store'
 import { resolvePlatformShellKind } from '../utils'
+import { createCanvasTool } from './CanvasTool'
 import { createCronTool } from './CronTool'
 import { createPatchTool, createReadFileTool, createWriteFileTool } from './FileSystemTool'
 import { createGetTimeTool } from './get-time'
@@ -60,6 +61,7 @@ const toolFactories: ToolFactory[] = [
   createReadFileTool,
   createWriteFileTool,
   createPatchTool,
+  createCanvasTool,
   createScreenShotTool,
   createTodoTool
 ]
@@ -108,6 +110,7 @@ export function createTools(options: CreateToolsOptions = {}): Tool[] {
 }
 
 export { createBashTool } from './BashTool'
+export { createCanvasTool } from './CanvasTool'
 export {
   clearFileOpsCache,
   clearReadTracker,
