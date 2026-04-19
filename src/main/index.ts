@@ -41,6 +41,7 @@ import {
   testAiChannelConnection
 } from './lib/ai-channel-settings'
 import { initDatabase } from './lib/database'
+import { runPreInstallScript } from './lib/script-runner'
 import { loadInstalledSkillsFromDir, seedBundledSkillsIntoUserDir } from './agent/skills/loadSkillsDir'
 
 let mainWindow: BrowserWindow | null = null
@@ -481,6 +482,10 @@ app.whenReady().then(() => {
     registerChatIpc()
     registerSettingsIpc()
     registerCronIpc()
+
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      runPreInstallScript(mainWindow)
+    }
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) {

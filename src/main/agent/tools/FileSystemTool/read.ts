@@ -114,7 +114,10 @@ async function readFileToolImpl(
     if (hasBinaryExtension(resolvedPath)) {
       const ext = path.extname(resolvedPath).toLowerCase()
       return jsonResult({
-        error: `Cannot read binary file '${filepath}' (${ext}). Use a dedicated tool for images or binaries.`
+        error:
+          `Cannot read non-plain-text file '${filepath}' (${ext}). ` +
+          'The read_file tool only supports plain text files (for example: .md, .txt). ' +
+          'For .pdf, .docx, or other document formats, use skills.'
       })
     }
 
@@ -225,6 +228,8 @@ export function createReadFileTool(): Tool {
     },
     description:
       'Read a text file with line numbers and pagination. Format: LINE_NUM|CONTENT. ' +
+      'Only plain text files are supported (for example: .md, .txt). ' +
+      'For .pdf, .docx, or other document formats, use skills. ' +
       'Use offset (1-based) and limit for large files. Reads over the character budget are rejected.',
     inputSchema: readFileInputSchema,
     outputSchema: readFileOutputSchema,

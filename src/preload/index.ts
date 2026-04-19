@@ -32,6 +32,7 @@ import type {
   SubscribeChatEvents,
   TestAiChannelConnection,
   UpdateCronJob,
+  Unsubscribe,
   UpdateSessionTitle,
   WindowClose,
   WindowIsMaximized,
@@ -47,6 +48,27 @@ if (!process.contextIsolated) {
 
 const invoke = <T>(channel: string, ...args: unknown[]): Promise<T> =>
   ipcRenderer.invoke(channel, ...args)
+
+interface ScriptEvent {
+  type: 'start' | 'stdout' | 'stderr' | 'exit'
+  script?: string
+  data?: string
+  code?: number | null
+}
+type ScriptListener = (event: ScriptEvent) => void
+type SubscribeScriptEvents = (listener: ScriptListener) => Unsubscribe
+
+const subscribeScriptEvents: SubscribeScriptEvents = (listener) => {
+  const wrapped = (_event: Electron.IpcRendererEvent, payload: ScriptEvent): void => {
+    listener(payload)
+  }
+
+  ipcRenderer.on('script:event', wrapped)
+
+  return () => {
+    ipcRenderer.removeListener('script:event', wrapped)
+  }
+}
 
 const subscribeChatEvents: SubscribeChatEvents = (sessionId, listener) => {
   const wrapped = (_event: Electron.IpcRendererEvent, payload: ChatEvent): void => {
@@ -99,6 +121,7 @@ try {
     cancelRun: (...args: Parameters<CancelRun>) =>
       invoke<Awaited<ReturnType<CancelRun>>>('chat:cancelRun', ...args),
     subscribeChatEvents,
+    subscribeScriptEvents,
     windowMinimize: (...args: Parameters<WindowMinimize>) =>
       invoke<Awaited<ReturnType<WindowMinimize>>>('window:minimize', ...args),
     windowIsMaximized: (...args: Parameters<WindowIsMaximized>) =>
