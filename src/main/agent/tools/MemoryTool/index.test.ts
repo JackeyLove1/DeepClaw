@@ -66,8 +66,8 @@ describe('createMemoryTool', () => {
 
     const result = await tool.execute('tool_memory_add', {
       action: 'add',
-      target: 'user',
-      content: 'User prefers concise responses.'
+      target: 'soul',
+      content: 'Default voice is calm, pragmatic, and concise.'
     })
 
     const payload = JSON.parse(result.content[0]?.text ?? '{}') as {
@@ -80,7 +80,8 @@ describe('createMemoryTool', () => {
     expect(payload).toMatchObject({
       success: true,
       changed: true,
-      entries: ['User prefers concise responses.']
+      target: 'soul',
+      entries: ['Default voice is calm, pragmatic, and concise.']
     })
     expect(payload.usage?.usedChars).toBeGreaterThan(0)
     expect(result.details.summary).toContain('memory add')

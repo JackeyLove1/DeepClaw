@@ -442,7 +442,11 @@ describe('AnthropicChatRuntime', () => {
     for await (const event of runtime.runTurn({
       sessionId: 's_memory',
       userText: 'Continue from the summary',
-      persistentMemory: 'MEMORY (your personal notes) [5% - 100/2200 chars]\nProject uses pnpm.',
+      persistentMemory:
+        'SOUL (agent personality and values) [8% - 90/1100 chars]\n' +
+        'Be concise and pragmatic.\n\n' +
+        'MEMORY (your personal notes) [5% - 100/2200 chars]\n' +
+        'Project uses pnpm.',
       sessionMemory: '## Goal\nContinue the migration',
       history: [latestUserMessage]
     })) {
@@ -455,6 +459,8 @@ describe('AnthropicChatRuntime', () => {
     }
 
     expect(firstCallArgs.system).toContain('Persistent memory:')
+    expect(firstCallArgs.system).toContain('SOUL (agent personality and values)')
+    expect(firstCallArgs.system).toContain('Be concise and pragmatic.')
     expect(firstCallArgs.system).toContain('Project uses pnpm.')
     expect(firstCallArgs.system).toContain('Session memory:')
     expect(firstCallArgs.system).toContain('## Goal\nContinue the migration')

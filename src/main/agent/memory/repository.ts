@@ -21,6 +21,13 @@ export const DEFAULT_MEMORY_STORE_CONFIGS: Record<
   PersistentMemoryTarget,
   PersistentMemoryStoreConfig
 > = {
+  soul: {
+    target: 'soul',
+    fileName: 'SOUL.md',
+    promptTitle: 'SOUL',
+    promptDescription: 'agent personality and values',
+    charLimit: 1_100
+  },
   memory: {
     target: 'memory',
     fileName: 'MEMORY.md',
@@ -106,6 +113,10 @@ export class PersistentMemoryRepository {
   constructor(options: PersistentMemoryRepositoryOptions = {}) {
     this.memoriesDir = options.memoriesDir ?? resolveMemoriesDir()
     this.storeConfigs = {
+      soul: {
+        ...DEFAULT_MEMORY_STORE_CONFIGS.soul,
+        ...options.storeConfigs?.soul
+      },
       memory: {
         ...DEFAULT_MEMORY_STORE_CONFIGS.memory,
         ...options.storeConfigs?.memory
@@ -134,6 +145,7 @@ export class PersistentMemoryRepository {
 
   async createPromptSnapshot(): Promise<PersistentMemoryPromptSnapshot> {
     const stores = await Promise.all([
+      this.readStore('soul'),
       this.readStore('memory'),
       this.readStore('user')
     ] satisfies Array<Promise<PersistentMemoryStoreState>>)

@@ -40,10 +40,11 @@ export function createMemoryTool(options: CreateMemoryToolOptions = {}): Tool {
     label: 'Persistent Memory',
     description:
       'Manage cross-session persistent memory. Actions: add, replace, remove. ' +
-      'Targets: memory (environment/project notes) and user (user preferences/profile). ' +
-      'There is no read action: MEMORY.md and USER.md are injected into the system prompt at ' +
-      'chat-session start as a frozen snapshot. Tool responses always show live disk state, ' +
-      'which may differ from the current session prompt if memory changed mid-session.',
+      'Targets: soul (agent personality/values/style), memory (environment/project notes), ' +
+      'and user (user preferences/profile). There is no read action: SOUL.md, MEMORY.md, ' +
+      'and USER.md are injected into the system prompt at chat-session start as a frozen ' +
+      'snapshot. Tool responses always show live disk state, which may differ from the ' +
+      'current session prompt if memory changed mid-session.',
     inputSchema: memoryToolInputSchema,
     outputSchema: memoryToolOutputSchema,
     priority: getToolPriority('memory'),

@@ -35,6 +35,15 @@ describe('PersistentMemoryRepository', () => {
   it('reads missing stores as empty', async () => {
     const repository = await createRepository()
 
+    await expect(repository.readStore('soul')).resolves.toMatchObject({
+      target: 'soul',
+      entries: [],
+      usage: {
+        usedChars: 0,
+        limit: 1100
+      }
+    })
+
     await expect(repository.readStore('memory')).resolves.toMatchObject({
       target: 'memory',
       entries: [],
@@ -50,18 +59,20 @@ describe('PersistentMemoryRepository', () => {
 
     const result = await repository.applyOperation({
       action: 'add',
-      target: 'memory',
-      content: 'Project uses Electron and React.'
+      target: 'soul',
+      content: 'Be concise, grounded, and calm. Prefer direct answers over theatrics.'
     })
 
     expect(result).toMatchObject({
       success: true,
       changed: true,
-      entries: ['Project uses Electron and React.']
+      entries: ['Be concise, grounded, and calm. Prefer direct answers over theatrics.']
     })
 
-    const store = await repository.readStore('memory')
-    expect(store.entries).toEqual(['Project uses Electron and React.'])
+    const store = await repository.readStore('soul')
+    expect(store.entries).toEqual([
+      'Be concise, grounded, and calm. Prefer direct answers over theatrics.'
+    ])
   })
 
   it('treats exact duplicate adds as a no-op success', async () => {
@@ -104,6 +115,40 @@ describe('PersistentMemoryRepository', () => {
       success: true,
       changed: true,
       entries: ['Project uses Tailwind CSS and shadcn/ui.']
+    })
+  })
+
+  it('supports replace and remove operations for soul entries', async () => {
+    const repository = await createRepository()
+    await repository.applyOperation({
+      action: 'add',
+      target: 'soul',
+      content: 'Be concise and calm.'
+    })
+
+    const replaced = await repository.applyOperation({
+      action: 'replace',
+      target: 'soul',
+      oldText: 'concise',
+      content: 'Be concise, calm, and pragmatic.'
+    })
+
+    expect(replaced).toMatchObject({
+      success: true,
+      changed: true,
+      entries: ['Be concise, calm, and pragmatic.']
+    })
+
+    const removed = await repository.applyOperation({
+      action: 'remove',
+      target: 'soul',
+      oldText: 'pragmatic'
+    })
+
+    expect(removed).toMatchObject({
+      success: true,
+      changed: true,
+      entries: []
     })
   })
 
@@ -228,6 +273,11 @@ describe('PersistentMemoryRepository', () => {
     const repository = await createRepository()
     await repository.applyOperation({
       action: 'add',
+      target: 'soul',
+      content: 'Voice: pragmatic, concise, and respectful. Avoid hype.'
+    })
+    await repository.applyOperation({
+      action: 'add',
       target: 'memory',
       content: 'Project root is C:/Software/Codes/py/NoteMark.'
     })
@@ -239,8 +289,17 @@ describe('PersistentMemoryRepository', () => {
 
     const snapshot = await repository.createPromptSnapshot()
 
+    expect(snapshot.rendered).toContain('SOUL (agent personality and values)')
     expect(snapshot.rendered).toContain('MEMORY (your personal notes)')
     expect(snapshot.rendered).toContain('USER PROFILE (user preferences and communication style)')
-    expect(snapshot.stores).toHaveLength(2)
+    expect(snapshot.rendered?.indexOf('SOUL (agent personality and values)')).toBeLessThan(
+      snapshot.rendered?.indexOf('MEMORY (your personal notes)') ?? Number.POSITIVE_INFINITY
+    )
+    expect(snapshot.rendered?.indexOf('MEMORY (your personal notes)')).toBeLessThan(
+      snapshot.rendered?.indexOf('USER PROFILE (user preferences and communication style)') ??
+        Number.POSITIVE_INFINITY
+    )
+    expect(snapshot.stores).toHaveLength(3)
+    expect(snapshot.stores.map((store) => store.target)).toEqual(['soul', 'memory', 'user'])
   })
 })

@@ -1,221 +1,172 @@
 ---
 sidebar_position: 3
 title: "Persistent Memory"
-description: "How Hermes Agent remembers across sessions — MEMORY.md, USER.md, and session search"
+description: "How the agent remembers across sessions with SOUL.md, MEMORY.md, USER.md, and session search"
 ---
 
 # Persistent Memory
 
-Hermes Agent has bounded, curated memory that persists across sessions. This lets it remember your preferences, your projects, your environment, and things it has learned.
+The agent has bounded, curated memory that persists across sessions. This keeps its long-term personality, project knowledge, and user preferences available without forcing every conversation to start from zero.
 
 ## How It Works
 
-Two files make up the agent's memory:
+Three files make up the built-in persistent memory:
 
 | File | Purpose | Char Limit |
 |------|---------|------------|
-| **MEMORY.md** | Agent's personal notes — environment facts, conventions, things learned | 2,200 chars (~800 tokens) |
-| **USER.md** | User profile — your preferences, communication style, expectations | 1,375 chars (~500 tokens) |
+| **SOUL.md** | Agent personality, values, and default interaction style | 1,100 chars |
+| **MEMORY.md** | Agent notes about environment, projects, conventions, and lessons learned | 2,200 chars |
+| **USER.md** | User profile, preferences, and communication expectations | 1,375 chars |
 
-Both are stored in `~/.deepclaw/memories/` and are injected into the system prompt as a frozen snapshot at session start. The agent manages its own memory via the `memory` tool — it can add, replace, or remove entries.
+All three files live in `~/.deepclaw/memories/` and are injected into the system prompt as a frozen snapshot at session start.
 
-:::info
-Character limits keep memory focused. When memory is full, the agent consolidates or replaces entries to make room for new information.
-:::
+The `memory` tool manages them through three targets:
+
+- `soul` for agent personality and voice
+- `memory` for project and environment facts
+- `user` for user profile and preferences
+
+Character limits keep the snapshot compact. When a store is near capacity, the agent should consolidate or replace entries instead of growing indefinitely.
 
 ## How Memory Appears in the System Prompt
 
-At the start of every session, memory entries are loaded from disk and rendered into the system prompt as a frozen block:
+At session start, the runtime loads the three stores from disk and renders a frozen block in this order:
 
-```
-══════════════════════════════════════════════
-MEMORY (your personal notes) [67% — 1,474/2,200 chars]
-══════════════════════════════════════════════
-User's project is a Rust web service at ~/code/myapi using Axum + SQLx
+1. `SOUL.md`
+2. `MEMORY.md`
+3. `USER.md`
+
+Each non-empty store renders a section header with usage information, followed by entries separated by the section-sign delimiter `§`.
+
+Example:
+
+```text
+SOUL (agent personality and values) [32% - 352/1100 chars]
+Be concise, grounded, and respectful. Prefer direct answers over performance.
 §
-This machine runs Ubuntu 22.04, has Docker and Podman installed
-§
-User prefers concise responses, dislikes verbose explanations
+Default to pragmatic tradeoffs. Avoid hype and unnecessary reassurance.
+
+MEMORY (your personal notes) [9% - 201/2200 chars]
+Project root is C:/Software/Codes/py/NoteMark. Build with npm run build.
+
+USER PROFILE (user preferences and communication style) [7% - 98/1375 chars]
+User prefers concise technical explanations and dislikes filler.
 ```
 
-The format includes:
-- A header showing which store (MEMORY or USER PROFILE)
-- Usage percentage and character counts so the agent knows capacity
-- Individual entries separated by `§` (section sign) delimiters
-- Entries can be multiline
-
-**Frozen snapshot pattern:** The system prompt injection is captured once at session start and never changes mid-session. This is intentional — it preserves the LLM's prefix cache for performance. When the agent adds/removes memory entries during a session, the changes are persisted to disk immediately but won't appear in the system prompt until the next session starts. Tool responses always show the live state.
+This snapshot is frozen for the lifetime of the chat session. If the agent updates memory mid-session, the files on disk change immediately, but the injected system-prompt snapshot does not refresh until the next session.
 
 ## Memory Tool Actions
 
-The agent uses the `memory` tool with these actions:
+The `memory` tool supports:
 
-- **add** — Add a new memory entry
-- **replace** — Replace an existing entry with updated content (uses substring matching via `old_text`)
-- **remove** — Remove an entry that's no longer relevant (uses substring matching via `old_text`)
+- `add`
+- `replace`
+- `remove`
 
-There is no `read` action — memory content is automatically injected into the system prompt at session start. The agent sees its memories as part of its conversation context.
+There is no `read` action. The current memory snapshot is injected automatically at session start, and tool responses return the live on-disk state after each operation.
 
-### Substring Matching
+`replace` and `remove` use `old_text` substring matching. The substring must uniquely identify exactly one entry in the selected store.
 
-The `replace` and `remove` actions use short unique substring matching — you don't need the full entry text. The `old_text` parameter just needs to be a unique substring that identifies exactly one entry:
+## What Belongs in Each Store
 
-```python
-# If memory contains "User prefers dark mode in all editors"
-memory(action="replace", target="memory",
-       old_text="dark mode",
-       content="User prefers light mode in VS Code, dark mode in terminal")
-```
+### `soul`
 
-If the substring matches multiple entries, an error is returned asking for a more specific match.
+Use `SOUL.md` for stable agent identity:
 
-## Two Targets Explained
+- Tone and voice
+- Core values
+- Behavioral defaults
+- Standing response posture
 
-### `memory` — Agent's Personal Notes
+Good examples:
 
-For information the agent needs to remember about the environment, workflows, and lessons learned:
+- `Be concise, calm, and technically rigorous.`
+- `Prefer clear tradeoff explanations over confident hand-waving.`
+- `Challenge weak assumptions directly, but stay respectful.`
 
-- Environment facts (OS, tools, project structure)
-- Project conventions and configuration
-- Tool quirks and workarounds discovered
-- Completed task diary entries
-- Skills and techniques that worked
+Do not put these in `SOUL.md`:
 
-### `user` — User Profile
+- Project structure
+- User preferences
+- Temporary task instructions
+- Facts already better represented in `MEMORY.md` or `USER.md`
 
-For information about the user's identity, preferences, and communication style:
+### `memory`
 
-- Name, role, timezone
-- Communication preferences (concise vs detailed, format preferences)
-- Pet peeves and things to avoid
-- Workflow habits
-- Technical skill level
+Use `MEMORY.md` for long-lived facts the agent learns about the environment and work:
 
-## What to Save vs Skip
+- Project conventions
+- Tooling and build commands
+- Infrastructure details
+- Lessons learned
+- Durable workflow facts
 
-### Save These (Proactively)
+Examples:
 
-The agent saves automatically — you don't need to ask. It saves when it learns:
+- `Project uses Electron, React, TypeScript, and Vitest.`
+- `Run desktop build with npm run build.`
+- `Renderer should not access Node APIs directly; use preload and IPC.`
 
-- **User preferences:** "I prefer TypeScript over JavaScript" → save to `user`
-- **Environment facts:** "This server runs Debian 12 with PostgreSQL 16" → save to `memory`
-- **Corrections:** "Don't use `sudo` for Docker commands, user is in docker group" → save to `memory`
-- **Conventions:** "Project uses tabs, 120-char line width, Google-style docstrings" → save to `memory`
-- **Completed work:** "Migrated database from MySQL to PostgreSQL on 2026-01-15" → save to `memory`
-- **Explicit requests:** "Remember that my API key rotation happens monthly" → save to `memory`
+### `user`
 
-### Skip These
+Use `USER.md` for user identity and preferences:
 
-- **Trivial/obvious info:** "User asked about Python" — too vague to be useful
-- **Easily re-discovered facts:** "Python 3.12 supports f-string nesting" — can web search this
-- **Raw data dumps:** Large code blocks, log files, data tables — too big for memory
-- **Session-specific ephemera:** Temporary file paths, one-off debugging context
-- **Information already in context files:** SOUL.md and AGENTS.md content
+- Communication style
+- Formatting preferences
+- Tooling preferences
+- Recurring workflow expectations
+
+Examples:
+
+- `User prefers concise responses with minimal fluff.`
+- `User wants implementation-first behavior instead of long proposal messages.`
+
+## Save vs Skip
+
+Save these proactively:
+
+- Durable user preferences to `user`
+- Durable project and environment facts to `memory`
+- Explicit agent persona customization to `soul`
+- Corrections that will matter in later sessions to `memory`
+
+Skip these:
+
+- Obvious or trivial facts
+- Large raw logs or code dumps
+- One-off debugging context
+- Temporary instructions for the current task only
+- Information that already belongs in the live conversation context
 
 ## Capacity Management
 
-Memory has strict character limits to keep system prompts bounded:
+The built-in stores stay intentionally small:
 
-| Store | Limit | Typical entries |
-|-------|-------|----------------|
-| memory | 2,200 chars | 8-15 entries |
-| user | 1,375 chars | 5-10 entries |
+| Store | Limit | Typical use |
+|-------|-------|-------------|
+| `soul` | 1,100 chars | 5-10 concise persona rules |
+| `memory` | 2,200 chars | 8-15 factual entries |
+| `user` | 1,375 chars | 5-10 preference entries |
 
-### What Happens When Memory is Full
+If an update would exceed the limit, the tool returns a structured failure with current usage and projected usage. The agent should remove stale entries or replace several related entries with a shorter consolidated version.
 
-When you try to add an entry that would exceed the limit, the tool returns an error:
+## Duplicate Prevention and Security
 
-```json
-{
-  "success": false,
-  "error": "Memory at 2,100/2,200 chars. Adding this entry (250 chars) would exceed the limit. Replace or remove existing entries first.",
-  "current_entries": ["..."],
-  "usage": "2,100/2,200"
-}
-```
+Exact duplicate entries are ignored as successful no-op writes.
 
-The agent should then:
-1. Read the current entries (shown in the error response)
-2. Identify entries that can be removed or consolidated
-3. Use `replace` to merge related entries into shorter versions
-4. Then `add` the new entry
+Because persistent memory is injected into the system prompt, every entry is scanned before being accepted. The memory layer blocks content that looks like:
 
-**Best practice:** When memory is above 80% capacity (visible in the system prompt header), consolidate entries before adding new ones. For example, merge three separate "project uses X" entries into one comprehensive project description entry.
-
-### Practical Examples of Good Memory Entries
-
-**Compact, information-dense entries work best:**
-
-```
-# Good: Packs multiple related facts
-User runs macOS 14 Sonoma, uses Homebrew, has Docker Desktop and Podman. Shell: zsh with oh-my-zsh. Editor: VS Code with Vim keybindings.
-
-# Good: Specific, actionable convention
-Project ~/code/api uses Go 1.22, sqlc for DB queries, chi router. Run tests with 'make test'. CI via GitHub Actions.
-
-# Good: Lesson learned with context
-The staging server (10.0.1.50) needs SSH port 2222, not 22. Key is at ~/.ssh/staging_ed25519.
-
-# Bad: Too vague
-User has a project.
-
-# Bad: Too verbose
-On January 5th, 2026, the user asked me to look at their project which is
-located at ~/code/api. I discovered it uses Go version 1.22 and...
-```
-
-## Duplicate Prevention
-
-The memory system automatically rejects exact duplicate entries. If you try to add content that already exists, it returns success with a "no duplicate added" message.
-
-## Security Scanning
-
-Memory entries are scanned for injection and exfiltration patterns before being accepted, since they're injected into the system prompt. Content matching threat patterns (prompt injection, credential exfiltration, SSH backdoors) or containing invisible Unicode characters is blocked.
+- prompt injection
+- secret exfiltration instructions
+- embedded SSH credentials
+- invisible or disallowed control Unicode
 
 ## Session Search
 
-Beyond MEMORY.md and USER.md, the agent can search its past conversations using the `session_search` tool:
+Persistent memory is not the only recall mechanism. The agent can also search past sessions using `session_search`.
 
-- All CLI and messaging sessions are stored in SQLite (`~/.deepclaw/state.db`) with FTS5 full-text search
-- Search queries return relevant past conversations with Gemini Flash summarization
-- The agent can find things it discussed weeks ago, even if they're not in its active memory
-
-```bash
-hermes sessions list    # Browse past sessions
-```
-
-### session_search vs memory
-
-| Feature | Persistent Memory | Session Search |
-|---------|------------------|----------------|
-| **Capacity** | ~1,300 tokens total | Unlimited (all sessions) |
-| **Speed** | Instant (in system prompt) | Requires search + LLM summarization |
-| **Use case** | Key facts always available | Finding specific past conversations |
-| **Management** | Manually curated by agent | Automatic — all sessions stored |
-| **Token cost** | Fixed per session (~1,300 tokens) | On-demand (searched when needed) |
-
-**Memory** is for critical facts that should always be in context. **Session search** is for "did we discuss X last week?" queries where the agent needs to recall specifics from past conversations.
-
-## Configuration
-
-```yaml
-# In ~/.deepclaw/config.yaml
-memory:
-  memory_enabled: true
-  user_profile_enabled: true
-  memory_char_limit: 2200   # ~800 tokens
-  user_char_limit: 1375     # ~500 tokens
-```
+Use persistent memory for facts that should always be available in the prompt. Use session search for historical recall such as "what did we decide last week?"
 
 ## External Memory Providers
 
-For deeper, persistent memory that goes beyond MEMORY.md and USER.md, Hermes ships with 8 external memory provider plugins — including Honcho, OpenViking, Mem0, Hindsight, Holographic, RetainDB, ByteRover, and Supermemory.
-
-External providers run **alongside** built-in memory (never replacing it) and add capabilities like knowledge graphs, semantic search, automatic fact extraction, and cross-session user modeling.
-
-```bash
-hermes memory setup      # pick a provider and configure it
-hermes memory status     # check what's active
-```
-
-See the [Memory Providers](./memory-providers.md) guide for full details on each provider, setup instructions, and comparison.
+External memory providers can extend the built-in system with semantic recall or richer long-term memory. They complement `SOUL.md`, `MEMORY.md`, and `USER.md`; they do not replace the built-in stores.

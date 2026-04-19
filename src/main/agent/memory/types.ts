@@ -1,4 +1,4 @@
-export const PERSISTENT_MEMORY_TARGETS = ['memory', 'user'] as const
+export const PERSISTENT_MEMORY_TARGETS = ['soul', 'memory', 'user'] as const
 
 export type PersistentMemoryTarget = (typeof PERSISTENT_MEMORY_TARGETS)[number]
 
