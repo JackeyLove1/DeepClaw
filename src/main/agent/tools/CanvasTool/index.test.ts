@@ -67,6 +67,26 @@ describe('createCanvasTool', () => {
     expect(persistedHtml).toContain('Fragment only')
   })
 
+  it('accepts the canvas alias as HTML input', async () => {
+    await createCanvasTool().execute('tool-canvas-alias', {
+      canvas: '<main><p>Alias payload</p></main>',
+      task_id: 'session-alias'
+    })
+
+    const persistedHtml = String(writeFileMock.mock.calls[0]?.[1] ?? '')
+    expect(persistedHtml).toContain('Alias payload')
+  })
+
+  it('accepts a raw string payload as HTML input', async () => {
+    await createCanvasTool().execute(
+      'tool-canvas-string',
+      '<main><p>String payload</p></main>' as unknown as Record<string, unknown>
+    )
+
+    const persistedHtml = String(writeFileMock.mock.calls[0]?.[1] ?? '')
+    expect(persistedHtml).toContain('String payload')
+  })
+
   it('rejects oversized HTML input', async () => {
     await expect(
       createCanvasTool().execute('tool-canvas-3', {

@@ -5,13 +5,39 @@ import { getToolPriority } from '../priorities'
 import { defineTool, lazySchema, toolExecuteResultSchema } from '../schema'
 import type { Tool, ToolErrorCode, ToolErrorType, ToolFailureStage } from '../types'
 
-const canvasInputSchema = lazySchema(() =>
-  z.strictObject({
-    html: z.string().min(1),
+const canvasInputSchema = lazySchema(() => {
+  const normalizedCanvasSchema = z.strictObject({
+    html: z.string().trim().min(1),
     title: z.string().trim().min(1).max(120).optional(),
     task_id: z.string().trim().min(1).optional()
   })
-)
+
+  return z.preprocess((rawInput) => {
+    if (typeof rawInput === 'string') {
+      return { html: rawInput }
+    }
+
+    if (!rawInput || typeof rawInput !== 'object') {
+      return rawInput
+    }
+
+    const input = rawInput as Record<string, unknown>
+    const html =
+      typeof input.html === 'string'
+        ? input.html
+        : typeof input.canvas === 'string'
+          ? input.canvas
+          : typeof input.content === 'string'
+            ? input.content
+            : undefined
+
+    return {
+      html,
+      title: input.title,
+      task_id: input.task_id
+    }
+  }, normalizedCanvasSchema)
+})
 
 const canvasOutputSchema = lazySchema(() => toolExecuteResultSchema)
 
