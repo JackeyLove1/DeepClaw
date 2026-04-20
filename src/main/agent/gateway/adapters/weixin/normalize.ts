@@ -32,8 +32,9 @@ const extractAudioFromItem = (item: WeixinMessageItem): InboundMedia | null => {
     kind: 'audio',
     mimeType: voice?.mime_type,
     name: voice?.file_name,
+    transcript: voice?.asr_text?.trim() || voice?.text?.trim() || undefined,
     sizeBytes: voice?.file_size,
-    url: voice?.media?.url ?? voice?.media?.encrypt_query_param
+    url: voice?.media?.full_url ?? voice?.media?.url ?? voice?.media?.encrypt_query_param
   }
 }
 
@@ -48,7 +49,7 @@ const extractImageFromItem = (item: WeixinMessageItem): InboundMedia | null => {
     mimeType: image?.mime_type,
     name: image?.file_name,
     sizeBytes: image?.file_size,
-    url: image?.media?.url ?? image?.media?.encrypt_query_param
+    url: image?.media?.full_url ?? image?.url ?? image?.media?.url ?? image?.media?.encrypt_query_param
   }
 }
 

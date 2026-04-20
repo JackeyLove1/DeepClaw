@@ -6,14 +6,17 @@ export interface WeixinMessageItem {
     text?: string
   }
   image_item?: {
+    url?: string
     mime_type?: string
     file_name?: string
     file_size?: number
     width?: number
     height?: number
     media?: {
+      full_url?: string
       encrypt_query_param?: string
       aes_key?: string
+      encrypt_type?: number
       url?: string
     }
   }
@@ -25,8 +28,10 @@ export interface WeixinMessageItem {
     file_size?: number
     duration_ms?: number
     media?: {
+      full_url?: string
       encrypt_query_param?: string
       aes_key?: string
+      encrypt_type?: number
       url?: string
     }
   }

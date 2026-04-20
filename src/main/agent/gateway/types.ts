@@ -2,6 +2,7 @@ export interface InboundMedia {
   kind: 'image' | 'video' | 'audio' | 'file' | 'other'
   mimeType?: string
   name?: string
+  transcript?: string
   url?: string
   localPath?: string
   sizeBytes?: number
