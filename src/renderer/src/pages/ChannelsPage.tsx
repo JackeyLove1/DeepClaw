@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui';
 import type { WeixinGatewayAccount } from '@shared/types';
 import { LoaderCircle, PlugZap, QrCode, RefreshCw, Unplug } from 'lucide-react';
+import QRCode from 'qrcode';
 import { useEffect, useMemo, useState } from 'react';
 
 type WeixinHealth = Awaited<ReturnType<typeof window.context.getWeixinGatewayHealth>>[number]
@@ -38,6 +39,8 @@ export const ChannelsPage = () => {
   const [errorMessage, setErrorMessage] = useState('')
   const [sessionKey, setSessionKey] = useState<string | null>(null)
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null)
+  const [qrCodeImageUrl, setQrCodeImageUrl] = useState<string | null>(null)
+  const [isRenderingQrCode, setIsRenderingQrCode] = useState(false)
 
   const selectedAccount = useMemo(
     () => accounts.find((account) => account.accountId === selectedAccountId) ?? null,
@@ -90,6 +93,45 @@ export const ChannelsPage = () => {
       window.clearInterval(timer)
     }
   }, [sessionKey, isWaitingQr])
+
+  useEffect(() => {
+    if (!qrCodeUrl) {
+      setQrCodeImageUrl(null)
+      setIsRenderingQrCode(false)
+      return
+    }
+
+    let active = true
+    setIsRenderingQrCode(true)
+
+    void QRCode.toDataURL(qrCodeUrl, {
+      width: 260,
+      margin: 1
+    })
+      .then((dataUrl) => {
+        if (!active) {
+          return
+        }
+        setQrCodeImageUrl(dataUrl)
+      })
+      .catch((error) => {
+        if (!active) {
+          return
+        }
+        setQrCodeImageUrl(null)
+        setErrorMessage(error instanceof Error ? error.message : '渲染二维码失败。')
+      })
+      .finally(() => {
+        if (!active) {
+          return
+        }
+        setIsRenderingQrCode(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [qrCodeUrl])
 
   const handleStartQr = async () => {
     setIsStartingQr(true)
@@ -283,11 +325,22 @@ export const ChannelsPage = () => {
             <div className="mt-6 rounded-3xl border border-[var(--border-soft)] bg-[#fbfbfe] p-6">
               {qrCodeUrl ? (
                 <div className="space-y-3">
-                  <img
-                    src={qrCodeUrl}
-                    alt="微信扫码二维码"
-                    className="h-[260px] w-[260px] rounded-2xl border border-[var(--border-soft)] bg-white object-contain p-3"
-                  />
+                  {isRenderingQrCode ? (
+                    <div className="flex h-[260px] w-[260px] items-center justify-center rounded-2xl border border-[var(--border-soft)] bg-white text-[13px] text-[var(--ink-faint)]">
+                      <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                      正在渲染二维码...
+                    </div>
+                  ) : qrCodeImageUrl ? (
+                    <img
+                      src={qrCodeImageUrl}
+                      alt="微信扫码二维码"
+                      className="h-[260px] w-[260px] rounded-2xl border border-[var(--border-soft)] bg-white object-contain p-3"
+                    />
+                  ) : (
+                    <div className="flex h-[260px] w-[260px] items-center justify-center rounded-2xl border border-dashed border-[var(--border-soft)] bg-white text-[13px] text-[var(--ink-faint)]">
+                      二维码渲染失败
+                    </div>
+                  )}
                   <p className="text-[12px] text-[var(--ink-faint)]">
                     会话 ID: {sessionKey}（页面会自动短轮询登录状态）
                   </p>

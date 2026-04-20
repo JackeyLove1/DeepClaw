@@ -100,6 +100,121 @@ describe('WeixinChannelAdapter', () => {
     await adapter.stopAccount(account.accountId)
   })
 
+  it('normalizes inbound voice as audio media', async () => {
+    let callCount = 0
+    const client: WeixinProtocolClient = {
+      getUpdates: vi.fn(async (options) => {
+        if (callCount === 0) {
+          callCount += 1
+          return {
+            ret: 0,
+            msgs: [
+              {
+                from_user_id: 'user_voice',
+                message_type: 1,
+                item_list: [
+                  {
+                    type: 3,
+                    voice_item: {
+                      asr_text: '语音转写文本',
+                      file_name: 'voice.silk',
+                      file_size: 321
+                    }
+                  }
+                ]
+              }
+            ],
+            get_updates_buf: 'buf_voice'
+          }
+        }
+        return new Promise<WeixinGetUpdatesResponse>((_, reject) => {
+          options.signal?.addEventListener('abort', () => reject(createAbortError()), { once: true })
+        })
+      }),
+      sendTextMessage: vi.fn(async () => undefined)
+    }
+
+    const adapter = new WeixinChannelAdapter({ client })
+    const account = createAccount()
+    const context = createContext()
+    await adapter.startAccount(account, context)
+    await waitFor(() => (context.onInbound as ReturnType<typeof vi.fn>).mock.calls.length > 0)
+
+    expect(context.onInbound).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: '语音转写文本',
+        peerId: 'user_voice',
+        media: [
+          expect.objectContaining({
+            kind: 'audio',
+            name: 'voice.silk',
+            sizeBytes: 321
+          })
+        ]
+      })
+    )
+
+    await adapter.stopAccount(account.accountId)
+  })
+
+  it('normalizes inbound image as image media', async () => {
+    let callCount = 0
+    const client: WeixinProtocolClient = {
+      getUpdates: vi.fn(async (options) => {
+        if (callCount === 0) {
+          callCount += 1
+          return {
+            ret: 0,
+            msgs: [
+              {
+                from_user_id: 'user_image',
+                message_type: 1,
+                item_list: [
+                  {
+                    type: 2,
+                    image_item: {
+                      mime_type: 'image/jpeg',
+                      file_name: 'photo.jpg',
+                      file_size: 1024
+                    }
+                  }
+                ]
+              }
+            ],
+            get_updates_buf: 'buf_image'
+          }
+        }
+        return new Promise<WeixinGetUpdatesResponse>((_, reject) => {
+          options.signal?.addEventListener('abort', () => reject(createAbortError()), { once: true })
+        })
+      }),
+      sendTextMessage: vi.fn(async () => undefined)
+    }
+
+    const adapter = new WeixinChannelAdapter({ client })
+    const account = createAccount()
+    const context = createContext()
+    await adapter.startAccount(account, context)
+    await waitFor(() => (context.onInbound as ReturnType<typeof vi.fn>).mock.calls.length > 0)
+
+    expect(context.onInbound).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: '',
+        peerId: 'user_image',
+        media: [
+          expect.objectContaining({
+            kind: 'image',
+            mimeType: 'image/jpeg',
+            name: 'photo.jpg',
+            sizeBytes: 1024
+          })
+        ]
+      })
+    )
+
+    await adapter.stopAccount(account.accountId)
+  })
+
   it('stops account and clears health snapshot', async () => {
     const client: WeixinProtocolClient = {
       getUpdates: vi.fn((options: WeixinProtocolRequestOptions & { getUpdatesBuf: string }) => {

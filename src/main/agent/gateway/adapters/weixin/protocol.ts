@@ -5,6 +5,31 @@ export interface WeixinMessageItem {
   text_item?: {
     text?: string
   }
+  image_item?: {
+    mime_type?: string
+    file_name?: string
+    file_size?: number
+    width?: number
+    height?: number
+    media?: {
+      encrypt_query_param?: string
+      aes_key?: string
+      url?: string
+    }
+  }
+  voice_item?: {
+    asr_text?: string
+    text?: string
+    mime_type?: string
+    file_name?: string
+    file_size?: number
+    duration_ms?: number
+    media?: {
+      encrypt_query_param?: string
+      aes_key?: string
+      url?: string
+    }
+  }
 }
 
 export interface WeixinMessage {
