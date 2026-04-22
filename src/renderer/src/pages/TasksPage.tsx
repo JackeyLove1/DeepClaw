@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui'
+import { useI18n } from '../i18n'
 
 type TaskFormState = {
   name: string
@@ -51,20 +52,6 @@ const parseSkills = (value: string): string[] =>
     .map((item) => item.trim())
     .filter(Boolean)
 
-const formatDateTime = (timestamp: number | null | undefined): string => {
-  if (!timestamp) {
-    return '未设置'
-  }
-
-  return new Intl.DateTimeFormat(window.context.locale, {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  }).format(new Date(timestamp))
-}
-
 const stateStyles: Record<CronJob['state'], string> = {
   scheduled: 'bg-[#eef6ff] text-[#225ea8]',
   paused: 'bg-[#f4f2ec] text-[#7d6740]',
@@ -79,6 +66,7 @@ const runStateStyles: Record<CronRun['status'], string> = {
 }
 
 export const TasksPage = () => {
+  const { t, formatDateTime } = useI18n()
   const [jobs, setJobs] = useState<CronJob[]>([])
   const [runs, setRuns] = useState<CronRun[]>([])
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null)
@@ -125,7 +113,7 @@ export const TasksPage = () => {
         setDraft(createEmptyForm())
       }
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '加载 cron 任务失败。')
+      setErrorMessage(error instanceof Error ? error.message : t('tasks.loadFailed'))
     } finally {
       setIsLoading(false)
     }
@@ -164,14 +152,14 @@ export const TasksPage = () => {
 
   const handleSave = async () => {
     if (!draft.name.trim() || !draft.prompt.trim() || !draft.schedule.trim()) {
-      setErrorMessage('名称、Prompt 和 Schedule 为必填项。')
+      setErrorMessage(t('tasks.requiredFields'))
       return
     }
 
     const maxRuns =
       draft.maxRuns.trim().length > 0 ? Number.parseInt(draft.maxRuns.trim(), 10) : null
     if (draft.maxRuns.trim().length > 0 && (!Number.isInteger(maxRuns) || (maxRuns ?? 0) <= 0)) {
-      setErrorMessage('Max runs 必须是正整数。')
+      setErrorMessage(t('tasks.maxRunsPositive'))
       return
     }
 
@@ -190,7 +178,7 @@ export const TasksPage = () => {
           skills: parseSkills(draft.skills),
           maxRuns
         })
-        setStatusMessage('任务已更新。')
+        setStatusMessage(t('tasks.updated'))
         await loadCronData(updated.id)
       } else {
         const created = await window.context.createCronJob({
@@ -203,11 +191,11 @@ export const TasksPage = () => {
           maxRuns,
           sourceSessionId: draft.sourceSessionId.trim() || null
         })
-        setStatusMessage('任务已创建。')
+        setStatusMessage(t('tasks.created'))
         await loadCronData(created.id)
       }
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '保存 cron 任务失败。')
+      setErrorMessage(error instanceof Error ? error.message : t('tasks.saveFailed'))
     } finally {
       setIsSaving(false)
     }
@@ -218,7 +206,7 @@ export const TasksPage = () => {
     action: 'pause' | 'resume' | 'run' | 'remove'
   ) => {
     if (action === 'remove') {
-      const confirmed = window.confirm(`确定删除任务 “${job.name}” 吗？`)
+      const confirmed = window.confirm(t('tasks.deleteConfirm', { name: job.name }))
       if (!confirmed) {
         return
       }
@@ -231,29 +219,29 @@ export const TasksPage = () => {
     try {
       if (action === 'pause') {
         const updated = await window.context.pauseCronJob(job.id)
-        setStatusMessage(`已暂停：${updated.name}`)
+        setStatusMessage(t('tasks.paused', { name: updated.name }))
         await loadCronData(updated.id)
       }
 
       if (action === 'resume') {
         const updated = await window.context.resumeCronJob(job.id)
-        setStatusMessage(`已恢复：${updated.name}`)
+        setStatusMessage(t('tasks.resumed', { name: updated.name }))
         await loadCronData(updated.id)
       }
 
       if (action === 'run') {
         await window.context.runCronJob(job.id)
-        setStatusMessage(`已触发执行：${job.name}`)
+        setStatusMessage(t('tasks.triggered', { name: job.name }))
         await loadCronData(job.id)
       }
 
       if (action === 'remove') {
         await window.context.removeCronJob(job.id)
-        setStatusMessage(`已删除：${job.name}`)
+        setStatusMessage(t('tasks.deleted', { name: job.name }))
         await loadCronData(job.id === selectedJobId ? null : selectedJobId)
       }
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '执行任务操作失败。')
+      setErrorMessage(error instanceof Error ? error.message : t('tasks.actionFailed'))
     } finally {
       setActiveJobAction(null)
     }
@@ -264,9 +252,9 @@ export const TasksPage = () => {
       <aside className="flex w-[332px] min-w-[332px] flex-col border-r border-[var(--border-soft)] px-4 py-6">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-[24px] font-semibold text-[var(--ink-main)]">任务</p>
+            <p className="text-[24px] font-semibold text-[var(--ink-main)]">{t('tasks.title')}</p>
             <p className="mt-2 text-[13px] leading-6 text-[var(--ink-faint)]">
-              展示和维护 cron jobs。支持查看状态、编辑配置、暂停恢复和手动触发。
+              {t('tasks.description')}
             </p>
           </div>
           <Button
@@ -295,9 +283,11 @@ export const TasksPage = () => {
               <Plus className="h-4 w-4" />
             </span>
             <span className="min-w-0">
-              <span className="block text-[14px] font-semibold text-[var(--ink-main)]">新建任务</span>
+              <span className="block text-[14px] font-semibold text-[var(--ink-main)]">
+                {t('tasks.newTask')}
+              </span>
               <span className="mt-1 block text-[12px] text-[var(--ink-faint)]">
-                创建一个新的 cron job 草稿
+                {t('tasks.newTaskDescription')}
               </span>
             </span>
           </button>
@@ -305,7 +295,7 @@ export const TasksPage = () => {
           <div className="mt-3 max-h-[calc(100vh-270px)] space-y-2 overflow-auto pr-1">
             {jobs.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-[var(--border-soft)] bg-[#fafafc] px-4 py-6 text-[13px] leading-6 text-[var(--ink-faint)]">
-                还没有 cron 任务。点击上方“新建任务”开始配置。
+                {t('tasks.empty')}
               </div>
             ) : (
               jobs.map((job) => {
@@ -341,8 +331,10 @@ export const TasksPage = () => {
                     </div>
 
                     <div className="mt-3 flex items-center justify-between gap-3 text-[11px] text-[var(--ink-faint)]">
-                      <span className="truncate">下次执行：{formatDateTime(job.nextRunAt)}</span>
-                      <span className="shrink-0">Run #{job.runCount}</span>
+                      <span className="truncate">
+                        {t('tasks.nextRun', { time: formatDateTime(job.nextRunAt) })}
+                      </span>
+                      <span className="shrink-0">{t('tasks.runCount', { count: job.runCount })}</span>
                     </div>
                   </button>
                 )
@@ -358,12 +350,12 @@ export const TasksPage = () => {
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <h1 className="text-[28px] font-semibold text-[var(--ink-main)]">
-                  {selectedJob ? '编辑任务' : '新建任务'}
+                  {selectedJob ? t('tasks.editTask') : t('tasks.newTask')}
                 </h1>
                 <p className="mt-2 text-[14px] text-[var(--ink-faint)]">
                   {selectedJob
-                    ? `任务 ID: ${selectedJob.id}`
-                    : '填写名称、Prompt 和 Schedule，保存后即可由主进程后台调度。'}
+                    ? t('tasks.taskId', { id: selectedJob.id })
+                    : t('tasks.formDescription')}
                 </p>
               </div>
 
@@ -390,7 +382,7 @@ export const TasksPage = () => {
                       ) : (
                         <Pause className="mr-2 h-4 w-4" />
                       )}
-                      {selectedJob.state === 'paused' ? '恢复' : '暂停'}
+                      {selectedJob.state === 'paused' ? t('tasks.resume') : t('tasks.pause')}
                     </Button>
 
                     <Button
@@ -405,7 +397,7 @@ export const TasksPage = () => {
                       ) : (
                         <Play className="mr-2 h-4 w-4" />
                       )}
-                      立即运行
+                      {t('tasks.runNow')}
                     </Button>
 
                     <Button
@@ -416,7 +408,7 @@ export const TasksPage = () => {
                       className="rounded-2xl"
                     >
                       <Trash2 className="mr-2 h-4 w-4" />
-                      删除
+                      {t('common.delete')}
                     </Button>
                   </>
                 ) : null}
@@ -432,7 +424,7 @@ export const TasksPage = () => {
                   ) : (
                     <Save className="mr-2 h-4 w-4" />
                   )}
-                  {selectedJob ? '保存修改' : '创建任务'}
+                  {selectedJob ? t('tasks.saveChanges') : t('tasks.createTask')}
                 </Button>
               </div>
             </div>
@@ -452,12 +444,12 @@ export const TasksPage = () => {
             <div className="mt-8 grid gap-5 md:grid-cols-2">
               <div>
                 <label className="mb-2 block text-[15px] font-semibold text-[var(--ink-main)]">
-                  Name
+                  {t('tasks.name')}
                 </label>
                 <input
                   value={draft.name}
                   onChange={(event) => handleDraftChange('name', event.target.value)}
-                  placeholder="例如：Daily briefing"
+                  placeholder={t('tasks.namePlaceholder')}
                   className="h-11 w-full rounded-xl border border-[var(--border-soft)] bg-[#fbfbfe] px-3 text-[14px] text-[var(--ink-main)] outline-none transition-all focus:border-[#b9b9ca] focus:bg-white"
                 />
               </div>
@@ -481,7 +473,7 @@ export const TasksPage = () => {
                 <textarea
                   value={draft.prompt}
                   onChange={(event) => handleDraftChange('prompt', event.target.value)}
-                  placeholder="填写 cron job 执行时发给 agent 的任务说明"
+                  placeholder={t('tasks.promptPlaceholder')}
                   className="min-h-[150px] w-full rounded-2xl border border-[var(--border-soft)] bg-[#fbfbfe] px-4 py-3 text-[14px] leading-7 text-[var(--ink-main)] outline-none transition-all focus:border-[#b9b9ca] focus:bg-white"
                 />
               </div>
@@ -509,19 +501,19 @@ export const TasksPage = () => {
                 <input
                   value={draft.timezone}
                   onChange={(event) => handleDraftChange('timezone', event.target.value)}
-                  placeholder="留空则使用本机时区，例如 Asia/Shanghai"
+                  placeholder={t('tasks.timezonePlaceholder')}
                   className="h-11 w-full rounded-xl border border-[var(--border-soft)] bg-[#fbfbfe] px-3 text-[14px] text-[var(--ink-main)] outline-none transition-all focus:border-[#b9b9ca] focus:bg-white"
                 />
               </div>
 
               <div>
                 <label className="mb-2 block text-[15px] font-semibold text-[var(--ink-main)]">
-                  Skills
+                  {t('tasks.skills')}
                 </label>
                 <input
                   value={draft.skills}
                   onChange={(event) => handleDraftChange('skills', event.target.value)}
-                  placeholder="多个 skill 以逗号分隔"
+                  placeholder={t('tasks.skillsPlaceholder')}
                   className="h-11 w-full rounded-xl border border-[var(--border-soft)] bg-[#fbfbfe] px-3 text-[14px] text-[var(--ink-main)] outline-none transition-all focus:border-[#b9b9ca] focus:bg-white"
                 />
               </div>
@@ -533,7 +525,7 @@ export const TasksPage = () => {
                 <input
                   value={draft.maxRuns}
                   onChange={(event) => handleDraftChange('maxRuns', event.target.value)}
-                  placeholder="留空表示不限制"
+                  placeholder={t('tasks.maxRunsPlaceholder')}
                   className="h-11 w-full rounded-xl border border-[var(--border-soft)] bg-[#fbfbfe] px-3 text-[14px] text-[var(--ink-main)] outline-none transition-all focus:border-[#b9b9ca] focus:bg-white"
                 />
               </div>
@@ -546,11 +538,11 @@ export const TasksPage = () => {
                   value={draft.sourceSessionId}
                   onChange={(event) => handleDraftChange('sourceSessionId', event.target.value)}
                   disabled={Boolean(selectedJob)}
-                  placeholder="创建时可选；用于 deliver=origin_session"
+                  placeholder={t('tasks.sourceSessionPlaceholder')}
                   className="h-11 w-full rounded-xl border border-[var(--border-soft)] bg-[#fbfbfe] px-3 text-[14px] text-[var(--ink-main)] outline-none transition-all focus:border-[#b9b9ca] focus:bg-white disabled:cursor-not-allowed disabled:bg-[#f3f3f6] disabled:text-[var(--ink-faint)]"
                 />
                 <p className="mt-2 text-[12px] text-[var(--ink-faint)]">
-                  现有任务的 source session 目前在编辑页只读展示，不支持修改。
+                  {t('tasks.sourceReadonly')}
                 </p>
               </div>
             </div>
@@ -559,14 +551,18 @@ export const TasksPage = () => {
           <div className="mt-6 rounded-3xl border border-[var(--border-soft)] bg-white px-8 py-7 shadow-[0_14px_38px_rgba(15,15,20,0.05)]">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <h2 className="text-[22px] font-semibold text-[var(--ink-main)]">最近运行</h2>
+                <h2 className="text-[22px] font-semibold text-[var(--ink-main)]">
+                  {t('tasks.recentRuns')}
+                </h2>
                 <p className="mt-2 text-[13px] text-[var(--ink-faint)]">
-                  {selectedJob ? `展示 ${selectedJob.name} 的最近运行记录` : '选中一个任务后查看运行记录'}
+                  {selectedJob
+                    ? t('tasks.recentRunsFor', { name: selectedJob.name })
+                    : t('tasks.recentRunsEmptySelection')}
                 </p>
               </div>
               {selectedJob ? (
                 <span className="text-[12px] text-[var(--ink-faint)]">
-                  共 {selectedRuns.length} 条可见记录
+                  {t('tasks.visibleCount', { count: selectedRuns.length })}
                 </span>
               ) : null}
             </div>
@@ -574,11 +570,11 @@ export const TasksPage = () => {
             <div className="mt-5 space-y-3">
               {!selectedJob ? (
                 <div className="rounded-2xl border border-dashed border-[var(--border-soft)] bg-[#fafafc] px-4 py-6 text-[13px] text-[var(--ink-faint)]">
-                  左侧选择一个 cron job 后，这里会展示它的执行结果和最近状态。
+                  {t('tasks.selectForRuns')}
                 </div>
               ) : selectedRuns.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-[var(--border-soft)] bg-[#fafafc] px-4 py-6 text-[13px] text-[var(--ink-faint)]">
-                  该任务还没有运行记录。你可以点击“立即运行”先触发一次。
+                  {t('tasks.noRuns')}
                 </div>
               ) : (
                 selectedRuns.map((run) => (
@@ -592,7 +588,7 @@ export const TasksPage = () => {
                           {run.triggerKind} · {formatDateTime(run.startedAt)}
                         </p>
                         <p className="mt-1 text-[12px] text-[var(--ink-faint)]">
-                          完成时间：{formatDateTime(run.finishedAt)}
+                          {t('tasks.finishedAt', { time: formatDateTime(run.finishedAt) })}
                         </p>
                       </div>
 
@@ -604,14 +600,14 @@ export const TasksPage = () => {
                     </div>
 
                     <div className="mt-3 grid gap-2 text-[12px] text-[var(--ink-faint)] md:grid-cols-2">
-                      <span>Model: {run.model ?? '未记录'}</span>
+                      <span>{t('tasks.model', { model: run.model ?? t('common.notRecorded') })}</span>
                       <span>Tokens: {run.inputTokens + run.outputTokens}</span>
-                      <span>输出文件: {run.outputPath ?? '无'}</span>
-                      <span>下一次执行: {formatDateTime(run.nextRunAt)}</span>
+                      <span>{t('tasks.outputFile', { path: run.outputPath ?? t('common.none') })}</span>
+                      <span>{t('tasks.nextRunInline', { time: formatDateTime(run.nextRunAt) })}</span>
                     </div>
 
                     <p className="mt-3 rounded-2xl bg-white px-4 py-3 text-[13px] leading-6 text-[var(--ink-soft)]">
-                      {run.errorText || run.outputPreview || '无输出预览'}
+                      {run.errorText || run.outputPreview || t('tasks.noOutput')}
                     </p>
                   </article>
                 ))

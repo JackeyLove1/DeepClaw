@@ -11,6 +11,7 @@ import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 
 import { cn } from '@/utils'
+import { useI18n } from '../i18n'
 
 const getCodeText = (node: ReactNode): string => {
   if (typeof node === 'string') return node
@@ -44,6 +45,7 @@ const extractCodeBlock = (children: ReactNode) => {
 
 const CodeBlock = ({ children }: { children?: ReactNode }) => {
   const [copied, setCopied] = useState(false)
+  const { t } = useI18n()
   const codeBlock = extractCodeBlock(children)
 
   if (!codeBlock) {
@@ -71,10 +73,10 @@ const CodeBlock = ({ children }: { children?: ReactNode }) => {
           type="button"
           onClick={() => void handleCopy()}
           className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[12px] font-medium text-[#6b7280] transition hover:bg-[#eceff4] hover:text-[#1f2937]"
-          aria-label="复制代码"
+          aria-label={t('assistant.copyCode')}
         >
           {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-          {copied ? '已复制' : '复制'}
+          {copied ? t('common.copied') : t('common.copy')}
         </button>
       </figcaption>
       <pre className="m-0 overflow-x-auto bg-white px-4 py-3.5 text-[13px] leading-6 text-[#1f2430]">

@@ -42,6 +42,7 @@ import {
     type Ref
 } from 'react';
 import { toast } from 'sonner';
+import { useI18n, type TranslationKey } from '../i18n';
 import {
     buildFeedbackKey,
     copyAssistantMessage,
@@ -131,24 +132,28 @@ const chatImageDebug = (label: string, payload?: unknown): void => {
   console.debug(`[chat-image-debug] ${label}`, payload)
 }
 
-const formatClockTime = (timestamp: number): string =>
-  new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(timestamp)
-
-const formatSessionTime = (timestamp: number): string => {
+const formatSessionTime = (
+  timestamp: number,
+  t: (key: TranslationKey, params?: Record<string, string | number | null | undefined>) => string,
+  formatMonthDay: (timestamp: number) => string
+): string => {
   const diff = Date.now() - timestamp
   const minute = 60_000
   const hour = 60 * minute
   const day = 24 * hour
 
-  if (diff < minute) return '刚刚'
-  if (diff < hour) return `${Math.floor(diff / minute)} 分钟前`
-  if (diff < day) return `${Math.floor(diff / hour)} 小时前`
+  if (diff < minute) return t('chat.justNow')
+  if (diff < hour) return t('chat.minutesAgo', { count: Math.floor(diff / minute) })
+  if (diff < day) return t('chat.hoursAgo', { count: Math.floor(diff / hour) })
 
-  return new Intl.DateTimeFormat('zh-CN', { month: 'numeric', day: 'numeric' }).format(timestamp)
+  return formatMonthDay(timestamp)
 }
 
-const mapSendErrorMessage = (error: unknown): string => {
-  const fallback = '发送失败，请稍后重试。'
+const mapSendErrorMessage = (
+  error: unknown,
+  t: (key: TranslationKey, params?: Record<string, string | number | null | undefined>) => string
+): string => {
+  const fallback = t('chat.sendFailed')
   const raw = error instanceof Error ? error.message : String(error ?? '')
   const message = raw.trim()
   if (!message) {
@@ -156,7 +161,7 @@ const mapSendErrorMessage = (error: unknown): string => {
   }
 
   if (message.includes('already responding')) {
-    return '当前会话正在回复中，请先点击“停止”后再发送新消息。'
+    return t('chat.alreadyResponding')
   }
 
   if (
@@ -166,11 +171,11 @@ const mapSendErrorMessage = (error: unknown): string => {
     message.includes('active AI channel') ||
     message.includes('only supports Anthropic-compatible channels')
   ) {
-    return '当前 AI Channel 配置不完整，请前往“设置”填写 Base URL、API Key、Model，并先执行“测试连接”。'
+    return t('chat.channelIncomplete')
   }
 
   if (message.includes('Session not found')) {
-    return '当前会话不存在，请新建会话后重试。'
+    return t('chat.sessionMissing')
   }
 
   return message
@@ -219,8 +224,12 @@ const getFileNameFromPath = (filePath: string): string => {
   return maybeName || filePath
 }
 
-const prependPromptFilePath = (prompt: string, filePath: string): string => {
-  const header = `文件地址: ${filePath}`
+const prependPromptFilePath = (
+  prompt: string,
+  filePath: string,
+  t: (key: TranslationKey, params?: Record<string, string | number | null | undefined>) => string
+): string => {
+  const header = t('chat.fileAddress', { path: filePath })
   if (!prompt.trim()) {
     return header
   }
@@ -335,17 +344,18 @@ const ToolGroupPanel = ({
   activeCanvasArtifactId: string | null
   onPreviewCanvas: (artifact: ChatCanvasArtifact) => void
 }) => {
+  const { t } = useI18n()
   const title =
     toolGroup.status === 'running'
-      ? '思考中'
+      ? t('chat.thinking')
       : toolGroup.status === 'error'
-        ? '思考完成（含错误）'
-        : '已完成思考'
+        ? t('chat.thinkingDoneWithError')
+        : t('chat.thinkingDone')
 
   const statusLabel = (status: ToolGroupView['calls'][number]['status']): string => {
-    if (status === 'running') return '执行中'
-    if (status === 'error') return '失败'
-    return '完成'
+    if (status === 'running') return t('chat.toolRunning')
+    if (status === 'error') return t('chat.toolFailed')
+    return t('chat.toolDone')
   }
 
   return (
@@ -358,7 +368,7 @@ const ToolGroupPanel = ({
           <div className="min-w-0">
             <div className="truncate text-[13px] font-semibold text-[var(--ink-main)]">{title}</div>
             <div className="text-[11px] text-[var(--ink-faint)]">
-              {toolGroup.calls.length} 次工具调用
+              {t('chat.toolCalls', { count: toolGroup.calls.length })}
               {toolGroup.totalDurationMs > 0 ? ` · ${toolGroup.totalDurationMs}ms` : ''}
             </div>
           </div>
@@ -415,7 +425,7 @@ const ToolGroupPanel = ({
                         </div>
                       </div>
                       <span className="rounded-full bg-[#efe3d8] px-2.5 py-1 text-[10px] font-semibold text-[#5d4738]">
-                        {activeCanvasArtifactId === artifact.id ? 'Open' : 'Preview'}
+                        {activeCanvasArtifactId === artifact.id ? t('common.open') : t('common.preview')}
                       </span>
                     </button>
                   ))}
@@ -439,8 +449,10 @@ const ToolGroupPanel = ({
                           {artifact.fileName}
                         </div>
                         <div className="mt-0.5 text-[11px] text-[#7f8088]">
-                          {artifact.width}脳{artifact.height}
-                          {artifact.sizeBytes ? ` 路 ${formatBytes(artifact.sizeBytes)}` : ''}
+                          {t('chat.dimensions', { width: artifact.width, height: artifact.height })}
+                          {artifact.sizeBytes
+                            ? t('chat.sizeSuffix', { size: formatBytes(artifact.sizeBytes) })
+                            : ''}
                         </div>
                       </div>
                     </div>
@@ -481,7 +493,10 @@ const SessionRow = ({
   onCancelRename: () => void
   onStartRename: () => void
   onDelete: () => void
-}) => (
+}) => {
+  const { t, formatMonthDay } = useI18n()
+
+  return (
   <div className="relative">
     <button
       type="button"
@@ -531,14 +546,16 @@ const SessionRow = ({
             {session.title}
           </span>
           <span className="mt-0.5 block text-[12px] leading-tight text-[#7b7b7b]">
-            {session.status === 'running' ? '正在生成回复…' : `${session.messageCount} 条消息`}
+            {session.status === 'running'
+              ? t('chat.generating')
+              : t('chat.messageCount', { count: session.messageCount })}
           </span>
         </span>
       )}
 
       {!isActive && !isRenaming ? (
         <span className="pt-0.5 text-[11px] text-[#8a8a8a]">
-          {formatSessionTime(session.updatedAt)}
+          {formatSessionTime(session.updatedAt, t, formatMonthDay)}
         </span>
       ) : null}
     </button>
@@ -551,7 +568,7 @@ const SessionRow = ({
           event.stopPropagation()
           onToggleMenu()
         }}
-        aria-label="会话更多操作"
+        aria-label={t('chat.sessionMore')}
         className={`absolute right-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[#8d8d94] transition hover:bg-white hover:text-[#2f2f34] ${
           isMenuOpen ? 'bg-white text-[#2f2f34] shadow-[0_1px_2px_rgba(0,0,0,0.08)]' : ''
         }`}
@@ -571,7 +588,7 @@ const SessionRow = ({
           className="flex h-9 w-full items-center gap-2 rounded-xl px-3 text-[14px] font-medium text-[#2f2f35] transition hover:bg-[#f4f4f6]"
         >
           <Pencil className="h-4 w-4" />
-          编辑名称
+          {t('chat.editName')}
         </button>
         <button
           type="button"
@@ -582,12 +599,13 @@ const SessionRow = ({
           className="flex h-9 w-full items-center gap-2 rounded-xl px-3 text-[14px] font-medium text-[#2f2f35] transition hover:bg-[#f8f3f3]"
         >
           <Trash2 className="h-4 w-4" />
-          删除
+          {t('common.delete')}
         </button>
       </div>
     ) : null}
   </div>
-)
+  )
+}
 
 const UserAttachmentGrid = ({
   attachments,
@@ -602,7 +620,10 @@ const UserAttachmentGrid = ({
   >
   allowRemove?: boolean
   onRemove?: (id: string) => void
-}) => (
+}) => {
+  const { t } = useI18n()
+
+  return (
   <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
     {attachments.map((attachment) => (
       <div
@@ -620,7 +641,7 @@ const UserAttachmentGrid = ({
             type="button"
             onClick={() => onRemove(attachment.id)}
             className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/65 text-white transition hover:bg-black/75"
-            aria-label={`移除 ${attachment.fileName}`}
+            aria-label={t('chat.removeAttachment', { name: attachment.fileName })}
           >
             <X className="h-4 w-4" />
           </button>
@@ -632,14 +653,17 @@ const UserAttachmentGrid = ({
           <div className="mt-0.5 text-[11px] text-[#7f8088]">
             {attachment.width > 0 && attachment.height > 0
               ? `${attachment.width}×${attachment.height}`
-              : '已粘贴图片'}
-            {attachment.sizeBytes ? ` · ${formatBytes(attachment.sizeBytes)}` : ''}
+              : t('chat.pastedImage')}
+            {attachment.sizeBytes
+              ? t('chat.sizeSuffix', { size: formatBytes(attachment.sizeBytes) })
+              : ''}
           </div>
         </div>
       </div>
     ))}
   </div>
-)
+  )
+}
 
 const TranscriptItem = ({
   entry,
@@ -666,6 +690,8 @@ const TranscriptItem = ({
   onFeedback: (value: Exclude<AssistantFeedback, null>) => void
   onRetry: () => void
 }) => {
+  const { t, formatClockTime } = useI18n()
+
   if (entry.kind === 'user') {
     const message = entry as UserTranscriptEntry
     return (
@@ -713,12 +739,12 @@ const TranscriptItem = ({
           {message.text.trim() ? (
             <AssistantMessageMarkdown content={message.text} />
           ) : (
-            <p className="whitespace-pre-wrap font-semibold">处理中…</p>
+            <p className="whitespace-pre-wrap font-semibold">{t('chat.processing')}</p>
           )}
           {!showAssistantActions ? (
             <time className="mt-3 block text-[11px] font-medium text-[var(--ink-faint)]">
               {message.isStreaming
-                ? '思考中'
+                ? t('chat.thinking')
                 : formatClockTime(message.completedAt ?? message.createdAt)}
             </time>
           ) : null}
@@ -752,17 +778,23 @@ const TranscriptItem = ({
   )
 }
 
-const BootErrorState = ({ message }: { message: string }) => (
-  <div className="mx-auto mt-12 max-w-[720px] rounded-3xl border border-rose-200 bg-rose-50/80 px-6 py-6 shadow-[0_8px_32px_rgba(153,27,27,0.06)]">
-    <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-rose-500">
-      启动异常
+const BootErrorState = ({ message }: { message: string }) => {
+  const { t } = useI18n()
+
+  return (
+    <div className="mx-auto mt-12 max-w-[720px] rounded-3xl border border-rose-200 bg-rose-50/80 px-6 py-6 shadow-[0_8px_32px_rgba(153,27,27,0.06)]">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-rose-500">
+        {t('chat.startupError')}
+      </div>
+      <h3 className="mt-3 text-[20px] font-semibold text-rose-950">
+        {t('chat.startupErrorTitle')}
+      </h3>
+      <pre className="mt-4 whitespace-pre-wrap break-words font-mono text-[12px] leading-6 text-rose-700">
+        {message}
+      </pre>
     </div>
-    <h3 className="mt-3 text-[20px] font-semibold text-rose-950">会话界面初始化失败</h3>
-    <pre className="mt-4 whitespace-pre-wrap break-words font-mono text-[12px] leading-6 text-rose-700">
-      {message}
-    </pre>
-  </div>
-)
+  )
+}
 
 const InputBar = ({
   draft,
@@ -811,11 +843,12 @@ const InputBar = ({
   onSend: () => void
   onCancel: () => void
 }) => {
+  const { t } = useI18n()
   const activeChannel =
     aiChannelSettings.channels.find(
       (channel) => channel.id === aiChannelSettings.activeChannelId
     ) ?? null
-  const activeChannelLabel = activeChannel ? formatAiChannelLabel(activeChannel) : '默认大模型'
+  const activeChannelLabel = activeChannel ? formatAiChannelLabel(activeChannel) : t('chat.defaultModel')
   const isModelSwitcherDisabled =
     isAiChannelsLoading || isSwitchingAiChannel || aiChannelSettings.channels.length === 0
   const [skillSearchQuery, setSkillSearchQuery] = useState('')
@@ -872,7 +905,7 @@ const InputBar = ({
             type="button"
             onClick={onRemovePromptFile}
             className="inline-flex h-6 w-6 items-center justify-center rounded-full text-white/85 transition hover:bg-white/10 hover:text-white"
-            aria-label="移除已上传文件"
+            aria-label={t('chat.removeUploadedFile')}
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -890,7 +923,7 @@ const InputBar = ({
           }
         }}
         rows={1}
-        placeholder="输入你的问题或任务描述..."
+        placeholder={t('chat.placeholder')}
         className="block min-h-[46px] w-full resize-none bg-transparent px-1 text-[15px] leading-7 text-[var(--ink-main)] outline-none placeholder:text-[#9b9ca5]"
       />
 
@@ -907,7 +940,7 @@ const InputBar = ({
                   <Zap className="h-4 w-4" />
                 </span>
                 <span className="max-w-[220px] truncate">
-                  {isAiChannelsLoading ? '加载模型中…' : activeChannelLabel}
+                  {isAiChannelsLoading ? t('chat.loadingModels') : activeChannelLabel}
                 </span>
                 {isSwitchingAiChannel ? (
                   <LoaderCircle className="h-3.5 w-3.5 animate-spin text-[#737683]" />
@@ -922,12 +955,12 @@ const InputBar = ({
               className="w-[320px] rounded-2xl border border-[#e7e8ef] bg-white p-1.5 shadow-[0_18px_48px_rgba(15,15,20,0.14)]"
             >
               <DropdownMenuLabel className="px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                切换模型
+                {t('chat.switchModel')}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               {aiChannelSettings.channels.length === 0 ? (
                 <DropdownMenuItem disabled className="rounded-xl px-3 py-2 text-xs">
-                  暂无可用模型，请先在设置中新增 Channel
+                  {t('chat.noModels')}
                 </DropdownMenuItem>
               ) : (
                 <DropdownMenuRadioGroup
@@ -963,7 +996,9 @@ const InputBar = ({
                 <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-[#8f919c]">
                   <Sparkles className="h-4 w-4" />
                 </span>
-                {selectedSkillIds.length > 0 ? `技能 ${selectedSkillIds.length}` : '技能'}
+                {selectedSkillIds.length > 0
+                  ? t('chat.skillCount', { count: selectedSkillIds.length })
+                  : t('chat.skills')}
                 <ChevronDown className="h-3.5 w-3.5" />
               </button>
             </DropdownMenuTrigger>
@@ -978,15 +1013,19 @@ const InputBar = ({
                   value={skillSearchQuery}
                   onChange={(event) => setSkillSearchQuery(event.target.value)}
                   onKeyDown={(event) => event.stopPropagation()}
-                  placeholder="搜索技能"
+                  placeholder={t('chat.searchSkills')}
                   className="w-full bg-transparent text-[13px] text-[#32343b] outline-none placeholder:text-[#9a9cab]"
                 />
               </div>
               <div className="mt-2 max-h-[320px] overflow-y-auto rounded-xl border border-[#f0f1f4]">
                 {isInstalledSkillsLoading ? (
-                  <div className="px-3 py-4 text-[12px] text-[#8a8d99]">正在加载技能...</div>
+                  <div className="px-3 py-4 text-[12px] text-[#8a8d99]">
+                    {t('chat.loadingSkills')}
+                  </div>
                 ) : filteredSkills.length === 0 ? (
-                  <div className="px-3 py-4 text-[12px] text-[#8a8d99]">未找到匹配技能</div>
+                  <div className="px-3 py-4 text-[12px] text-[#8a8d99]">
+                    {t('chat.noMatchingSkills')}
+                  </div>
                 ) : (
                   <ul className="divide-y divide-[#f0f1f4]">
                     {filteredSkills.map((skill) => {
@@ -1044,12 +1083,12 @@ const InputBar = ({
               {/* <Upload className="h-4 w-4" /> */}
               <Link2 className="h-4 w-4" />
             </span>
-            上传文件
+            {t('chat.uploadFile')}
           </button>
           {/* <button
             type="button"
             className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#ececf1] text-[#6d707c] transition hover:bg-[#e4e4eb] hover:text-[var(--ink-main)]"
-            aria-label="关联内容"
+            aria-label={t('chat.relatedContent')}
           >
             <Link2 className="h-4 w-4" />
           </button> */}
@@ -1064,7 +1103,7 @@ const InputBar = ({
               className="inline-flex h-10 items-center gap-2 rounded-full border border-[#dddde3] bg-white px-4 text-[13px] font-medium text-[var(--ink-soft)] transition hover:bg-[#f3f3f7] disabled:opacity-50"
             >
               <Square className="h-3.5 w-3.5 fill-current" strokeWidth={0} />
-              {isCancelling ? '停止中…' : '停止'}
+              {isCancelling ? t('chat.stopping') : t('chat.stop')}
             </button>
           ) : null}
 
@@ -1077,7 +1116,7 @@ const InputBar = ({
               !currentSessionId
             }
             className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#1f1f23] text-white transition hover:bg-[#2b2b31] disabled:cursor-not-allowed disabled:bg-[#e8e8ee] disabled:text-[#b8bac3]"
-            aria-label="发送消息"
+            aria-label={t('chat.sendMessage')}
           >
             <Send className="h-4 w-4" />
           </button>
@@ -1133,10 +1172,13 @@ const EmptyState = ({
   onRemovePromptFile: () => void
   onSend: () => void
   onCancel: () => void
-}) => (
+}) => {
+  const { t } = useI18n()
+
+  return (
   <div className="mx-auto flex h-full w-full max-w-[860px] flex-col items-center justify-center px-6 pb-8">
     <h2 className="text-center text-[clamp(28px,4.5vw,46px)] font-semibold tracking-tight text-[var(--ink-main)]">
-      我能帮您什么?
+      {t('chat.emptyPrompt')}
     </h2>
     <div className="mt-8 w-full">
       <InputBar
@@ -1165,9 +1207,11 @@ const EmptyState = ({
       />
     </div>
   </div>
-)
+  )
+}
 
 export const ChatPage = () => {
+  const { t, formatMonthDay } = useI18n()
   const AUTO_SCROLL_BOTTOM_THRESHOLD = 96
   const [sessions, setSessions] = useState<SessionMeta[]>([])
   const [aiChannelSettings, setAiChannelSettings] = useState<AiChannelSettings>({
@@ -1262,7 +1306,7 @@ export const ChatPage = () => {
         }
       } catch (error) {
         if (!disposed) {
-          toast.error(error instanceof Error ? error.message : 'Failed to load AI channels.')
+          toast.error(error instanceof Error ? error.message : t('chat.loadChannelsFailed'))
         }
       } finally {
         if (!disposed) {
@@ -1298,7 +1342,7 @@ export const ChatPage = () => {
         }
       } catch (error) {
         if (!disposed) {
-          toast.error(error instanceof Error ? error.message : 'Failed to load installed skills.')
+          toast.error(error instanceof Error ? error.message : t('chat.loadSkillsFailed'))
         }
       } finally {
         if (!disposed) {
@@ -1387,7 +1431,7 @@ export const ChatPage = () => {
 
         setCanvasPreviewHtml('')
         setCanvasPreviewError(
-          error instanceof Error ? error.message : 'Failed to load canvas preview.'
+          error instanceof Error ? error.message : t('chat.loadCanvasFailed')
         )
       } finally {
         if (!disposed) {
@@ -1522,7 +1566,7 @@ export const ChatPage = () => {
 
     const refreshSessions = async (): Promise<SessionMeta[]> => {
       if (!window.context) {
-        throw new Error('Preload API is unavailable. Check the Electron main/preload process logs.')
+        throw new Error(t('chat.preloadUnavailable'))
       }
 
       const next = await window.context.searchSessions(searchQuery)
@@ -1547,7 +1591,7 @@ export const ChatPage = () => {
       } catch (error) {
         if (!disposed) {
           setBootError(
-            error instanceof Error ? error.message : 'Failed to bootstrap chat sessions.'
+            error instanceof Error ? error.message : t('chat.bootstrapFailed')
           )
         }
       } finally {
@@ -1571,7 +1615,7 @@ export const ChatPage = () => {
         if (!disposed) setSessions(next)
       } catch (error) {
         if (!disposed) {
-          setBootError(error instanceof Error ? error.message : 'Failed to refresh sessions.')
+          setBootError(error instanceof Error ? error.message : t('chat.refreshFailed'))
         }
       }
     }
@@ -1621,7 +1665,7 @@ export const ChatPage = () => {
         }
       } catch (error) {
         if (!disposed) {
-          setBootError(error instanceof Error ? error.message : 'Failed to search sessions.')
+          setBootError(error instanceof Error ? error.message : t('chat.searchFailed'))
         }
       }
     }
@@ -1689,7 +1733,7 @@ export const ChatPage = () => {
       setSessions(next)
       setBootError(null)
     } catch (error) {
-      setBootError(error instanceof Error ? error.message : 'Failed to update session title.')
+      setBootError(error instanceof Error ? error.message : t('chat.updateTitleFailed'))
     } finally {
       setEditingSessionId(null)
       setTitleDraft('')
@@ -1697,7 +1741,7 @@ export const ChatPage = () => {
   }
 
   const handleDeleteSession = async (sessionId: string): Promise<void> => {
-    const confirmed = window.confirm('确定要删除这个会话吗？该操作无法撤销。')
+    const confirmed = window.confirm(t('chat.deleteSessionConfirm'))
     if (!confirmed) return
 
     try {
@@ -1724,7 +1768,7 @@ export const ChatPage = () => {
       }
       setBootError(null)
     } catch (error) {
-      setBootError(error instanceof Error ? error.message : 'Failed to delete session.')
+      setBootError(error instanceof Error ? error.message : t('chat.deleteFailed'))
     }
   }
 
@@ -1736,7 +1780,7 @@ export const ChatPage = () => {
     options?: { clearComposer?: boolean; pendingPromptFile?: PendingPromptFile | null }
   ): Promise<void> => {
     const promptWithFile = options?.pendingPromptFile
-      ? prependPromptFilePath(message, options.pendingPromptFile.filePath)
+      ? prependPromptFilePath(message, options.pendingPromptFile.filePath, t)
       : message
 
     if ((!promptWithFile.trim() && attachments.length === 0) || state.isRunning) return
@@ -1814,7 +1858,7 @@ export const ChatPage = () => {
           eventId: `local_error_${Date.now()}`,
           sessionId,
           timestamp: Date.now(),
-          message: mapSendErrorMessage(error)
+          message: mapSendErrorMessage(error, t)
         }
       })
     }
@@ -1840,7 +1884,7 @@ export const ChatPage = () => {
         fileName: getFileNameFromPath(filePath)
       })
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : '选择文件失败，请重试。')
+      toast.error(error instanceof Error ? error.message : t('chat.pickFileFailed'))
     }
   }
 
@@ -1885,14 +1929,14 @@ export const ChatPage = () => {
     }
 
     if (pendingImages.length >= MAX_PENDING_IMAGES) {
-      toast.error(`最多只能添加 ${MAX_PENDING_IMAGES} 张图片`)
+      toast.error(t('chat.tooManyImages', { count: MAX_PENDING_IMAGES }))
       return
     }
 
     const availableSlots = MAX_PENDING_IMAGES - pendingImages.length
     const acceptedItems = imageItems.slice(0, availableSlots)
     if (acceptedItems.length < imageItems.length) {
-      toast.error(`最多只能添加 ${MAX_PENDING_IMAGES} 张图片`)
+      toast.error(t('chat.tooManyImages', { count: MAX_PENDING_IMAGES }))
     }
 
     let nextImages: Array<PendingComposerImage | null> = []
@@ -1907,12 +1951,16 @@ export const ChatPage = () => {
             }
 
             if (!SUPPORTED_CHAT_IMAGE_TYPES.has(file.type as ChatImageAttachment['mimeType'])) {
-              toast.error(`不支持的图片格式：${file.type || 'unknown'}`)
+              toast.error(t('chat.unsupportedImage', { type: file.type || t('common.unknown') }))
               return null
             }
 
             if (file.size > MAX_PENDING_IMAGE_BYTES) {
-              toast.error(`${file.name || `图片 ${index + 1}`} 超过 8 MB 限制`)
+              toast.error(
+                t('chat.imageTooLarge', {
+                  name: file.name || `image-${index + 1}`
+                })
+              )
               return null
             }
 
@@ -1936,7 +1984,7 @@ export const ChatPage = () => {
         )
       ).filter(Boolean) as PendingComposerImage[]
     } catch (error) {
-      toast.error(mapSendErrorMessage(error))
+      toast.error(mapSendErrorMessage(error, t))
       return
     }
 
@@ -2041,7 +2089,7 @@ export const ChatPage = () => {
         nextImages.push(...acceptedDomImages)
       } catch (error) {
         chatImageDebug('paste failed while reading DOM clipboardData', { error })
-        toast.error(mapSendErrorMessage(error))
+        toast.error(mapSendErrorMessage(error, t))
         return
       }
     } else {
@@ -2053,7 +2101,7 @@ export const ChatPage = () => {
         clipboardImage = await window.context.readClipboardImage()
       } catch (error) {
         chatImageDebug('Electron clipboard read failed', { error })
-        toast.error(mapSendErrorMessage(error))
+        toast.error(mapSendErrorMessage(error, t))
         return
       }
 
@@ -2081,7 +2129,7 @@ export const ChatPage = () => {
         nextImages.push(nextImage)
       } catch (error) {
         chatImageDebug('paste failed while normalizing Electron clipboard image', { error })
-        toast.error(mapSendErrorMessage(error))
+        toast.error(mapSendErrorMessage(error, t))
         return
       }
     }
@@ -2094,12 +2142,12 @@ export const ChatPage = () => {
   const handleCopyAssistant = async (message: AssistantTranscriptEntry): Promise<void> => {
     const copied = await copyAssistantMessage(message)
     if (!copied) {
-      toast.error('复制失败，请重试')
+      toast.error(t('chat.copyFailed'))
       return
     }
 
     setCopiedAssistantId(message.id)
-    toast.success('复制成功')
+    toast.success(t('chat.copySuccess'))
     if (copyFeedbackTimeoutRef.current) {
       window.clearTimeout(copyFeedbackTimeoutRef.current)
     }
@@ -2157,9 +2205,9 @@ export const ChatPage = () => {
     try {
       const nextSettings = await window.context.setActiveAiChannel(channelId)
       setAiChannelSettings(nextSettings)
-      toast.success('Switched active AI channel.')
+      toast.success(t('chat.switchedChannel'))
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to switch AI channel.')
+      toast.error(error instanceof Error ? error.message : t('chat.switchChannelFailed'))
     } finally {
       setIsSwitchingAiChannel(false)
     }
@@ -2188,7 +2236,7 @@ export const ChatPage = () => {
             <Search className="h-4 w-4" />
             <input
               type="text"
-              placeholder="搜索"
+              placeholder={t('chat.sessionSearch')}
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
               className="w-full bg-transparent text-[14px] text-[#2a2a2a] outline-none placeholder:text-[#8b8b8b]"
@@ -2201,7 +2249,7 @@ export const ChatPage = () => {
             className="flex h-11 w-full items-center justify-center gap-2 rounded-full border border-[#d9d9d9] bg-[#f2f2f2] text-[14px] font-semibold text-[#1f1f1f] transition hover:bg-[#ececec]"
           >
             <Plus className="h-4 w-4" strokeWidth={2.2} />
-            新建 Agent
+            {t('chat.newAgent')}
           </button>
         </div>
 
@@ -2209,7 +2257,7 @@ export const ChatPage = () => {
           <div className="space-y-1.5">
             {visibleSessions.length === 0 && !isBooting ? (
               <div className="rounded-2xl bg-[#e4e4e4] px-4 py-5 text-[13px] text-[#7b7b7b]">
-                暂无会话
+                {t('chat.noSessions')}
               </div>
             ) : (
               visibleSessions.map((session) => (
@@ -2256,7 +2304,7 @@ export const ChatPage = () => {
           >
             {isBooting ? (
               <div className="flex h-full items-center justify-center text-[14px] text-[var(--ink-soft)]">
-                正在加载会话…
+                {t('chat.loadingSessions')}
               </div>
             ) : bootError ? (
               <BootErrorState message={bootError} />
@@ -2390,7 +2438,7 @@ export const ChatPage = () => {
             <DialogHeader className="sr-only">
               <DialogTitle>{activeCanvas.artifact.title}</DialogTitle>
               <DialogDescription>
-                Preview generated HTML content inside a sandboxed iframe.
+                {t('canvas.dialogDescription')}
               </DialogDescription>
             </DialogHeader>
             <div className="h-[85vh] overflow-hidden rounded-[32px] border border-[var(--border-soft)] bg-white shadow-[0_24px_80px_rgba(15,23,42,0.22)] xl:hidden">

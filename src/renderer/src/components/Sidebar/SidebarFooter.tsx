@@ -2,8 +2,10 @@ import { ComponentProps } from 'react'
 import { twMerge } from 'tailwind-merge'
 import { FiPlus } from 'react-icons/fi'
 import { useNoteStore } from '@renderer/store/noteStore'
+import { useI18n } from '../../i18n'
 
 export const SidebarFooter = ({ className, ...props }: ComponentProps<'div'>): JSX.Element => {
+  const { t } = useI18n()
   const createPage = useNoteStore((state) => state.createPage)
   const selectPage = useNoteStore((state) => state.selectPage)
   const isBusy = useNoteStore(
@@ -27,7 +29,7 @@ export const SidebarFooter = ({ className, ...props }: ComponentProps<'div'>): J
         className="w-full flex items-center gap-2 px-3 py-2 rounded text-sm text-notion-text-secondary hover:bg-notion-hover hover:text-notion-text transition-colors"
       >
         <FiPlus size={16} />
-        <span>New page</span>
+        <span>{t('notes.newPage')}</span>
       </button>
     </div>
   )

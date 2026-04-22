@@ -8,6 +8,50 @@ import { isEmpty } from 'lodash'
 import { homedir } from 'os'
 import path from 'path'
 import welcomeNoteFile from '../../../resources/welcomeNote.md?asset'
+import { getAppPreferences } from './app-preferences'
+
+interface MainDialogText {
+  newNoteTitle: string
+  untitledFilename: string
+  create: string
+  creationFailed: string
+  wrongDirectory: (rootDir: string) => string
+  deleteNoteTitle: string
+  deleteNoteMessage: (filename: string) => string
+  delete: string
+  cancel: string
+}
+
+const mainDialogText: Record<'zh-CN' | 'en-US', MainDialogText> = {
+  'zh-CN': {
+    newNoteTitle: '新建笔记',
+    untitledFilename: '未命名.md',
+    create: '创建',
+    creationFailed: '创建失败',
+    wrongDirectory: (rootDir: string) => `所有笔记都必须保存在 ${rootDir} 下。\n请不要使用其他目录。`,
+    deleteNoteTitle: '删除笔记',
+    deleteNoteMessage: (filename: string) => `确定要删除 ${filename} 吗？`,
+    delete: '删除',
+    cancel: '取消'
+  },
+  'en-US': {
+    newNoteTitle: 'New note',
+    untitledFilename: 'Untitled.md',
+    create: 'Create',
+    creationFailed: 'Creation failed',
+    wrongDirectory: (rootDir: string) =>
+      `All notes must be saved under ${rootDir}.\nAvoid using other directories!`,
+    deleteNoteTitle: 'Delete note',
+    deleteNoteMessage: (filename: string) => `Are you sure you want to delete ${filename}?`,
+    delete: 'Delete',
+    cancel: 'Cancel'
+  }
+}
+
+const getMainDialogText = async (): Promise<MainDialogText> => {
+  const preferences = await getAppPreferences()
+  return mainDialogText[preferences.locale] ?? mainDialogText['zh-CN']
+}
 
 export const getRootDir = () => {
   return `${homedir()}/${appDirectoryName}`
@@ -89,13 +133,14 @@ export const writeNote: WriteNote = async (filename, content) => {
 
 export const createNote: CreateNote = async () => {
   const rootDir = getRootDir()
+  const text = await getMainDialogText()
 
   await mkdir(rootDir, { recursive: true })
 
   const { filePath, canceled } = await dialog.showSaveDialog({
-    title: 'New note',
-    defaultPath: `${rootDir}/Untitled.md`,
-    buttonLabel: 'Create',
+    title: text.newNoteTitle,
+    defaultPath: `${rootDir}/${text.untitledFilename}`,
+    buttonLabel: text.create,
     properties: ['showOverwriteConfirmation'],
     showsTagField: false,
     filters: [{ name: 'Markdown', extensions: ['md'] }]
@@ -111,9 +156,8 @@ export const createNote: CreateNote = async () => {
   if (parentDir !== rootDir) {
     await dialog.showMessageBox({
       type: 'error',
-      title: 'Creation failed',
-      message: `All notes must be saved under ${rootDir}.
-      Avoid using other directories!`
+      title: text.creationFailed,
+      message: text.wrongDirectory(rootDir)
     })
 
     return false
@@ -131,12 +175,13 @@ export const createNote: CreateNote = async () => {
 
 export const deleteNote: DeleteNote = async (filename) => {
   const rootDir = getRootDir()
+  const text = await getMainDialogText()
 
   const { response } = await dialog.showMessageBox({
     type: 'warning',
-    title: 'Delete note',
-    message: `Are you sure you want to delete ${filename}?`,
-    buttons: ['Delete', 'Cancel'], // 0 is Delete, 1 is Cancel
+    title: text.deleteNoteTitle,
+    message: text.deleteNoteMessage(filename),
+    buttons: [text.delete, text.cancel], // 0 is Delete, 1 is Cancel
     defaultId: 1,
     cancelId: 1
   })

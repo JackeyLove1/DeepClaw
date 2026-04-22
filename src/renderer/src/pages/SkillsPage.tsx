@@ -3,6 +3,7 @@ import { Button } from '@/components/ui';
 import { Download, LoaderCircle, Search } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { useI18n, type LocaleCode, type TranslationKey } from '../i18n';
 
 interface SkillHubCnSkill {
   category: string
@@ -31,16 +32,22 @@ interface InstalledSkillInfo {
   tags: string[]
 }
 
-const CATEGORIES = ['全部', 'AI 智能', '开发工具', '效率提升', '数据分析', '内容创作']
-
-const CATEGORY_MAP: Record<string, string | undefined> = {
-  '全部': undefined,
-  'AI 智能': 'ai-intelligence',
-  '开发工具': 'developer-tools',
-  '效率提升': 'productivity',
-  '数据分析': 'data-analysis',
-  '内容创作': 'content-creation',
-}
+const CATEGORIES: Array<{
+  id: string
+  labelKey: TranslationKey
+  category?: string
+}> = [
+  { id: 'all', labelKey: 'skills.category.all' },
+  { id: 'ai', labelKey: 'skills.category.ai', category: 'ai-intelligence' },
+  { id: 'dev', labelKey: 'skills.category.dev', category: 'developer-tools' },
+  {
+    id: 'productivity',
+    labelKey: 'skills.category.productivity',
+    category: 'productivity'
+  },
+  { id: 'data', labelKey: 'skills.category.data', category: 'data-analysis' },
+  { id: 'content', labelKey: 'skills.category.content', category: 'content-creation' }
+]
 
 const AVATAR_COLORS = [
   { bg: 'bg-[rgba(0,122,255,0.1)]', text: 'text-[rgb(0,122,255)]' },
@@ -55,13 +62,27 @@ interface SkillCardProps {
   skill: SkillHubCnSkill
   isInstalled: boolean
   isInstalling: boolean
+  locale: LocaleCode
+  formatNumber: (value: number) => string
+  t: (key: TranslationKey) => string
   onInstall: () => void
 }
 
-const SkillCard = ({ skill, isInstalled, isInstalling, onInstall }: SkillCardProps) => {
+const SkillCard = ({
+  skill,
+  isInstalled,
+  isInstalling,
+  locale,
+  formatNumber,
+  t,
+  onInstall
+}: SkillCardProps) => {
   const colorIndex = skill.name.charCodeAt(0) % AVATAR_COLORS.length
   const { bg, text } = AVATAR_COLORS[colorIndex]
-  const displayDescription = skill.description_zh || skill.description
+  const displayDescription =
+    locale === 'zh-CN'
+      ? skill.description_zh || skill.description
+      : skill.description || skill.description_zh
 
   return (
     <div className="w-full text-left flex items-start gap-4 py-5 px-4 hover:bg-[#f9f9f9] transition-colors duration-200 cursor-pointer group border-b border-[rgba(0,0,0,0.06)] last:border-b-0">
@@ -87,11 +108,11 @@ const SkillCard = ({ skill, isInstalled, isInstalling, onInstall }: SkillCardPro
         <div className="flex items-center gap-4 mt-2 text-[12px] text-[rgba(0,0,0,0.4)]">
           <span className="flex items-center gap-1">
             <span className="text-[10px]">★</span>
-            {skill.stars.toLocaleString()}
+            {formatNumber(skill.stars)}
           </span>
           <span className="flex items-center gap-1">
             <Download className="w-3 h-3" />
-            {skill.installs.toLocaleString()}
+            {formatNumber(skill.installs)}
           </span>
           <span className="text-[11px]">{skill.source}</span>
         </div>
@@ -99,7 +120,7 @@ const SkillCard = ({ skill, isInstalled, isInstalling, onInstall }: SkillCardPro
       <div className="shrink-0 hidden md:flex items-center pt-[3px]">
         {isInstalled ? (
           <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[rgba(52,199,89,0.1)] text-[12px] font-medium text-[rgb(52,199,89)]">
-            已安装
+            {t('skills.installed')}
           </span>
         ) : (
           <Button
@@ -117,7 +138,7 @@ const SkillCard = ({ skill, isInstalled, isInstalling, onInstall }: SkillCardPro
             ) : (
               <>
                 <Download className="h-3.5 w-3.5 mr-1.5" />
-                安装
+                {t('skills.install')}
               </>
             )}
           </Button>
@@ -128,11 +149,12 @@ const SkillCard = ({ skill, isInstalled, isInstalling, onInstall }: SkillCardPro
 }
 
 export const SkillsPage = () => {
+  const { locale, t, formatNumber } = useI18n()
   const [skills, setSkills] = useState<SkillHubCnSkill[]>([])
   const [installedSkills, setInstalledSkills] = useState<InstalledSkillInfo[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState('全部')
+  const [selectedCategoryId, setSelectedCategoryId] = useState('all')
   const [isLoading, setIsLoading] = useState(false)
   const [installingSlug, setInstallingSlug] = useState<string | null>(null)
   const [error, setError] = useState('')
@@ -165,7 +187,7 @@ export const SkillsPage = () => {
   useEffect(() => {
     const loadSkills = async () => {
       const keyword = debouncedSearchQuery.trim()
-      const category = CATEGORY_MAP[selectedCategory]
+      const category = CATEGORIES.find((item) => item.id === selectedCategoryId)?.category
       const cacheKey = JSON.stringify({
         page: 1,
         pageSize: 24,
@@ -199,14 +221,14 @@ export const SkillsPage = () => {
         setSkills(result.skills)
         setTotal(result.total)
       } catch (e) {
-        setError(e instanceof Error ? e.message : '加载失败')
+        setError(e instanceof Error ? e.message : t('skills.loadFailed'))
       } finally {
         setIsLoading(false)
       }
     }
 
     void loadSkills()
-  }, [debouncedSearchQuery, selectedCategory])
+  }, [debouncedSearchQuery, selectedCategoryId, t])
 
   const handleSearch = useCallback((query: string) => {
     // Manual search trigger bypasses waiting for debounce timer.
@@ -218,14 +240,14 @@ export const SkillsPage = () => {
     try {
       const result = await window.context.installSkill(slug)
       if (result.success) {
-        toast.success(`已安装：${result.slug}`)
+        toast.success(t('skills.installSuccess', { slug: result.slug }))
         const installed = await window.context.listInstalledSkills()
         setInstalledSkills(installed)
       } else {
-        toast.error(`安装失败：${result.error}`)
+        toast.error(t('skills.installFailed', { error: result.error ?? t('common.unknown') }))
       }
     } catch (e) {
-      toast.error(`安装失败：${e instanceof Error ? e.message : '未知错误'}`)
+      toast.error(t('skills.installFailed', { error: e instanceof Error ? e.message : t('common.unknown') }))
     } finally {
       setInstallingSlug(null)
     }
@@ -245,11 +267,13 @@ export const SkillsPage = () => {
         <div className="flex items-center gap-5 mb-5">
           <div className="flex-1 min-w-0">
             <h1 className="text-[32px] font-medium tracking-tight text-[var(--ink-main)] mb-[12px]">
-              全部技能
+              {t('skills.title')}
             </h1>
             <p className="text-[14px] font-medium text-[rgba(0,0,0,0.9)] leading-relaxed">
-              快速发现专家技能，让 AI 从通用走向专用
-              <span className="text-[rgba(0,0,0,0.4)]"> · 共 {total > 0 ? total.toLocaleString() : skills.length} 个技能</span>
+              {t('skills.description')}
+              <span className="text-[rgba(0,0,0,0.4)]">
+                {t('skills.count', { count: formatNumber(total > 0 ? total : skills.length) })}
+              </span>
             </p>
           </div>
           <img
@@ -264,15 +288,15 @@ export const SkillsPage = () => {
           <div className="flex items-center gap-2 pb-1">
             {CATEGORIES.map((cat) => (
               <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
+                key={cat.id}
+                onClick={() => setSelectedCategoryId(cat.id)}
                 className={`whitespace-nowrap px-4 py-2 rounded-xl text-[13px] font-medium transition-all duration-200 ${
-                  selectedCategory === cat
+                  selectedCategoryId === cat.id
                     ? 'bg-[var(--ink-main)] text-white'
                     : 'bg-[#f4f4f8] text-[var(--ink-faint)] hover:bg-[#e8e8f0]'
                 }`}
               >
-                {cat}
+                {t(cat.labelKey)}
               </button>
             ))}
           </div>
@@ -291,7 +315,7 @@ export const SkillsPage = () => {
                   void handleSearch(searchQuery)
                 }
               }}
-              placeholder="搜索 skill 名称、描述、标签..."
+              placeholder={t('skills.searchPlaceholder')}
               className="w-full h-11 pl-10 pr-4 rounded-[8px] bg-white border border-[#e6e9ef] text-sm text-[var(--ink-main)] placeholder:text-[rgba(0,0,0,0.3)] outline-none tracking-tight focus:border-[#d6dae2] transition-all duration-200"
             />
           </div>
@@ -303,7 +327,7 @@ export const SkillsPage = () => {
             {isLoading ? (
               <LoaderCircle className="h-4 w-4 animate-spin" />
             ) : (
-              '搜索'
+              t('skills.search')
             )}
           </Button>
         </div>
@@ -321,8 +345,12 @@ export const SkillsPage = () => {
         {filteredSkills.length === 0 && !isLoading && (
           <div className="flex flex-col items-center justify-center py-16 text-[var(--ink-faint)]">
             <Search className="h-12 w-12 opacity-30 mb-3" />
-            <p className="text-[15px]">{searchQuery ? '未找到相关技能' : '加载技能列表失败'}</p>
-            <p className="text-[13px] mt-1">{searchQuery ? '试试其他关键词' : '请稍后重试'}</p>
+            <p className="text-[15px]">
+              {searchQuery ? t('skills.notFound') : t('skills.listFailed')}
+            </p>
+            <p className="text-[13px] mt-1">
+              {searchQuery ? t('skills.tryOtherKeywords') : t('skills.retryLater')}
+            </p>
           </div>
         )}
 
@@ -335,6 +363,9 @@ export const SkillsPage = () => {
                   skill={skill}
                   isInstalled={isInstalled(skill.slug)}
                   isInstalling={installingSlug === skill.slug}
+                  locale={locale}
+                  formatNumber={formatNumber}
+                  t={t}
                   onInstall={() => void handleInstall(skill.slug)}
                 />
               </div>

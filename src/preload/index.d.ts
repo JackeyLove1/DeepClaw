@@ -6,6 +6,7 @@ import type {
     DeleteNote,
     DeleteSession,
     DisconnectWeixinGatewayAccount,
+    GetAppPreferences,
     GetAiChannelSettings,
     GetNotes,
     GetThirdPartyApiKeySettings,
@@ -33,6 +34,7 @@ import type {
     ResumeCronJob,
     RunCronJob,
     SaveAiChannelSettings,
+    SaveAppPreferences,
     SaveThirdPartyApiKeySettings,
     SearchSessions,
     SearchSkills,
@@ -83,6 +85,8 @@ declare global {
       testAiChannelConnection: TestAiChannelConnection
       getThirdPartyApiKeySettings: GetThirdPartyApiKeySettings
       saveThirdPartyApiKeySettings: SaveThirdPartyApiKeySettings
+      getAppPreferences: GetAppPreferences
+      saveAppPreferences: SaveAppPreferences
       listWeixinGatewayAccounts: ListWeixinGatewayAccounts
       startWeixinQrLogin: StartWeixinQrLogin
       waitWeixinQrLogin: WaitWeixinQrLogin

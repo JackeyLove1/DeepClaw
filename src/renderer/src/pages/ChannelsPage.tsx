@@ -3,6 +3,7 @@ import type { WeixinGatewayAccount } from '@shared/types';
 import { LoaderCircle, PlugZap, QrCode, RefreshCw, Unplug } from 'lucide-react';
 import QRCode from 'qrcode';
 import { useEffect, useMemo, useState } from 'react';
+import { useI18n } from '../i18n';
 
 type WeixinHealth = Awaited<ReturnType<typeof window.context.getWeixinGatewayHealth>>[number]
 
@@ -14,20 +15,8 @@ const HEALTH_STYLE: Record<WeixinHealth['status'], string> = {
   stopped: 'bg-[#f3f3f6] text-[#6b6b7a]'
 }
 
-const formatTime = (timestamp: number | null): string => {
-  if (!timestamp) {
-    return '未记录'
-  }
-  return new Intl.DateTimeFormat(window.context.locale, {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  }).format(new Date(timestamp))
-}
-
 export const ChannelsPage = () => {
+  const { t, formatDateTime } = useI18n()
   const [accounts, setAccounts] = useState<WeixinGatewayAccount[]>([])
   const [health, setHealth] = useState<WeixinHealth[]>([])
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null)
@@ -70,7 +59,7 @@ export const ChannelsPage = () => {
         return nextAccounts[0]?.accountId ?? null
       })
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '加载微信渠道配置失败。')
+      setErrorMessage(error instanceof Error ? error.message : t('channels.loadFailed'))
     } finally {
       setIsLoading(false)
       setIsRefreshing(false)
@@ -119,7 +108,7 @@ export const ChannelsPage = () => {
           return
         }
         setQrCodeImageUrl(null)
-        setErrorMessage(error instanceof Error ? error.message : '渲染二维码失败。')
+        setErrorMessage(error instanceof Error ? error.message : t('channels.renderFailed'))
       })
       .finally(() => {
         if (!active) {
@@ -146,7 +135,7 @@ export const ChannelsPage = () => {
       setQrCodeUrl(result.qrCodeUrl)
       setStatusMessage(result.message)
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '生成二维码失败。')
+      setErrorMessage(error instanceof Error ? error.message : t('channels.generateFailed'))
     } finally {
       setIsStartingQr(false)
     }
@@ -154,7 +143,7 @@ export const ChannelsPage = () => {
 
   const handleWaitQr = async (timeoutMs = 45000, silent = false) => {
     if (!sessionKey) {
-      setErrorMessage('请先生成二维码。')
+      setErrorMessage(t('channels.generateFirst'))
       return
     }
 
@@ -177,7 +166,7 @@ export const ChannelsPage = () => {
       }
     } catch (error) {
       if (!silent) {
-        setErrorMessage(error instanceof Error ? error.message : '等待扫码确认失败。')
+        setErrorMessage(error instanceof Error ? error.message : t('channels.waitFailed'))
       }
     } finally {
       setIsWaitingQr(false)
@@ -185,7 +174,7 @@ export const ChannelsPage = () => {
   }
 
   const handleDisconnect = async (accountId: string) => {
-    const confirmed = window.confirm(`确定断开微信账号 ${accountId} 吗？`)
+    const confirmed = window.confirm(t('channels.disconnectConfirm', { accountId }))
     if (!confirmed) {
       return
     }
@@ -193,10 +182,10 @@ export const ChannelsPage = () => {
     setStatusMessage('')
     try {
       await window.context.disconnectWeixinGatewayAccount(accountId)
-      setStatusMessage(`已断开账号：${accountId}`)
+      setStatusMessage(t('channels.disconnected', { accountId }))
       await loadData(true)
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : '断开账号失败。')
+      setErrorMessage(error instanceof Error ? error.message : t('channels.disconnectFailed'))
     }
   }
 
@@ -205,9 +194,11 @@ export const ChannelsPage = () => {
       <aside className="flex w-[332px] min-w-[332px] flex-col border-r border-[var(--border-soft)] px-4 py-6">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-[24px] font-semibold text-[var(--ink-main)]">渠道</p>
+            <p className="text-[24px] font-semibold text-[var(--ink-main)]">
+              {t('channels.title')}
+            </p>
             <p className="mt-2 text-[13px] leading-6 text-[var(--ink-faint)]">
-              管理微信渠道账号连接状态，支持扫码接入与断开。
+              {t('channels.description')}
             </p>
           </div>
           <Button
@@ -230,7 +221,7 @@ export const ChannelsPage = () => {
           <div className="max-h-[calc(100vh-250px)] space-y-2 overflow-auto pr-1">
             {accounts.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-[var(--border-soft)] bg-[#fafafc] px-4 py-6 text-[13px] leading-6 text-[var(--ink-faint)]">
-                暂无已连接微信账号。右侧点击“生成二维码”开始连接。
+                {t('channels.empty')}
               </div>
             ) : (
               accounts.map((account) => {
@@ -275,9 +266,11 @@ export const ChannelsPage = () => {
       <div className="flex min-w-0 flex-1 justify-center overflow-auto px-8 py-8">
         <div className="w-full max-w-[980px] space-y-6">
           <div className="rounded-3xl border border-[var(--border-soft)] bg-white px-8 py-7 shadow-[0_14px_38px_rgba(15,15,20,0.05)]">
-            <h1 className="text-[28px] font-semibold text-[var(--ink-main)]">微信扫码连接</h1>
+            <h1 className="text-[28px] font-semibold text-[var(--ink-main)]">
+              {t('channels.qrTitle')}
+            </h1>
             <p className="mt-2 text-[14px] text-[var(--ink-faint)]">
-              生成二维码后，使用微信扫码并确认授权。系统会自动保存账号并启动网关连接。
+              {t('channels.qrDescription')}
             </p>
 
             {errorMessage ? (
@@ -304,7 +297,7 @@ export const ChannelsPage = () => {
                 ) : (
                   <QrCode className="mr-2 h-4 w-4" />
                 )}
-                生成二维码
+                {t('channels.generateQr')}
               </Button>
               <Button
                 type="button"
@@ -318,7 +311,7 @@ export const ChannelsPage = () => {
                 ) : (
                   <PlugZap className="mr-2 h-4 w-4" />
                 )}
-                等待确认
+                {t('channels.waitConfirm')}
               </Button>
             </div>
 
@@ -328,45 +321,61 @@ export const ChannelsPage = () => {
                   {isRenderingQrCode ? (
                     <div className="flex h-[260px] w-[260px] items-center justify-center rounded-2xl border border-[var(--border-soft)] bg-white text-[13px] text-[var(--ink-faint)]">
                       <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                      正在渲染二维码...
+                      {t('channels.renderingQr')}
                     </div>
                   ) : qrCodeImageUrl ? (
                     <img
                       src={qrCodeImageUrl}
-                      alt="微信扫码二维码"
+                      alt={t('channels.qrAlt')}
                       className="h-[260px] w-[260px] rounded-2xl border border-[var(--border-soft)] bg-white object-contain p-3"
                     />
                   ) : (
                     <div className="flex h-[260px] w-[260px] items-center justify-center rounded-2xl border border-dashed border-[var(--border-soft)] bg-white text-[13px] text-[var(--ink-faint)]">
-                      二维码渲染失败
+                      {t('channels.qrFailed')}
                     </div>
                   )}
                   <p className="text-[12px] text-[var(--ink-faint)]">
-                    会话 ID: {sessionKey}（页面会自动短轮询登录状态）
+                    {t('channels.sessionId', { id: sessionKey ?? '' })}
                   </p>
                 </div>
               ) : (
                 <div className="flex h-[260px] w-[260px] items-center justify-center rounded-2xl border border-dashed border-[var(--border-soft)] bg-white text-[13px] text-[var(--ink-faint)]">
-                  暂无二维码
+                  {t('channels.noQr')}
                 </div>
               )}
             </div>
           </div>
 
           <div className="rounded-3xl border border-[var(--border-soft)] bg-white px-8 py-7 shadow-[0_14px_38px_rgba(15,15,20,0.05)]">
-            <h2 className="text-[22px] font-semibold text-[var(--ink-main)]">账号详情</h2>
+            <h2 className="text-[22px] font-semibold text-[var(--ink-main)]">
+              {t('channels.accountDetails')}
+            </h2>
             {!selectedAccount ? (
-              <p className="mt-3 text-[13px] text-[var(--ink-faint)]">请选择左侧账号查看详情。</p>
+              <p className="mt-3 text-[13px] text-[var(--ink-faint)]">
+                {t('channels.selectAccount')}
+              </p>
             ) : (
               <div className="mt-5 space-y-3 text-[13px] text-[var(--ink-soft)]">
-                <p>账号 ID: {selectedAccount.accountId}</p>
+                <p>{t('channels.accountId', { id: selectedAccount.accountId })}</p>
                 <p>Base URL: {selectedAccount.baseUrl}</p>
-                <p>Route Tag: {selectedAccount.routeTag || '未设置'}</p>
-                <p>Channel Version: {selectedAccount.channelVersion || '未设置'}</p>
-                <p>Connected At: {formatTime(selectedAccount.connectedAt)}</p>
-                <p>Last Event: {formatTime(healthMap.get(selectedAccount.accountId)?.lastEventAt ?? null)}</p>
+                <p>{t('channels.routeTag', { value: selectedAccount.routeTag || t('common.notSet') })}</p>
                 <p>
-                  Last Error: {healthMap.get(selectedAccount.accountId)?.lastError || '无'}
+                  {t('channels.channelVersion', {
+                    value: selectedAccount.channelVersion || t('common.notSet')
+                  })}
+                </p>
+                <p>{t('channels.connectedAt', { time: formatDateTime(selectedAccount.connectedAt) })}</p>
+                <p>
+                  {t('channels.lastEvent', {
+                    time: formatDateTime(
+                      healthMap.get(selectedAccount.accountId)?.lastEventAt ?? null
+                    )
+                  })}
+                </p>
+                <p>
+                  {t('channels.lastError', {
+                    error: healthMap.get(selectedAccount.accountId)?.lastError || t('common.none')
+                  })}
                 </p>
                 <div className="pt-2">
                   <Button
@@ -376,7 +385,7 @@ export const ChannelsPage = () => {
                     className="rounded-2xl"
                   >
                     <Unplug className="mr-2 h-4 w-4" />
-                    断开连接
+                    {t('channels.disconnect')}
                   </Button>
                 </div>
               </div>

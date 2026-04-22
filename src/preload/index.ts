@@ -7,6 +7,7 @@ import type {
     DeleteNote,
     DeleteSession,
     DisconnectWeixinGatewayAccount,
+    GetAppPreferences,
     GetAiChannelSettings,
     GetNotes,
     GetThirdPartyApiKeySettings,
@@ -34,6 +35,7 @@ import type {
     ResumeCronJob,
     RunCronJob,
     SaveAiChannelSettings,
+    SaveAppPreferences,
     SaveThirdPartyApiKeySettings,
     SearchSessions,
     SearchSkills,
@@ -167,6 +169,10 @@ try {
         'settings:saveThirdPartyApiKeys',
         ...args
       ),
+    getAppPreferences: (...args: Parameters<GetAppPreferences>) =>
+      invoke<Awaited<ReturnType<GetAppPreferences>>>('settings:getAppPreferences', ...args),
+    saveAppPreferences: (...args: Parameters<SaveAppPreferences>) =>
+      invoke<Awaited<ReturnType<SaveAppPreferences>>>('settings:saveAppPreferences', ...args),
     listWeixinGatewayAccounts: (...args: Parameters<ListWeixinGatewayAccounts>) =>
       invoke<Awaited<ReturnType<ListWeixinGatewayAccounts>>>('weixin:listAccounts', ...args),
     startWeixinQrLogin: (...args: Parameters<StartWeixinQrLogin>) =>

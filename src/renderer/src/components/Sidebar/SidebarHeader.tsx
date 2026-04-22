@@ -1,8 +1,11 @@
 import { ComponentProps } from 'react'
 import { twMerge } from 'tailwind-merge'
 import { FiSearch, FiChevronDown } from 'react-icons/fi'
+import { useI18n } from '../../i18n'
 
 export const SidebarHeader = ({ className, ...props }: ComponentProps<'div'>): JSX.Element => {
+  const { t } = useI18n()
+
   return (
     <div className={twMerge('px-3 py-4', className)} {...props}>
       {/* Workspace switcher */}
@@ -20,7 +23,7 @@ export const SidebarHeader = ({ className, ...props }: ComponentProps<'div'>): J
         className="w-full flex items-center gap-2 px-3 py-2 rounded text-notion-text-secondary hover:bg-notion-hover text-sm transition-colors"
       >
         <FiSearch size={16} />
-        <span className="flex-1 text-left">Search</span>
+        <span className="flex-1 text-left">{t('notes.search')}</span>
         <kbd className="text-xs bg-notion-hover px-1.5 py-0.5 rounded border border-notion-border">
           ⌘K
         </kbd>

@@ -3,9 +3,11 @@ import { ComponentProps } from 'react'
 import { FiMenu } from 'react-icons/fi'
 import { twMerge } from 'tailwind-merge'
 import { Breadcrumbs } from './Breadcrumbs'
+import { useI18n } from '../../i18n'
 
 export const Topbar = ({ className, ...props }: ComponentProps<'header'>): JSX.Element => {
   const toggleSidebar = useNoteStore((state) => state.toggleSidebar)
+  const { t } = useI18n()
 
   return (
     <header
@@ -32,28 +34,28 @@ export const Topbar = ({ className, ...props }: ComponentProps<'header'>): JSX.E
         <button
           type="button"
           className="w-8 h-8 flex items-center justify-center rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
-          title="Page info"
+          title={t('notes.pageInfo')}
         >
           {/* <FiInfo size={16} /> */}
         </button>
         <button
           type="button"
           className="w-8 h-8 flex items-center justify-center rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
-          title="Share"
+          title={t('notes.share')}
         >
           {/* <FiShare2 size={16} /> */}
         </button>
         <button
           type="button"
           className="w-8 h-8 flex items-center justify-center rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
-          title="Star"
+          title={t('notes.star')}
         >
           {/* <FiStar size={16} /> */}
         </button>
         <button
           type="button"
           className="w-8 h-8 flex items-center justify-center rounded hover:bg-notion-hover text-notion-text-secondary hover:text-notion-text transition-colors"
-          title="More options"
+          title={t('notes.moreOptions')}
         >
           {/* <FiMoreHorizontal size={16} /> */}
         </button>

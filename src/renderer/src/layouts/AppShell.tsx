@@ -1,6 +1,9 @@
 import {
+  Check,
+  ChevronDown,
   CircleCheckBig,
   CircleHelp,
+  Languages,
   MessageCircleMore,
   MonitorSmartphone,
   QrCode,
@@ -11,6 +14,15 @@ import type { ReactNode } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import appIcon from '../assets/icon.png'
 import * as DraggableTopBarModule from '../components/DraggableTopBar'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from '../components/ui/dropdown-menu'
+import { useI18n, type LocaleCode } from '../i18n'
 
 const DraggableTopBar = DraggableTopBarModule.DraggableTopBar ?? (() => null)
 
@@ -45,7 +57,11 @@ const NavRailLink = ({ label, to, icon }: NavRailLinkProps) => (
   </NavLink>
 )
 
+const availableLocales: LocaleCode[] = ['zh-CN', 'en-US']
+
 export const AppShell = () => {
+  const { locale, localeLabels, setLocale, t } = useI18n()
+
   return (
     <>
       <DraggableTopBar />
@@ -58,27 +74,27 @@ export const AppShell = () => {
                 type="button"
                 className="mx-auto flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-[0_8px_24px_rgba(0,0,0,0.16)]"
               >
-                <img src={appIcon} alt="NoteMark App icon" className="h-full w-full object-cover" />
+                <img src={appIcon} alt={t('app.iconAlt')} className="h-full w-full object-cover" />
               </button>
 
               <div className="space-y-1">
                 <NavRailLink
-                  label="对话"
+                  label={t('nav.chat')}
                   to="/chat"
                   icon={<MessageCircleMore className={navIconClassName} />}
                 />
                 <NavRailLink
-                  label="任务"
+                  label={t('nav.tasks')}
                   to="/tasks"
                   icon={<CircleCheckBig className={navIconClassName} />}
                 />
                 <NavRailLink
-                  label="渠道"
+                  label={t('nav.channels')}
                   to="/channels"
                   icon={<QrCode className={navIconClassName} />}
                 />
                 <NavRailLink
-                  label="技能"
+                  label={t('nav.skills')}
                   to="/skills"
                   icon={<Sparkles className={navIconClassName} />}
                 />
@@ -86,13 +102,46 @@ export const AppShell = () => {
             </div>
 
             <div className="space-y-2">
-              <button type="button" className={utilityButtonClassName} aria-label="帮助">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className={utilityButtonClassName}
+                    aria-label={t('language.switch')}
+                    title={t('language.switch')}
+                  >
+                    <Languages className={utilityIconClassName} />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  side="right"
+                  className="w-[180px] rounded-2xl border border-[#e7e8ef] bg-white p-1.5 shadow-[0_18px_48px_rgba(15,15,20,0.14)]"
+                >
+                  <DropdownMenuLabel className="flex items-center justify-between px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                    <span>{t('language.current')}</span>
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {availableLocales.map((localeCode) => (
+                    <DropdownMenuItem
+                      key={localeCode}
+                      className="rounded-xl px-3 py-2 text-[13px]"
+                      onClick={() => void setLocale(localeCode)}
+                    >
+                      <span className="flex-1">{localeLabels[localeCode]}</span>
+                      {locale === localeCode ? <Check className="h-4 w-4" /> : null}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <button type="button" className={utilityButtonClassName} aria-label={t('nav.help')}>
                 <CircleHelp className={utilityIconClassName} />
               </button>
-              <button type="button" className={utilityButtonClassName} aria-label="设备">
+              <button type="button" className={utilityButtonClassName} aria-label={t('nav.device')}>
                 <MonitorSmartphone className={utilityIconClassName} />
               </button>
-              <NavLink to="/settings" className={utilityLinkClassName} aria-label="设置">
+              <NavLink to="/settings" className={utilityLinkClassName} aria-label={t('nav.settings')}>
                 <Settings className={utilityIconClassName} />
               </NavLink>
             </div>

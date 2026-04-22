@@ -5,6 +5,7 @@ import type {
     CreateNote,
     DeleteNote,
     DisconnectWeixinGatewayAccount,
+    GetAppPreferences,
     GetAiChannelSettings,
     GetNotes,
     GetThirdPartyApiKeySettings,
@@ -26,6 +27,7 @@ import type {
     ResumeCronJob,
     RunCronJob,
     SaveAiChannelSettings,
+    SaveAppPreferences,
     SaveThirdPartyApiKeySettings,
     SendMessage,
     SetActiveAiChannel,
@@ -59,6 +61,7 @@ import {
     setActiveAiChannel,
     testAiChannelConnection
 } from './lib/ai-channel-settings';
+import { getAppPreferences, saveAppPreferences } from './lib/app-preferences';
 import { initDatabase } from './lib/database';
 import { runPreInstallScript } from './lib/script-runner';
 import {
@@ -105,6 +108,14 @@ const readClipboardImage = (): ClipboardImagePayload | null => {
     sizeBytes: buffer.length,
     width,
     height
+  }
+}
+
+const getMainLocale = async (): Promise<'zh-CN' | 'en-US'> => {
+  try {
+    return (await getAppPreferences()).locale
+  } catch {
+    return 'zh-CN'
   }
 }
 
@@ -356,8 +367,12 @@ function registerChatIpc(): void {
         return null
       }
 
+      const locale = await getMainLocale()
       const result = await dialog.showOpenDialog(mainWindow, {
-        title: '选择要附加到提示词的文件',
+        title:
+          locale === 'en-US'
+            ? 'Choose a file to attach to the prompt'
+            : '选择要附加到提示词的文件',
         properties: ['openFile']
       })
 
@@ -447,6 +462,12 @@ function registerSettingsIpc(): void {
     'settings:saveThirdPartyApiKeys',
     (_, ...args: Parameters<SaveThirdPartyApiKeySettings>) =>
       saveThirdPartyApiKeySettings(...args)
+  )
+  ipcMain.handle('settings:getAppPreferences', (_, ...args: Parameters<GetAppPreferences>) =>
+    getAppPreferences(...args)
+  )
+  ipcMain.handle('settings:saveAppPreferences', (_, ...args: Parameters<SaveAppPreferences>) =>
+    saveAppPreferences(...args)
   )
   ipcMain.handle('settings:getUsageOverview', (_, ...args: Parameters<GetUsageOverview>) => {
     if (!chatSupervisor) {

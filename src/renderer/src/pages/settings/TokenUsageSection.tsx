@@ -7,6 +7,7 @@ import type {
   UsageOverview,
   UsageRecord
 } from '@shared/types'
+import { useI18n } from '../../i18n'
 
 type UsageTab = 'token' | 'toolStats' | 'toolCalls' | 'skillStats' | 'skills'
 
@@ -28,33 +29,6 @@ type SkillStatsRow = {
 }
 
 const PAGE_SIZE = 10
-
-const formatNumber = (value: number): string => value.toLocaleString()
-
-const formatTimestamp = (value: number | null): string =>
-  value == null
-    ? '--'
-    : new Date(value).toLocaleString('zh-CN', {
-        hour12: false
-      })
-
-const usageKindLabel: Record<UsageRecord['kind'], string> = {
-  chat_turn: 'Chat Turn',
-  title_gen: 'Title Generation',
-  connection_test: 'Connection Test',
-  session_memory: 'Session Memory'
-}
-
-const toolStatusLabel: Record<ToolCallUsageRecord['status'], string> = {
-  running: 'Running',
-  success: 'Success',
-  error: 'Error'
-}
-
-const toolPhaseLabel: Record<ToolCallUsageRecord['phase'], string> = {
-  called: 'Called',
-  completed: 'Completed'
-}
 
 const loadUsagePayload = async (): Promise<UsagePayload> => {
   const [overview, usageRecords, toolRecords, toolStats, skillRecords] = await Promise.all([
@@ -134,17 +108,25 @@ const buildSkillStats = (records: SkillUsageRecord[]): SkillStatsRow[] => {
 const Pager = ({
   currentPage,
   totalPages,
+  pageSize,
   onPrevious,
-  onNext
+  onNext,
+  labels
 }: {
   currentPage: number
   totalPages: number
+  pageSize: number
   onPrevious: () => void
   onNext: () => void
+  labels: {
+    pageStatus: (params: { currentPage: number; totalPages: number; pageSize: number }) => string
+    previous: string
+    next: string
+  }
 }) => (
   <div className="flex items-center justify-between border-t border-[var(--border-soft)] bg-[#fcfcff] px-3 py-2 text-[12px] text-[var(--ink-faint)]">
     <span>
-      Page {currentPage}/{totalPages} · {PAGE_SIZE} rows
+      {labels.pageStatus({ currentPage, totalPages, pageSize })}
     </span>
     <div className="flex items-center gap-2">
       <button
@@ -153,7 +135,7 @@ const Pager = ({
         onClick={onPrevious}
         className="rounded-lg border border-[var(--border-soft)] bg-white px-2 py-1 text-[12px] text-[var(--ink-main)] disabled:cursor-not-allowed disabled:text-[#9ca0ad]"
       >
-        Previous
+        {labels.previous}
       </button>
       <button
         type="button"
@@ -161,13 +143,14 @@ const Pager = ({
         onClick={onNext}
         className="rounded-lg border border-[var(--border-soft)] bg-white px-2 py-1 text-[12px] text-[var(--ink-main)] disabled:cursor-not-allowed disabled:text-[#9ca0ad]"
       >
-        Next
+        {labels.next}
       </button>
     </div>
   </div>
 )
 
 export const TokenUsageSection = () => {
+  const { t, formatNumber, formatDateTime } = useI18n()
   const [usageTab, setUsageTab] = useState<UsageTab>('token')
   const [isUsageLoading, setIsUsageLoading] = useState(true)
   const [usageError, setUsageError] = useState('')
@@ -205,7 +188,7 @@ export const TokenUsageSection = () => {
         setSkillPage(1)
       } catch (error) {
         if (!isMounted) return
-        setUsageError(error instanceof Error ? error.message : 'Failed to load usage data.')
+        setUsageError(error instanceof Error ? error.message : t('usage.loadFailed'))
       } finally {
         if (isMounted) {
           setIsUsageLoading(false)
@@ -237,7 +220,7 @@ export const TokenUsageSection = () => {
       setSkillStatsPage(1)
       setSkillPage(1)
     } catch (error) {
-      setUsageError(error instanceof Error ? error.message : 'Failed to load usage data.')
+      setUsageError(error instanceof Error ? error.message : t('usage.loadFailed'))
     } finally {
       setIsUsageLoading(false)
     }
@@ -261,15 +244,37 @@ export const TokenUsageSection = () => {
   const pagedToolRecords = paginate(toolRecords, safeToolPage)
   const pagedSkillStats = paginate(skillStats, safeSkillStatsPage)
   const pagedSkillRecords = paginate(skillRecords, safeSkillPage)
+  const formatTimestamp = (value: number | null): string =>
+    value == null ? '--' : formatDateTime(value)
+  const usageKindLabel: Record<UsageRecord['kind'], string> = {
+    chat_turn: t('usage.chatTurn'),
+    title_gen: t('usage.titleGen'),
+    connection_test: t('usage.connectionTest'),
+    session_memory: t('usage.sessionMemory')
+  }
+  const toolStatusLabel: Record<ToolCallUsageRecord['status'], string> = {
+    running: t('usage.running'),
+    success: t('usage.success'),
+    error: t('usage.error')
+  }
+  const toolPhaseLabel: Record<ToolCallUsageRecord['phase'], string> = {
+    called: t('usage.called'),
+    completed: t('usage.completed')
+  }
+  const pagerLabels = {
+    pageStatus: (params: { currentPage: number; totalPages: number; pageSize: number }) =>
+      t('usage.pageStatus', params),
+    previous: t('usage.previous'),
+    next: t('usage.next')
+  }
 
   return (
     <div className="rounded-3xl border border-[var(--border-soft)] bg-white px-8 py-7 shadow-[0_14px_38px_rgba(15,15,20,0.05)]">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="text-[26px] font-semibold text-[var(--ink-main)]">Usage Analytics</h2>
+          <h2 className="text-[26px] font-semibold text-[var(--ink-main)]">{t('usage.title')}</h2>
           <p className="mt-2 text-[14px] text-[var(--ink-faint)]">
-            Inspect token consumption, tool activity, and skill usage records from the local SQLite
-            store.
+            {t('usage.description')}
           </p>
         </div>
         <button
@@ -279,31 +284,31 @@ export const TokenUsageSection = () => {
           className="inline-flex h-10 items-center gap-2 rounded-xl border border-[var(--border-soft)] bg-white px-4 text-[14px] font-medium text-[var(--ink-main)] transition-all hover:bg-[#f6f6fb] disabled:cursor-not-allowed disabled:bg-[#f4f4f7] disabled:text-[#9ca0ad]"
         >
           {isUsageLoading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}
-          <span>{isUsageLoading ? 'Refreshing...' : 'Refresh Data'}</span>
+          <span>{isUsageLoading ? t('usage.refreshing') : t('usage.refreshData')}</span>
         </button>
       </div>
 
       <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-2xl border border-[var(--border-soft)] bg-[#fafafe] px-4 py-3">
-          <p className="text-[13px] text-[var(--ink-faint)]">Sessions</p>
+          <p className="text-[13px] text-[var(--ink-faint)]">{t('usage.sessions')}</p>
           <p className="mt-2 text-[34px] font-semibold leading-none text-[var(--ink-main)]">
             {usageOverview ? formatNumber(usageOverview.totalSessions) : '--'}
           </p>
         </div>
         <div className="rounded-2xl border border-[var(--border-soft)] bg-[#fafafe] px-4 py-3">
-          <p className="text-[13px] text-[var(--ink-faint)]">Messages</p>
+          <p className="text-[13px] text-[var(--ink-faint)]">{t('usage.messages')}</p>
           <p className="mt-2 text-[34px] font-semibold leading-none text-[var(--ink-main)]">
             {usageOverview ? formatNumber(usageOverview.totalMessages) : '--'}
           </p>
         </div>
         <div className="rounded-2xl border border-[var(--border-soft)] bg-[#fafafe] px-4 py-3">
-          <p className="text-[13px] text-[var(--ink-faint)]">Today Tokens</p>
+          <p className="text-[13px] text-[var(--ink-faint)]">{t('usage.todayTokens')}</p>
           <p className="mt-2 text-[34px] font-semibold leading-none text-[var(--ink-main)]">
             {usageOverview ? formatNumber(usageOverview.todayTokenUsage) : '--'}
           </p>
         </div>
         <div className="rounded-2xl border border-[var(--border-soft)] bg-[#fafafe] px-4 py-3">
-          <p className="text-[13px] text-[var(--ink-faint)]">Skill Records</p>
+          <p className="text-[13px] text-[var(--ink-faint)]">{t('usage.skillRecords')}</p>
           <p className="mt-2 text-[34px] font-semibold leading-none text-[var(--ink-main)]">
             {formatNumber(skillRecords.length)}
           </p>
@@ -312,10 +317,12 @@ export const TokenUsageSection = () => {
 
       {usageOverview ? (
         <div className="mt-4 rounded-xl border border-[var(--border-soft)] bg-[#fbfbfe] px-3 py-2 text-[13px] text-[var(--ink-faint)]">
-          Today: input {formatNumber(usageOverview.todayInputTokens)} / output{' '}
-          {formatNumber(usageOverview.todayOutputTokens)} / cache create{' '}
-          {formatNumber(usageOverview.todayCacheCreationTokens)} / cache read{' '}
-          {formatNumber(usageOverview.todayCacheReadTokens)}
+          {t('usage.todayBreakdown', {
+            input: formatNumber(usageOverview.todayInputTokens),
+            output: formatNumber(usageOverview.todayOutputTokens),
+            cacheCreate: formatNumber(usageOverview.todayCacheCreationTokens),
+            cacheRead: formatNumber(usageOverview.todayCacheReadTokens)
+          })}
         </div>
       ) : null}
 
@@ -335,7 +342,7 @@ export const TokenUsageSection = () => {
               : 'text-[var(--ink-faint)]'
           }`}
         >
-          Token Records
+          {t('usage.tokenRecords')}
         </button>
         <button
           type="button"
@@ -346,7 +353,7 @@ export const TokenUsageSection = () => {
               : 'text-[var(--ink-faint)]'
           }`}
         >
-          Tool Stats
+          {t('usage.toolStats')}
         </button>
         <button
           type="button"
@@ -357,7 +364,7 @@ export const TokenUsageSection = () => {
               : 'text-[var(--ink-faint)]'
           }`}
         >
-          Tool Calls
+          {t('usage.toolCalls')}
         </button>
         <button
           type="button"
@@ -368,7 +375,7 @@ export const TokenUsageSection = () => {
               : 'text-[var(--ink-faint)]'
           }`}
         >
-          Skill Stats
+          {t('usage.skillStats')}
         </button>
         <button
           type="button"
@@ -379,7 +386,7 @@ export const TokenUsageSection = () => {
               : 'text-[var(--ink-faint)]'
           }`}
         >
-          Skill Usage
+          {t('usage.skillUsage')}
         </button>
       </div>
 
@@ -388,12 +395,12 @@ export const TokenUsageSection = () => {
           <table className="min-w-full border-collapse text-left text-[13px]">
             <thead className="bg-[#f8f8fc] text-[var(--ink-faint)]">
               <tr>
-                <th className="px-3 py-2 font-medium">Time</th>
-                <th className="px-3 py-2 font-medium">Kind</th>
-                <th className="px-3 py-2 font-medium">Model</th>
-                <th className="px-3 py-2 font-medium">Input</th>
-                <th className="px-3 py-2 font-medium">Output</th>
-                <th className="px-3 py-2 font-medium">Total</th>
+                <th className="px-3 py-2 font-medium">{t('usage.time')}</th>
+                <th className="px-3 py-2 font-medium">{t('usage.kind')}</th>
+                <th className="px-3 py-2 font-medium">{t('usage.model')}</th>
+                <th className="px-3 py-2 font-medium">{t('usage.input')}</th>
+                <th className="px-3 py-2 font-medium">{t('usage.output')}</th>
+                <th className="px-3 py-2 font-medium">{t('usage.total')}</th>
               </tr>
             </thead>
             <tbody>
@@ -414,7 +421,7 @@ export const TokenUsageSection = () => {
               ) : (
                 <tr>
                   <td className="px-3 py-7 text-center text-[var(--ink-faint)]" colSpan={6}>
-                    No token usage records yet.
+                    {t('usage.noTokenRecords')}
                   </td>
                 </tr>
               )}
@@ -424,6 +431,8 @@ export const TokenUsageSection = () => {
             <Pager
               currentPage={safeTokenPage}
               totalPages={tokenTotalPages}
+              pageSize={PAGE_SIZE}
+              labels={pagerLabels}
               onPrevious={() => setTokenPage((page) => Math.max(1, page - 1))}
               onNext={() => setTokenPage((page) => Math.min(tokenTotalPages, page + 1))}
             />
@@ -437,16 +446,16 @@ export const TokenUsageSection = () => {
             <table className="min-w-full border-collapse text-left text-[13px]">
               <thead className="bg-[#f8f8fc] text-[var(--ink-faint)]">
                 <tr>
-                  <th className="px-3 py-2 font-medium">Tool</th>
-                  <th className="px-3 py-2 font-medium">Type</th>
-                  <th className="px-3 py-2 font-medium">Base Priority</th>
-                  <th className="px-3 py-2 font-medium">Effective Priority</th>
-                  <th className="px-3 py-2 font-medium">Calls</th>
-                  <th className="px-3 py-2 font-medium">Success / Error</th>
-                  <th className="px-3 py-2 font-medium">Total Duration</th>
-                  <th className="px-3 py-2 font-medium">Avg Duration</th>
-                  <th className="px-3 py-2 font-medium">Attributed Tokens</th>
-                  <th className="px-3 py-2 font-medium">Last Used</th>
+                  <th className="px-3 py-2 font-medium">{t('usage.tool')}</th>
+                  <th className="px-3 py-2 font-medium">{t('usage.type')}</th>
+                  <th className="px-3 py-2 font-medium">{t('usage.basePriority')}</th>
+                  <th className="px-3 py-2 font-medium">{t('usage.effectivePriority')}</th>
+                  <th className="px-3 py-2 font-medium">{t('usage.calls')}</th>
+                  <th className="px-3 py-2 font-medium">{t('usage.successError')}</th>
+                  <th className="px-3 py-2 font-medium">{t('usage.totalDuration')}</th>
+                  <th className="px-3 py-2 font-medium">{t('usage.avgDuration')}</th>
+                  <th className="px-3 py-2 font-medium">{t('usage.attributedTokens')}</th>
+                  <th className="px-3 py-2 font-medium">{t('usage.lastUsed')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -469,8 +478,10 @@ export const TokenUsageSection = () => {
                       <td className="px-3 py-2">
                         <div>{formatNumber(record.totalTokens)}</div>
                         <div className="text-[11px] text-[var(--ink-faint)]">
-                          In {formatNumber(record.totalInputTokens)} / Out{' '}
-                          {formatNumber(record.totalOutputTokens)}
+                          {t('usage.inOut', {
+                            input: formatNumber(record.totalInputTokens),
+                            output: formatNumber(record.totalOutputTokens)
+                          })}
                         </div>
                       </td>
                       <td className="px-3 py-2">{formatTimestamp(record.lastUsedAt)}</td>
@@ -479,7 +490,7 @@ export const TokenUsageSection = () => {
                 ) : (
                   <tr>
                     <td className="px-3 py-7 text-center text-[var(--ink-faint)]" colSpan={10}>
-                      No tool statistics yet.
+                      {t('usage.noToolStats')}
                     </td>
                   </tr>
                 )}
@@ -490,6 +501,8 @@ export const TokenUsageSection = () => {
             <Pager
               currentPage={safeToolStatsPage}
               totalPages={toolStatsTotalPages}
+              pageSize={PAGE_SIZE}
+              labels={pagerLabels}
               onPrevious={() => setToolStatsPage((page) => Math.max(1, page - 1))}
               onNext={() => setToolStatsPage((page) => Math.min(toolStatsTotalPages, page + 1))}
             />
@@ -502,14 +515,14 @@ export const TokenUsageSection = () => {
           <table className="min-w-full border-collapse text-left text-[13px]">
             <thead className="bg-[#f8f8fc] text-[var(--ink-faint)]">
               <tr>
-                <th className="px-3 py-2 font-medium">Time</th>
-                <th className="px-3 py-2 font-medium">Type</th>
-                <th className="px-3 py-2 font-medium">Tool</th>
-                <th className="px-3 py-2 font-medium">Phase</th>
-                <th className="px-3 py-2 font-medium">Status</th>
-                <th className="px-3 py-2 font-medium">Fault</th>
-                <th className="px-3 py-2 font-medium">Attempts</th>
-                <th className="px-3 py-2 font-medium">Duration</th>
+                <th className="px-3 py-2 font-medium">{t('usage.time')}</th>
+                <th className="px-3 py-2 font-medium">{t('usage.type')}</th>
+                <th className="px-3 py-2 font-medium">{t('usage.tool')}</th>
+                <th className="px-3 py-2 font-medium">{t('usage.phase')}</th>
+                <th className="px-3 py-2 font-medium">{t('usage.status')}</th>
+                <th className="px-3 py-2 font-medium">{t('usage.fault')}</th>
+                <th className="px-3 py-2 font-medium">{t('usage.attempts')}</th>
+                <th className="px-3 py-2 font-medium">{t('usage.duration')}</th>
               </tr>
             </thead>
             <tbody>
@@ -532,7 +545,10 @@ export const TokenUsageSection = () => {
                           </div>
                           <div className="text-[11px] text-[var(--ink-faint)]">
                             {record.fallbackUsed
-                              ? `fallback: ${record.fallbackStrategy || 'applied'}`
+                              ? t('usage.fallback', {
+                                  strategy:
+                                    record.fallbackStrategy || t('usage.fallbackApplied')
+                                })
                               : record.failureStage || '--'}
                           </div>
                         </div>
@@ -545,7 +561,10 @@ export const TokenUsageSection = () => {
                         <div>
                           <div>{record.attemptCount}</div>
                           <div className="text-[11px] text-[var(--ink-faint)]">
-                            retry {record.retryCount ?? 0} / self-heal {record.selfHealCount ?? 0}
+                            {t('usage.retrySelfHeal', {
+                              retry: record.retryCount ?? 0,
+                              selfHeal: record.selfHealCount ?? 0
+                            })}
                           </div>
                         </div>
                       ) : (
@@ -560,7 +579,7 @@ export const TokenUsageSection = () => {
               ) : (
                 <tr>
                   <td className="px-3 py-7 text-center text-[var(--ink-faint)]" colSpan={8}>
-                    No tool call records yet.
+                    {t('usage.noToolCalls')}
                   </td>
                 </tr>
               )}
@@ -570,6 +589,8 @@ export const TokenUsageSection = () => {
             <Pager
               currentPage={safeToolPage}
               totalPages={toolTotalPages}
+              pageSize={PAGE_SIZE}
+              labels={pagerLabels}
               onPrevious={() => setToolPage((page) => Math.max(1, page - 1))}
               onNext={() => setToolPage((page) => Math.min(toolTotalPages, page + 1))}
             />
@@ -583,12 +604,12 @@ export const TokenUsageSection = () => {
             <table className="min-w-full border-collapse text-left text-[13px]">
               <thead className="bg-[#f8f8fc] text-[var(--ink-faint)]">
                 <tr>
-                  <th className="px-3 py-2 font-medium">Skill</th>
-                  <th className="px-3 py-2 font-medium">Skill ID</th>
-                  <th className="px-3 py-2 font-medium">Uses</th>
-                  <th className="px-3 py-2 font-medium">Sessions</th>
-                  <th className="px-3 py-2 font-medium">Last Used</th>
-                  <th className="px-3 py-2 font-medium">Latest Session</th>
+                  <th className="px-3 py-2 font-medium">{t('usage.skill')}</th>
+                  <th className="px-3 py-2 font-medium">{t('usage.skillId')}</th>
+                  <th className="px-3 py-2 font-medium">{t('usage.uses')}</th>
+                  <th className="px-3 py-2 font-medium">{t('usage.sessions')}</th>
+                  <th className="px-3 py-2 font-medium">{t('usage.lastUsed')}</th>
+                  <th className="px-3 py-2 font-medium">{t('usage.latestSession')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -611,7 +632,7 @@ export const TokenUsageSection = () => {
                 ) : (
                   <tr>
                     <td className="px-3 py-7 text-center text-[var(--ink-faint)]" colSpan={6}>
-                      No skill statistics yet.
+                      {t('usage.noSkillStats')}
                     </td>
                   </tr>
                 )}
@@ -622,6 +643,8 @@ export const TokenUsageSection = () => {
             <Pager
               currentPage={safeSkillStatsPage}
               totalPages={skillStatsTotalPages}
+              pageSize={PAGE_SIZE}
+              labels={pagerLabels}
               onPrevious={() => setSkillStatsPage((page) => Math.max(1, page - 1))}
               onNext={() => setSkillStatsPage((page) => Math.min(skillStatsTotalPages, page + 1))}
             />
@@ -635,11 +658,11 @@ export const TokenUsageSection = () => {
             <table className="min-w-full border-collapse text-left text-[13px]">
               <thead className="bg-[#f8f8fc] text-[var(--ink-faint)]">
                 <tr>
-                  <th className="px-3 py-2 font-medium">Time</th>
-                  <th className="px-3 py-2 font-medium">Skill</th>
-                  <th className="px-3 py-2 font-medium">Session</th>
-                  <th className="px-3 py-2 font-medium">Round</th>
-                  <th className="px-3 py-2 font-medium">Skill File</th>
+                  <th className="px-3 py-2 font-medium">{t('usage.time')}</th>
+                  <th className="px-3 py-2 font-medium">{t('usage.skill')}</th>
+                  <th className="px-3 py-2 font-medium">{t('usage.session')}</th>
+                  <th className="px-3 py-2 font-medium">{t('usage.round')}</th>
+                  <th className="px-3 py-2 font-medium">{t('usage.skillFile')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -655,13 +678,13 @@ export const TokenUsageSection = () => {
                         <div className="text-[11px] text-[var(--ink-faint)]">{record.skillId}</div>
                       </td>
                       <td className="px-3 py-2">
-                        <div>{record.sessionTitle || 'Untitled session'}</div>
+                        <div>{record.sessionTitle || t('usage.untitledSession')}</div>
                         <div className="text-[11px] text-[var(--ink-faint)]">
                           {record.sessionId || '--'}
                         </div>
                       </td>
                       <td className="px-3 py-2">
-                        <div>Round {record.requestRound}</div>
+                        <div>{t('usage.roundValue', { round: record.requestRound })}</div>
                         <div className="text-[11px] text-[var(--ink-faint)]">
                           {record.assistantMessageId}
                         </div>
@@ -674,7 +697,7 @@ export const TokenUsageSection = () => {
                 ) : (
                   <tr>
                     <td className="px-3 py-7 text-center text-[var(--ink-faint)]" colSpan={5}>
-                      No skill usage records yet.
+                      {t('usage.noSkillUsage')}
                     </td>
                   </tr>
                 )}
@@ -685,6 +708,8 @@ export const TokenUsageSection = () => {
             <Pager
               currentPage={safeSkillPage}
               totalPages={skillTotalPages}
+              pageSize={PAGE_SIZE}
+              labels={pagerLabels}
               onPrevious={() => setSkillPage((page) => Math.max(1, page - 1))}
               onNext={() => setSkillPage((page) => Math.min(skillTotalPages, page + 1))}
             />

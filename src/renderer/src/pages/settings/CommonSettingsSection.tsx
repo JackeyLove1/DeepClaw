@@ -1,6 +1,7 @@
 import type { AiChannelConfig, AiChannelSettings } from '@shared/types'
 import { Check, Eye, EyeOff, LoaderCircle, Plus, Save, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+import { useI18n } from '../../i18n'
 
 type SaveState = 'idle' | 'saved' | 'error'
 type TestState = 'idle' | 'success' | 'error'
@@ -26,6 +27,7 @@ const selectInitialChannelId = (settings: AiChannelSettings): string | null =>
   settings.activeChannelId ?? settings.channels[0]?.id ?? null
 
 export const CommonSettingsSection = () => {
+  const { t } = useI18n()
   const [settings, setSettings] = useState<AiChannelSettings>({ channels: [], activeChannelId: null })
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null)
   const [showApiKey, setShowApiKey] = useState(false)
@@ -70,7 +72,7 @@ export const CommonSettingsSection = () => {
         setSelectedChannelId(selectInitialChannelId(nextSettings))
       } catch (error) {
         if (!disposed) {
-          setErrorMessage(error instanceof Error ? error.message : 'Failed to load AI channels.')
+          setErrorMessage(error instanceof Error ? error.message : t('settings.aiChannels.loadFailed'))
         }
       } finally {
         if (!disposed) {
@@ -160,10 +162,10 @@ export const CommonSettingsSection = () => {
       setSettings(nextSettings)
       setSelectedChannelId((current) => current ?? selectInitialChannelId(nextSettings))
       setSaveState('saved')
-      setFeedbackMessage('AI channels saved. The active channel is available immediately in chat.')
+      setFeedbackMessage(t('settings.aiChannels.saved'))
     } catch (error) {
       setSaveState('error')
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to save AI channels.')
+      setErrorMessage(error instanceof Error ? error.message : t('settings.aiChannels.saveFailed'))
     } finally {
       setIsSaving(false)
     }
@@ -181,14 +183,19 @@ export const CommonSettingsSection = () => {
       const result = await window.context.testAiChannelConnection(selectedChannel)
       setTestState('success')
       setFeedbackMessage(
-        `Connected to ${result.provider}/${result.model} in ${result.latencyMs}ms${
-          result.baseUrl ? ` via ${result.baseUrl}` : ''
-        }.`
+        t('settings.aiChannels.connected', {
+          provider: result.provider,
+          model: result.model,
+          latencyMs: result.latencyMs,
+          baseUrl: result.baseUrl
+            ? t('settings.aiChannels.connectedVia', { baseUrl: result.baseUrl })
+            : ''
+        })
       )
     } catch (error) {
       setTestState('error')
       setFeedbackMessage(
-        error instanceof Error ? error.message : 'Connection test failed. Check this channel.'
+        error instanceof Error ? error.message : t('settings.aiChannels.connectionFailed')
       )
     } finally {
       setIsTesting(false)
@@ -200,10 +207,11 @@ export const CommonSettingsSection = () => {
       <div className="rounded-3xl border border-[var(--border-soft)] bg-white px-8 py-7 shadow-[0_14px_38px_rgba(15,15,20,0.05)]">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-[28px] font-semibold text-[var(--ink-main)]">AI Channels</h1>
+            <h1 className="text-[28px] font-semibold text-[var(--ink-main)]">
+              {t('settings.aiChannels.title')}
+            </h1>
             <p className="mt-2 max-w-[620px] text-[14px] leading-6 text-[var(--ink-faint)]">
-              Save multiple Anthropic-compatible endpoints here. Each channel keeps its own base
-              URL, API key, and model. Chat uses the currently active channel.
+              {t('settings.aiChannels.description')}
             </p>
           </div>
 
@@ -213,7 +221,7 @@ export const CommonSettingsSection = () => {
             className="inline-flex h-11 items-center gap-2 rounded-2xl border border-[var(--border-soft)] bg-[#f8f8fb] px-4 text-[14px] font-medium text-[var(--ink-main)] transition hover:bg-white"
           >
             <Plus className="h-4 w-4" />
-            <span>New Channel</span>
+            <span>{t('settings.aiChannels.newChannel')}</span>
           </button>
         </div>
 
@@ -222,7 +230,7 @@ export const CommonSettingsSection = () => {
             <div className="space-y-2">
               {settings.channels.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-[var(--border-soft)] px-4 py-6 text-[13px] leading-6 text-[var(--ink-faint)]">
-                  No saved channel yet. Add one, test it, then save.
+                  {t('settings.aiChannels.empty')}
                 </div>
               ) : (
                 settings.channels.map((channel) => {
@@ -249,16 +257,16 @@ export const CommonSettingsSection = () => {
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
                           <div className="truncate text-[14px] font-semibold text-[var(--ink-main)]">
-                            {channel.name || 'Untitled channel'}
+                            {channel.name || t('settings.aiChannels.untitled')}
                           </div>
                           <div className="mt-1 truncate text-[12px] text-[var(--ink-faint)]">
-                            {channel.model || 'No model'}
+                            {channel.model || t('settings.aiChannels.noModel')}
                           </div>
                         </div>
                         {isActive ? (
                           <span className="inline-flex items-center gap-1 rounded-full bg-[#eef6ee] px-2.5 py-1 text-[11px] font-semibold text-[#166534]">
                             <Check className="h-3.5 w-3.5" />
-                            Active
+                            {t('settings.aiChannels.active')}
                           </span>
                         ) : null}
                       </div>
@@ -275,12 +283,10 @@ export const CommonSettingsSection = () => {
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <div className="text-[18px] font-semibold text-[var(--ink-main)]">
-                      Channel Details
+                      {t('settings.aiChannels.details')}
                     </div>
                     <div className="mt-2 text-[13px] leading-6 text-[var(--ink-faint)]">
-                      This app still uses the Anthropic SDK. Point the base URL to any compatible
-                      gateway such as OpenRouter, GLM, MiniMax, or Kimi if it exposes an
-                      Anthropic-compatible endpoint.
+                      {t('settings.aiChannels.detailsDescription')}
                     </div>
                   </div>
 
@@ -299,7 +305,9 @@ export const CommonSettingsSection = () => {
                           : 'border border-[var(--border-soft)] bg-white text-[var(--ink-main)] hover:bg-[#f6f6fb]'
                       }`}
                     >
-                      {settings.activeChannelId === selectedChannel.id ? 'Active Default' : 'Set Active'}
+                      {settings.activeChannelId === selectedChannel.id
+                        ? t('settings.aiChannels.activeDefault')
+                        : t('settings.aiChannels.setActive')}
                     </button>
                     <button
                       type="button"
@@ -307,7 +315,7 @@ export const CommonSettingsSection = () => {
                       className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#f3d0d0] bg-[#fff7f7] px-4 text-[13px] font-medium text-[#b42318] transition hover:bg-[#fff1f1]"
                     >
                       <Trash2 className="h-4 w-4" />
-                      <span>Delete</span>
+                      <span>{t('settings.aiChannels.delete')}</span>
                     </button>
                   </div>
                 </div>
@@ -318,7 +326,7 @@ export const CommonSettingsSection = () => {
                       htmlFor="ai-channel-name"
                       className="mb-2 block text-[14px] font-semibold text-[var(--ink-main)]"
                     >
-                      Channel Name
+                      {t('settings.aiChannels.channelName')}
                     </label>
                     <input
                       id="ai-channel-name"
@@ -350,7 +358,7 @@ export const CommonSettingsSection = () => {
                       htmlFor="ai-channel-api-key"
                       className="mb-2 block text-[14px] font-semibold text-[var(--ink-main)]"
                     >
-                      API Key
+                      {t('settings.aiChannels.apiKey')}
                     </label>
                     <div className="flex h-11 items-center rounded-xl border border-[var(--border-soft)] bg-[#fbfbfe] pr-2 transition-all focus-within:border-[#b9b9ca] focus-within:bg-white">
                       <input
@@ -358,13 +366,17 @@ export const CommonSettingsSection = () => {
                         type={showApiKey ? 'text' : 'password'}
                         value={selectedChannel.apiKey}
                         onChange={(event) => updateSelectedChannel({ apiKey: event.target.value })}
-                        placeholder="Paste the channel API key"
+                        placeholder={t('settings.aiChannels.apiKeyPlaceholder')}
                         className="h-full min-w-0 flex-1 rounded-l-xl bg-transparent px-3 text-[14px] text-[var(--ink-main)] outline-none"
                       />
                       <button
                         type="button"
                         onClick={() => setShowApiKey((value) => !value)}
-                        aria-label={showApiKey ? 'Hide API key' : 'Show API key'}
+                        aria-label={
+                          showApiKey
+                            ? t('settings.aiChannels.hideApiKey')
+                            : t('settings.aiChannels.showApiKey')
+                        }
                         className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--ink-subtle)] transition-colors hover:bg-[#efeff5] hover:text-[var(--ink-main)]"
                       >
                         {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -377,7 +389,7 @@ export const CommonSettingsSection = () => {
                       htmlFor="ai-channel-model"
                       className="mb-2 block text-[14px] font-semibold text-[var(--ink-main)]"
                     >
-                      Model
+                      {t('settings.aiChannels.model')}
                     </label>
                     <input
                       id="ai-channel-model"
@@ -391,13 +403,13 @@ export const CommonSettingsSection = () => {
 
                 {!isChannelComplete(selectedChannel) ? (
                   <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-800">
-                    Fill in channel name, base URL, API key, and model before saving or testing.
+                    {t('settings.aiChannels.incomplete')}
                   </div>
                 ) : null}
               </>
             ) : (
               <div className="flex min-h-[320px] items-center justify-center rounded-3xl border border-dashed border-[var(--border-soft)] bg-[#fbfbfe] px-6 text-center text-[14px] leading-7 text-[var(--ink-faint)]">
-                Select a channel to edit it, or create a new one from the list.
+                {t('settings.aiChannels.selectOrCreate')}
               </div>
             )}
 
@@ -427,7 +439,11 @@ export const CommonSettingsSection = () => {
                 className="inline-flex h-10 items-center gap-2 rounded-xl border border-[var(--border-soft)] bg-white px-4 text-[14px] font-medium text-[var(--ink-main)] transition-all hover:bg-[#f6f6fb] disabled:cursor-not-allowed disabled:bg-[#f4f4f7] disabled:text-[#9ca0ad]"
               >
                 {isTesting ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}
-                <span>{isTesting ? 'Testing...' : 'Test Connection'}</span>
+                <span>
+                  {isTesting
+                    ? t('settings.aiChannels.testing')
+                    : t('settings.aiChannels.testConnection')}
+                </span>
               </button>
 
               <button
@@ -437,7 +453,11 @@ export const CommonSettingsSection = () => {
                 className="inline-flex h-10 items-center gap-2 rounded-xl bg-[var(--ink-main)] px-5 text-[14px] font-medium text-white transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:bg-[#c3c3cf]"
               >
                 {isSaving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                <span>{isSaving ? 'Saving...' : 'Save Channels'}</span>
+                <span>
+                  {isSaving
+                    ? t('settings.aiChannels.saving')
+                    : t('settings.aiChannels.saveChannels')}
+                </span>
               </button>
             </div>
           </div>
@@ -445,7 +465,9 @@ export const CommonSettingsSection = () => {
       </div>
 
       {isLoading ? (
-        <div className="mt-4 text-[13px] text-[var(--ink-faint)]">Loading saved AI channels...</div>
+        <div className="mt-4 text-[13px] text-[var(--ink-faint)]">
+          {t('settings.aiChannels.loading')}
+        </div>
       ) : null}
     </>
   )

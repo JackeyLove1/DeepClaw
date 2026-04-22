@@ -1,10 +1,12 @@
 import type { ThirdPartyApiKeySettings } from '@shared/types'
 import { Eye, EyeOff, KeyRound, LoaderCircle, Save, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+import { useI18n } from '../../i18n'
 
 type SaveState = 'idle' | 'saved' | 'error'
 
 export const ThirdPartyApiKeysSection = () => {
+  const { t } = useI18n()
   const [settings, setSettings] = useState<ThirdPartyApiKeySettings>({ tavilyApiKey: '' })
   const [showTavilyKey, setShowTavilyKey] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -30,7 +32,7 @@ export const ThirdPartyApiKeysSection = () => {
       } catch (error) {
         if (!disposed) {
           setSaveState('error')
-          setMessage(error instanceof Error ? error.message : 'Failed to load API key settings.')
+          setMessage(error instanceof Error ? error.message : t('settings.apiKeys.loadFailed'))
         }
       } finally {
         if (!disposed) {
@@ -64,12 +66,12 @@ export const ThirdPartyApiKeysSection = () => {
       setSaveState('saved')
       setMessage(
         savedSettings.tavilyApiKey
-          ? 'Tavily API key saved. Web search and extraction are available in new agent turns.'
-          : 'Tavily API key cleared. Web tools will be hidden from new agent turns.'
+          ? t('settings.apiKeys.saved')
+          : t('settings.apiKeys.cleared')
       )
     } catch (error) {
       setSaveState('error')
-      setMessage(error instanceof Error ? error.message : 'Failed to save API key settings.')
+      setMessage(error instanceof Error ? error.message : t('settings.apiKeys.saveFailed'))
     } finally {
       setIsSaving(false)
     }
@@ -88,10 +90,11 @@ export const ThirdPartyApiKeysSection = () => {
     <div className="rounded-3xl border border-[var(--border-soft)] bg-white px-8 py-7 shadow-[0_14px_38px_rgba(15,15,20,0.05)]">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="text-[26px] font-semibold text-[var(--ink-main)]">Third-party APIs</h2>
+          <h2 className="text-[26px] font-semibold text-[var(--ink-main)]">
+            {t('settings.apiKeys.title')}
+          </h2>
           <p className="mt-2 max-w-[620px] text-[14px] leading-6 text-[var(--ink-faint)]">
-            Store provider keys used by optional agent tools. Keys stay on this device and are
-            loaded by the main process when a tool needs them.
+            {t('settings.apiKeys.headingDescription')}
           </p>
         </div>
         <span
@@ -99,7 +102,7 @@ export const ThirdPartyApiKeysSection = () => {
             hasTavilyKey ? 'bg-[#eef6ee] text-[#166534]' : 'bg-[#f4f4f7] text-[var(--ink-faint)]'
           }`}
         >
-          {hasTavilyKey ? 'Tavily enabled' : 'Tavily not configured'}
+          {hasTavilyKey ? t('settings.apiKeys.enabled') : t('settings.apiKeys.notConfigured')}
         </span>
       </div>
 
@@ -110,10 +113,11 @@ export const ThirdPartyApiKeysSection = () => {
               <KeyRound className="h-5 w-5" />
             </span>
             <div>
-              <div className="text-[18px] font-semibold text-[var(--ink-main)]">Tavily</div>
+              <div className="text-[18px] font-semibold text-[var(--ink-main)]">
+                {t('settings.apiKeys.tavilyTitle')}
+              </div>
               <div className="mt-2 max-w-[560px] text-[13px] leading-6 text-[var(--ink-faint)]">
-                Enables the agent web tool for Tavily Search and Extract. There is no connection
-                test here because real calls consume Tavily API credits.
+                {t('settings.apiKeys.description')}
               </div>
             </div>
           </div>
@@ -124,7 +128,7 @@ export const ThirdPartyApiKeysSection = () => {
             htmlFor="tavily-api-key"
             className="mb-2 block text-[14px] font-semibold text-[var(--ink-main)]"
           >
-            API Key
+            {t('settings.apiKeys.apiKey')}
           </label>
           <div className="flex h-11 items-center rounded-xl border border-[var(--border-soft)] bg-white pr-2 transition-all focus-within:border-[#b9b9ca]">
             <input
@@ -138,7 +142,7 @@ export const ThirdPartyApiKeysSection = () => {
             <button
               type="button"
               onClick={() => setShowTavilyKey((value) => !value)}
-              aria-label={showTavilyKey ? 'Hide Tavily API key' : 'Show Tavily API key'}
+              aria-label={showTavilyKey ? t('settings.apiKeys.hide') : t('settings.apiKeys.show')}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--ink-subtle)] transition-colors hover:bg-[#efeff5] hover:text-[var(--ink-main)]"
             >
               {showTavilyKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -166,7 +170,7 @@ export const ThirdPartyApiKeysSection = () => {
             className="inline-flex h-10 items-center gap-2 rounded-xl border border-[#f3d0d0] bg-[#fff7f7] px-4 text-[14px] font-medium text-[#b42318] transition-all hover:bg-[#fff1f1] disabled:cursor-not-allowed disabled:border-[var(--border-soft)] disabled:bg-[#f4f4f7] disabled:text-[#9ca0ad]"
           >
             <Trash2 className="h-4 w-4" />
-            <span>Clear</span>
+            <span>{t('settings.apiKeys.clear')}</span>
           </button>
 
           <button
@@ -176,14 +180,14 @@ export const ThirdPartyApiKeysSection = () => {
             className="inline-flex h-10 items-center gap-2 rounded-xl bg-[var(--ink-main)] px-5 text-[14px] font-medium text-white transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:bg-[#c3c3cf]"
           >
             {isSaving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-            <span>{isSaving ? 'Saving...' : 'Save Key'}</span>
+            <span>{isSaving ? t('settings.apiKeys.saving') : t('settings.apiKeys.save')}</span>
           </button>
         </div>
       </div>
 
       {isLoading ? (
         <div className="mt-4 text-[13px] text-[var(--ink-faint)]">
-          Loading third-party API key settings...
+          {t('settings.apiKeys.loading')}
         </div>
       ) : null}
     </div>

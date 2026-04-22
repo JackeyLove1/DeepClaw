@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { CommonSettingsSection } from './settings/CommonSettingsSection'
 import { ThirdPartyApiKeysSection } from './settings/ThirdPartyApiKeysSection'
 import { TokenUsageSection } from './settings/TokenUsageSection'
+import { useI18n } from '../i18n'
 
 type SettingsSection = 'common' | 'apiKeys' | 'usage'
 
@@ -15,11 +16,12 @@ const navButtonClassName = (active: boolean, className = 'mt-1'): string =>
 
 export const SettingsPage = () => {
   const [activeSection, setActiveSection] = useState<SettingsSection>('common')
+  const { t } = useI18n()
 
   return (
     <section className="flex min-h-0 min-w-0 flex-1 overflow-hidden bg-[var(--content-bg)]">
       <aside className="w-[220px] border-r border-[var(--border-soft)] px-4 py-6">
-        <p className="text-[22px] font-semibold text-[var(--ink-main)]">Settings</p>
+        <p className="text-[22px] font-semibold text-[var(--ink-main)]">{t('settings.title')}</p>
         <div className="mt-5 rounded-2xl border border-[var(--border-soft)] bg-white p-2 shadow-[0_8px_24px_rgba(15,15,20,0.04)]">
           <button
             type="button"
@@ -27,7 +29,7 @@ export const SettingsPage = () => {
             className={navButtonClassName(activeSection === 'common', '')}
           >
             <Settings2 className="h-4 w-4" />
-            <span>General</span>
+            <span>{t('settings.general')}</span>
           </button>
 
           <button
@@ -36,7 +38,7 @@ export const SettingsPage = () => {
             className={navButtonClassName(activeSection === 'apiKeys')}
           >
             <KeyRound className="h-4 w-4" />
-            <span>Third-party APIs</span>
+            <span>{t('settings.thirdPartyApis')}</span>
           </button>
 
           <button
@@ -45,7 +47,7 @@ export const SettingsPage = () => {
             className={navButtonClassName(activeSection === 'usage')}
           >
             <Activity className="h-4 w-4" />
-            <span>Usage</span>
+            <span>{t('settings.usage')}</span>
           </button>
         </div>
       </aside>

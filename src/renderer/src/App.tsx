@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { AppRouter } from './router'
 import { Toaster } from 'sonner'
+import { I18nProvider } from './i18n'
 
 const ScriptEventLogger = (): null => {
   useEffect(() => {
@@ -40,11 +41,11 @@ const ScriptEventLogger = (): null => {
 }
 
 const App = () => (
-  <>
+  <I18nProvider>
     <ScriptEventLogger />
     <AppRouter />
     <Toaster richColors position="top-center" />
-  </>
+  </I18nProvider>
 )
 
 export default App

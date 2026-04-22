@@ -1,5 +1,6 @@
 import type { ChatCanvasArtifact } from '@shared/models'
 import { FileCode2, Monitor, RefreshCw, Smartphone } from 'lucide-react'
+import { useI18n } from '../i18n'
 
 export type CanvasViewportMode = 'desktop' | 'mobile'
 
@@ -11,9 +12,6 @@ export type CanvasArtifactView = {
   assistantMessageId: string
   timestamp: number
 }
-
-const formatClockTime = (timestamp: number): string =>
-  new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit' }).format(timestamp)
 
 interface CanvasPageProps {
   activeCanvas: CanvasArtifactView | null
@@ -36,6 +34,7 @@ export const CanvasPage = ({
   onViewportChange,
   onReload
 }: CanvasPageProps) => {
+  const { t, formatClockTime } = useI18n()
   const frameWidthClassName = viewport === 'mobile' ? 'mx-auto w-[390px] max-w-full' : 'w-full'
 
   return (
@@ -45,15 +44,15 @@ export const CanvasPage = ({
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--ink-faint)]">
               <FileCode2 className="h-4 w-4" />
-              Canvas
+              {t('canvas.title')}
             </div>
             <div className="mt-2 truncate text-[17px] font-semibold text-[var(--ink-main)]">
-              {activeCanvas?.artifact.title ?? 'No canvas selected'}
+              {activeCanvas?.artifact.title ?? t('canvas.noneSelected')}
             </div>
             <div className="mt-1 text-[12px] text-[var(--ink-soft)]">
               {activeCanvas
                 ? `${activeCanvas.toolName} · ${formatClockTime(activeCanvas.timestamp)}`
-                : 'Run the canvas tool to preview generated HTML here.'}
+                : t('canvas.empty')}
             </div>
           </div>
 
@@ -62,7 +61,7 @@ export const CanvasPage = ({
             onClick={onReload}
             disabled={!activeCanvas || isLoading}
             className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-[var(--border-soft)] bg-white text-[var(--ink-subtle)] transition hover:bg-[#f1f1f4] disabled:cursor-not-allowed disabled:opacity-50"
-            aria-label="Reload canvas preview"
+            aria-label={t('canvas.reload')}
           >
             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
@@ -80,7 +79,7 @@ export const CanvasPage = ({
               }`}
             >
               <Monitor className="h-3.5 w-3.5" />
-              Desktop
+              {t('canvas.desktop')}
             </button>
             <button
               type="button"
@@ -92,7 +91,7 @@ export const CanvasPage = ({
               }`}
             >
               <Smartphone className="h-3.5 w-3.5" />
-              Mobile
+              {t('canvas.mobile')}
             </button>
           </div>
         ) : null}
@@ -101,11 +100,11 @@ export const CanvasPage = ({
       <div className="min-h-0 flex-1 p-4">
         {!activeCanvas ? (
           <div className="flex h-full min-h-[320px] items-center justify-center rounded-[28px] border border-dashed border-[var(--border-soft)] bg-white/75 px-6 text-center text-[13px] leading-6 text-[var(--ink-soft)]">
-            The latest HTML canvas artifact will appear here.
+            {t('canvas.latestWillAppear')}
           </div>
         ) : isLoading ? (
           <div className="flex h-full min-h-[320px] items-center justify-center rounded-[28px] border border-[var(--border-soft)] bg-white/80 text-[13px] text-[var(--ink-soft)]">
-            Loading canvas preview…
+            {t('canvas.loadingPreview')}
           </div>
         ) : error ? (
           <div className="rounded-[28px] border border-rose-200 bg-rose-50 px-5 py-4 text-[13px] leading-6 text-rose-700">

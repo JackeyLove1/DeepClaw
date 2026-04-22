@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import type { AssistantFeedback } from '../chat/messageActions'
+import { useI18n } from '../i18n'
 
 type AssistantMessageActionsProps = {
   copied: boolean
@@ -76,27 +77,31 @@ export const AssistantMessageActions = ({
   onCopy,
   onFeedback,
   onRetry
-}: AssistantMessageActionsProps) => (
-  <div className="mt-2 flex items-center gap-1 text-[#8f93a1]">
-    <ActionButton label={copied ? '已复制' : '复制'} disabled={disableCopy} onClick={onCopy}>
-      <CopyIcon />
-    </ActionButton>
-    <ActionButton
-      label={feedback === 'up' ? '取消点赞' : '点赞'}
-      active={feedback === 'up'}
-      onClick={() => onFeedback('up')}
-    >
-      <ThumbsUpIcon />
-    </ActionButton>
-    <ActionButton
-      label={feedback === 'down' ? '取消点踩' : '点踩'}
-      active={feedback === 'down'}
-      onClick={() => onFeedback('down')}
-    >
-      <ThumbsDownIcon />
-    </ActionButton>
-    <ActionButton label="重试" disabled={disableRetry} onClick={onRetry}>
-      <RetryIcon />
-    </ActionButton>
-  </div>
-)
+}: AssistantMessageActionsProps) => {
+  const { t } = useI18n()
+
+  return (
+    <div className="mt-2 flex items-center gap-1 text-[#8f93a1]">
+      <ActionButton label={copied ? t('common.copied') : t('common.copy')} disabled={disableCopy} onClick={onCopy}>
+        <CopyIcon />
+      </ActionButton>
+      <ActionButton
+        label={feedback === 'up' ? t('assistant.unlike') : t('assistant.like')}
+        active={feedback === 'up'}
+        onClick={() => onFeedback('up')}
+      >
+        <ThumbsUpIcon />
+      </ActionButton>
+      <ActionButton
+        label={feedback === 'down' ? t('assistant.undislike') : t('assistant.dislike')}
+        active={feedback === 'down'}
+        onClick={() => onFeedback('down')}
+      >
+        <ThumbsDownIcon />
+      </ActionButton>
+      <ActionButton label={t('assistant.retry')} disabled={disableRetry} onClick={onRetry}>
+        <RetryIcon />
+      </ActionButton>
+    </div>
+  )
+}

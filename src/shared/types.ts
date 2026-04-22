@@ -156,6 +156,12 @@ export interface ThirdPartyApiKeySettings {
   tavilyApiKey: string
 }
 
+export type LocaleCode = 'zh-CN' | 'en-US'
+
+export interface AppPreferences {
+  locale: LocaleCode
+}
+
 export interface ConnectionCheckResult {
   provider: string
   model: string
@@ -289,6 +295,10 @@ export type GetThirdPartyApiKeySettings = () => Promise<ThirdPartyApiKeySettings
 export type SaveThirdPartyApiKeySettings = (
   settings: ThirdPartyApiKeySettings
 ) => Promise<ThirdPartyApiKeySettings>
+export type GetAppPreferences = () => Promise<AppPreferences>
+export type SaveAppPreferences = (
+  preferences: Partial<AppPreferences>
+) => Promise<AppPreferences>
 export type ListWeixinGatewayAccounts = () => Promise<WeixinGatewayAccount[]>
 export type StartWeixinQrLogin = (input?: {
   accountId?: string

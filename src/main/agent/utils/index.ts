@@ -1,4 +1,5 @@
 export {
+  resolveAppPreferencesFilePath,
   resolveAiChannelsFilePath,
   resolveDatabasePath,
   resolveDeepClawHomeDir,
