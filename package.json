@@ -25,6 +25,7 @@
     "@mdxeditor/editor": "^1.14.3",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
+    "@tavily/core": "^0.7.2",
     "@tencent-weixin/openclaw-weixin": "^2.1.8",
     "@tencent-weixin/openclaw-weixin-cli": "^2.1.2",
     "better-sqlite3": "^12.9.0",
