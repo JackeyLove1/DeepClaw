@@ -5,6 +5,7 @@ import { createCanvasTool } from './CanvasTool'
 import { createCronTool } from './CronTool'
 import { createPatchTool, createReadFileTool, createWriteFileTool } from './FileSystemTool'
 import { createGetTimeTool } from './get-time'
+import { createGrepTool } from './GrepTool'
 import { createMemoryTool } from './MemoryTool'
 import { createPowerShellTool, type PowerShellToolOptions } from './PowerShellTool'
 import { createScreenShotTool } from './ScreenShotTool'
@@ -53,12 +54,13 @@ export function sortToolsByUsagePriority(
  * (No `write_file` / `patch` — add those via `createTools` or custom wiring.)
  */
 export function createReadOnlyTools(): Tool[] {
-  return sortToolsByUsagePriority([createGetTimeTool(), createReadFileTool()])
+  return sortToolsByUsagePriority([createGetTimeTool(), createReadFileTool(), createGrepTool()])
 }
 
 const toolFactories: ToolFactory[] = [
   createGetTimeTool,
   createMemoryTool,
+  createGrepTool,
   createReadFileTool,
   createWriteFileTool,
   createPatchTool,
@@ -115,6 +117,7 @@ export function createTools(options: CreateToolsOptions = {}): Tool[] {
 
 export { createBashTool } from './BashTool'
 export { createCanvasTool } from './CanvasTool'
+export { createGrepTool } from './GrepTool'
 export {
   clearFileOpsCache,
   clearReadTracker,

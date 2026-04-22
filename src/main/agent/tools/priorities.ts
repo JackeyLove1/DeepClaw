@@ -7,6 +7,7 @@ export const DEFAULT_PRIORITY = 50
 
 export const TOOL_PRIORITIES: Record<string, number> = {
   read_file: 100,
+  grep: 95,
   write_file: 80,
   patch: 70,
   bash: 60,

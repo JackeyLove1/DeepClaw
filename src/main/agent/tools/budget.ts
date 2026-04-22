@@ -55,6 +55,7 @@ const DEFAULT_BUDGET: BudgetConfig = {
   previewSize: DEFAULT_PREVIEW_SIZE_CHARS,
   thresholds: {
     read_file: 50_000,
+    grep: 60_000,
     bash: 60_000,
     powershell: 60_000,
     patch: 40_000,
