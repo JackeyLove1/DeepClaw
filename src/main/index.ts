@@ -7,6 +7,7 @@ import type {
     DisconnectWeixinGatewayAccount,
     GetAiChannelSettings,
     GetNotes,
+    GetThirdPartyApiKeySettings,
     GetUsageOverview,
     GetWeixinGatewayHealth,
     ListCronJobs,
@@ -25,6 +26,7 @@ import type {
     ResumeCronJob,
     RunCronJob,
     SaveAiChannelSettings,
+    SaveThirdPartyApiKeySettings,
     SendMessage,
     SetActiveAiChannel,
     StartWeixinQrLogin,
@@ -59,6 +61,11 @@ import {
 } from './lib/ai-channel-settings';
 import { initDatabase } from './lib/database';
 import { runPreInstallScript } from './lib/script-runner';
+import {
+    getThirdPartyApiKeySettings,
+    hydrateThirdPartyApiKeySettings,
+    saveThirdPartyApiKeySettings
+} from './lib/third-party-api-settings';
 import {
     listWeixinGatewayAccounts,
     removeWeixinGatewayAccount,
@@ -432,6 +439,15 @@ function registerSettingsIpc(): void {
     'settings:testAiChannelConnection',
     (_, ...args: Parameters<TestAiChannelConnection>) => testAiChannelConnection(...args)
   )
+  ipcMain.handle(
+    'settings:getThirdPartyApiKeys',
+    (_, ...args: Parameters<GetThirdPartyApiKeySettings>) => getThirdPartyApiKeySettings(...args)
+  )
+  ipcMain.handle(
+    'settings:saveThirdPartyApiKeys',
+    (_, ...args: Parameters<SaveThirdPartyApiKeySettings>) =>
+      saveThirdPartyApiKeySettings(...args)
+  )
   ipcMain.handle('settings:getUsageOverview', (_, ...args: Parameters<GetUsageOverview>) => {
     if (!chatSupervisor) {
       throw new Error('Chat supervisor is not initialized.')
@@ -597,6 +613,9 @@ app.whenReady().then(async () => {
     }
     void hydrateAiChannelSettings().catch((error: unknown) => {
       console.error('Failed to hydrate active AI channel settings', error)
+    })
+    await hydrateThirdPartyApiKeySettings().catch((error: unknown) => {
+      console.error('Failed to hydrate third-party API key settings', error)
     })
     chatSupervisor = new ChatSupervisor()
     agentGateway = createAgentGatewayOrchestrator({

@@ -59,7 +59,8 @@ const DEFAULT_BUDGET: BudgetConfig = {
     powershell: 60_000,
     patch: 40_000,
     write_file: 40_000,
-    get_time: 1_000
+    get_time: 1_000,
+    web: 80_000
   },
   turnBudget: DEFAULT_TURN_BUDGET_CHARS
 }

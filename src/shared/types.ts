@@ -152,6 +152,10 @@ export interface AiChannelSettings {
   activeChannelId: string | null
 }
 
+export interface ThirdPartyApiKeySettings {
+  tavilyApiKey: string
+}
+
 export interface ConnectionCheckResult {
   provider: string
   model: string
@@ -281,6 +285,10 @@ export type SetActiveAiChannel = (
   channelId: AiChannelConfig['id'] | null
 ) => Promise<AiChannelSettings>
 export type TestAiChannelConnection = (channel: AiChannelConfig) => Promise<ConnectionCheckResult>
+export type GetThirdPartyApiKeySettings = () => Promise<ThirdPartyApiKeySettings>
+export type SaveThirdPartyApiKeySettings = (
+  settings: ThirdPartyApiKeySettings
+) => Promise<ThirdPartyApiKeySettings>
 export type ListWeixinGatewayAccounts = () => Promise<WeixinGatewayAccount[]>
 export type StartWeixinQrLogin = (input?: {
   accountId?: string

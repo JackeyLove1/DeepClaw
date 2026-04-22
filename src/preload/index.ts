@@ -9,6 +9,7 @@ import type {
     DisconnectWeixinGatewayAccount,
     GetAiChannelSettings,
     GetNotes,
+    GetThirdPartyApiKeySettings,
     GetUsageOverview,
     GetWeixinGatewayHealth,
     InstallSkill,
@@ -33,6 +34,7 @@ import type {
     ResumeCronJob,
     RunCronJob,
     SaveAiChannelSettings,
+    SaveThirdPartyApiKeySettings,
     SearchSessions,
     SearchSkills,
     SendMessage,
@@ -153,6 +155,16 @@ try {
     testAiChannelConnection: (...args: Parameters<TestAiChannelConnection>) =>
       invoke<Awaited<ReturnType<TestAiChannelConnection>>>(
         'settings:testAiChannelConnection',
+        ...args
+      ),
+    getThirdPartyApiKeySettings: (...args: Parameters<GetThirdPartyApiKeySettings>) =>
+      invoke<Awaited<ReturnType<GetThirdPartyApiKeySettings>>>(
+        'settings:getThirdPartyApiKeys',
+        ...args
+      ),
+    saveThirdPartyApiKeySettings: (...args: Parameters<SaveThirdPartyApiKeySettings>) =>
+      invoke<Awaited<ReturnType<SaveThirdPartyApiKeySettings>>>(
+        'settings:saveThirdPartyApiKeys',
         ...args
       ),
     listWeixinGatewayAccounts: (...args: Parameters<ListWeixinGatewayAccounts>) =>

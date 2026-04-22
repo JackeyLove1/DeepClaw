@@ -13,6 +13,7 @@ export const TOOL_PRIORITIES: Record<string, number> = {
   powershell: 60,
   screenshot: 60,
   canvas: 59,
+  web: 55,
   memory: 51,
   get_time: 50,
   todo: 50,

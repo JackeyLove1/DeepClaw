@@ -8,6 +8,7 @@ import type {
     DisconnectWeixinGatewayAccount,
     GetAiChannelSettings,
     GetNotes,
+    GetThirdPartyApiKeySettings,
     GetUsageOverview,
     GetWeixinGatewayHealth,
     InstallSkill,
@@ -32,6 +33,7 @@ import type {
     ResumeCronJob,
     RunCronJob,
     SaveAiChannelSettings,
+    SaveThirdPartyApiKeySettings,
     SearchSessions,
     SearchSkills,
     SendMessage,
@@ -79,6 +81,8 @@ declare global {
       saveAiChannelSettings: SaveAiChannelSettings
       setActiveAiChannel: SetActiveAiChannel
       testAiChannelConnection: TestAiChannelConnection
+      getThirdPartyApiKeySettings: GetThirdPartyApiKeySettings
+      saveThirdPartyApiKeySettings: SaveThirdPartyApiKeySettings
       listWeixinGatewayAccounts: ListWeixinGatewayAccounts
       startWeixinQrLogin: StartWeixinQrLogin
       waitWeixinQrLogin: WaitWeixinQrLogin

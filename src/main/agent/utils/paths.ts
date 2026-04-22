@@ -39,6 +39,10 @@ export function resolveAiChannelsFilePath(): string {
   return resolveDeepClawPath('ai-channels.json')
 }
 
+export function resolveThirdPartyApiKeysFilePath(): string {
+  return resolveDeepClawPath('third-party-api-keys.json')
+}
+
 export function resolveDatabasePath(): string {
   return resolveDeepClawPath('deepclaw.db')
 }

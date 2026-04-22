@@ -8,6 +8,7 @@ export {
   resolveLogsDir,
   resolveMemoriesDir,
   resolveSkillsDir,
+  resolveThirdPartyApiKeysFilePath,
   resolveTmpDir
 } from './paths'
 

@@ -9,6 +9,7 @@ import { createMemoryTool } from './MemoryTool'
 import { createPowerShellTool, type PowerShellToolOptions } from './PowerShellTool'
 import { createScreenShotTool } from './ScreenShotTool'
 import { createTodoTool } from './TodoTool'
+import { createWebTool } from './WebTool'
 import { compareToolPriorityMetrics } from './priorities'
 import type {
   PostToolUseHook,
@@ -66,6 +67,8 @@ const toolFactories: ToolFactory[] = [
   createTodoTool
 ]
 
+const hasTavilyApiKey = (): boolean => Boolean(process.env.TAVILY_API_KEY?.trim())
+
 export type PlatformShellToolOptions = ShellPermissionOptions & {
   preToolUseHooks?: PreToolUseHook[]
   postToolUseHooks?: PostToolUseHook[]
@@ -102,6 +105,7 @@ export function createTools(options: CreateToolsOptions = {}): Tool[] {
   const config = options.budgetConfig ?? DEFAULT_BUDGET
   const baseTools = [
     ...toolFactories.map((factory) => factory()),
+    ...(hasTavilyApiKey() ? [createWebTool()] : []),
     ...(options.includeCronTool === false ? [] : [createCronTool()]),
     createPlatformShellTool(options.platform, options.shellTool)
   ]
@@ -122,6 +126,7 @@ export {
 } from './FileSystemTool'
 export { createPowerShellTool } from './PowerShellTool'
 export { createScreenShotTool } from './ScreenShotTool'
+export { createWebTool } from './WebTool'
 
 export type {
   PostToolUseHook,
