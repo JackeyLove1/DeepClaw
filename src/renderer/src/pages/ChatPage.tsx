@@ -810,6 +810,7 @@ const InputBar = ({
   isAiChannelsLoading,
   isInstalledSkillsLoading,
   isSwitchingAiChannel,
+  hasTranscript,
   textareaRef,
   onDraftChange,
   onPaste,
@@ -819,7 +820,8 @@ const InputBar = ({
   onPickPromptFile,
   onRemovePromptFile,
   onSend,
-  onCancel
+  onCancel,
+  onClearMessages
 }: {
   draft: string
   pendingImages: PendingComposerImage[]
@@ -833,6 +835,7 @@ const InputBar = ({
   isAiChannelsLoading: boolean
   isInstalledSkillsLoading: boolean
   isSwitchingAiChannel: boolean
+  hasTranscript: boolean
   textareaRef?: Ref<HTMLTextAreaElement>
   onDraftChange: (value: string) => void
   onPaste: (event: ClipboardEvent<HTMLTextAreaElement>) => void
@@ -843,6 +846,7 @@ const InputBar = ({
   onRemovePromptFile: () => void
   onSend: () => void
   onCancel: () => void
+  onClearMessages: () => void
 }) => {
   const { t } = useI18n()
   const activeChannel =
@@ -1086,6 +1090,18 @@ const InputBar = ({
             </span>
             {t('chat.uploadFile')}
           </button>
+          {hasTranscript ? (
+            <button
+              type="button"
+              onClick={onClearMessages}
+              className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[var(--composer-control-bg)] px-3.5 text-[12.5px] font-medium text-[#4e505a] transition hover:bg-[var(--composer-control-hover-bg)] hover:text-[var(--ink-main)]"
+            >
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--composer-icon-bg)] text-[#8f919c]">
+                <Trash2 className="h-4 w-4" />
+              </span>
+              {t('chat.clearMessages')}
+            </button>
+          ) : null}
           {/* <button
             type="button"
             className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#ececf1] text-[#6d707c] transition hover:bg-[#e4e4eb] hover:text-[var(--ink-main)]"
@@ -1149,7 +1165,8 @@ const EmptyState = ({
   onPickPromptFile,
   onRemovePromptFile,
   onSend,
-  onCancel
+  onCancel,
+  onClearMessages
 }: {
   draft: string
   pendingImages: PendingComposerImage[]
@@ -1173,6 +1190,7 @@ const EmptyState = ({
   onRemovePromptFile: () => void
   onSend: () => void
   onCancel: () => void
+  onClearMessages: () => void
 }) => {
   const { t } = useI18n()
 
@@ -1195,6 +1213,7 @@ const EmptyState = ({
         isAiChannelsLoading={isAiChannelsLoading}
         isInstalledSkillsLoading={isInstalledSkillsLoading}
         isSwitchingAiChannel={isSwitchingAiChannel}
+        hasTranscript={false}
         textareaRef={textareaRef}
         onDraftChange={onDraftChange}
         onPaste={onPaste}
@@ -1205,6 +1224,7 @@ const EmptyState = ({
         onRemovePromptFile={onRemovePromptFile}
         onSend={onSend}
         onCancel={onCancel}
+        onClearMessages={onClearMessages}
       />
     </div>
   </div>
@@ -1767,6 +1787,24 @@ export const ChatPage = () => {
       if (currentSessionId === sessionId) {
         await openSession(listed[0].id)
       }
+      setBootError(null)
+    } catch (error) {
+      setBootError(error instanceof Error ? error.message : t('chat.deleteFailed'))
+    }
+  }
+
+  const handleClearSessionMessages = async (): Promise<void> => {
+    if (!currentSessionId) return
+
+    const confirmed = window.confirm(t('chat.clearMessagesConfirm'))
+    if (!confirmed) return
+
+    try {
+      await window.context.clearSessionMessages(currentSessionId)
+      const snapshot = await window.context.openSession(currentSessionId)
+      dispatch({ type: 'snapshot.loaded', snapshot })
+      const next = await window.context.searchSessions(searchQuery)
+      setSessions(next)
       setBootError(null)
     } catch (error) {
       setBootError(error instanceof Error ? error.message : t('chat.deleteFailed'))
@@ -2381,6 +2419,7 @@ export const ChatPage = () => {
                 onRemovePromptFile={handleRemovePromptFile}
                 onSend={() => void handleSend()}
                 onCancel={() => void handleCancel()}
+                onClearMessages={() => void handleClearSessionMessages()}
               />
             )}
           </div>
@@ -2401,6 +2440,7 @@ export const ChatPage = () => {
                   isAiChannelsLoading={isAiChannelsLoading}
                   isInstalledSkillsLoading={isInstalledSkillsLoading}
                   isSwitchingAiChannel={isSwitchingAiChannel}
+                  hasTranscript={hasTranscript}
                   textareaRef={composerRef}
                   onDraftChange={setDraft}
                   onPaste={(event) => void handleComposerPasteWithFallback(event)}
@@ -2411,6 +2451,7 @@ export const ChatPage = () => {
                   onRemovePromptFile={handleRemovePromptFile}
                   onSend={() => void handleSend()}
                   onCancel={() => void handleCancel()}
+                  onClearMessages={() => void handleClearSessionMessages()}
                 />
               </div>
             </div>

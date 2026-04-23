@@ -10,6 +10,7 @@ import { createMemoryTool } from './MemoryTool'
 import { createPowerShellTool, type PowerShellToolOptions } from './PowerShellTool'
 import { createScreenShotTool } from './ScreenShotTool'
 import { createTodoTool } from './TodoTool'
+import { createSubAgentTool } from './SubAgentTool'
 import { createWebTool } from './WebTool'
 import { compareToolPriorityMetrics } from './priorities'
 import type {
@@ -66,7 +67,8 @@ const toolFactories: ToolFactory[] = [
   createPatchTool,
   createCanvasTool,
   createScreenShotTool,
-  createTodoTool
+  createTodoTool,
+  createSubAgentTool
 ]
 
 const hasTavilyApiKey = (): boolean => Boolean(process.env.TAVILY_API_KEY?.trim())

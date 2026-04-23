@@ -175,6 +175,18 @@ export class ChatSupervisor {
     return updated
   }
 
+  async clearSessionMessages(sessionId: string): Promise<void> {
+    const activeRun = this.activeRuns.get(sessionId)
+    if (activeRun) {
+      activeRun.abortController.abort()
+      this.activeRuns.delete(sessionId)
+    }
+
+    await this.store.clearSessionMessages(sessionId)
+    await removeSessionAttachmentDir(sessionId)
+    await removeSessionCanvasDir(sessionId)
+  }
+
   async deleteSession(sessionId: string): Promise<void> {
     const activeRun = this.activeRuns.get(sessionId)
     if (activeRun) {

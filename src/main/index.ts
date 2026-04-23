@@ -353,6 +353,9 @@ function registerChatIpc(): void {
   ipcMain.handle('chat:deleteSession', async (_event, sessionId: string) => {
     await chatSupervisor?.deleteSession(sessionId)
   })
+  ipcMain.handle('chat:clearSessionMessages', async (_event, sessionId: string) => {
+    await chatSupervisor?.clearSessionMessages(sessionId)
+  })
   ipcMain.handle(
     'chat:sendMessage',
     async (_event, sessionId: string, input: Parameters<SendMessage>[1]) => {

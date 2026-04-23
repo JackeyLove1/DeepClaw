@@ -20,6 +20,7 @@ export type CreateSession = () => Promise<SessionMeta>
 export type OpenSession = (sessionId: string) => Promise<SessionSnapshot>
 export type UpdateSessionTitle = (sessionId: string, title: string) => Promise<SessionMeta>
 export type DeleteSession = (sessionId: string) => Promise<void>
+export type ClearSessionMessages = (sessionId: string) => Promise<void>
 export type PendingImageAttachment = Omit<
   ChatImageAttachment,
   'filePath' | 'sizeBytes' | 'width' | 'height'

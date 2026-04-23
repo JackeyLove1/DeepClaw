@@ -1,5 +1,6 @@
 import type {
     CancelRun,
+    ClearSessionMessages,
     CreateCronJob,
     CreateNote,
     CreateSession,
@@ -68,6 +69,7 @@ declare global {
       openSession: OpenSession
       updateSessionTitle: UpdateSessionTitle
       deleteSession: DeleteSession
+      clearSessionMessages: ClearSessionMessages
       sendMessage: SendMessage
       readClipboardImage: ReadClipboardImage
       pickPromptFilePath: PickPromptFilePath

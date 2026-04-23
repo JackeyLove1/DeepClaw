@@ -1,6 +1,7 @@
 import type { ChatEvent } from '@shared/models';
 import type {
     CancelRun,
+    ClearSessionMessages,
     CreateCronJob,
     CreateNote,
     CreateSession,
@@ -123,6 +124,8 @@ try {
       invoke<Awaited<ReturnType<UpdateSessionTitle>>>('chat:updateSessionTitle', ...args),
     deleteSession: (...args: Parameters<DeleteSession>) =>
       invoke<Awaited<ReturnType<DeleteSession>>>('chat:deleteSession', ...args),
+    clearSessionMessages: (...args: Parameters<ClearSessionMessages>) =>
+      invoke<Awaited<ReturnType<ClearSessionMessages>>>('chat:clearSessionMessages', ...args),
     sendMessage: (...args: Parameters<SendMessage>) =>
       invoke<Awaited<ReturnType<SendMessage>>>('chat:sendMessage', ...args),
     readClipboardImage: (...args: Parameters<ReadClipboardImage>) =>

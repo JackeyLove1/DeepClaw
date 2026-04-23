@@ -917,6 +917,19 @@ export class ChatSessionStore {
     })
   }
 
+  async clearSessionMessages(sessionId: string): Promise<SessionMeta> {
+    const current = await this.readMeta(sessionId)
+    const transaction = this.db.transaction((targetSessionId: string) => {
+      this.db.prepare('DELETE FROM chat_events WHERE sessionId = ?').run(targetSessionId)
+      this.db
+        .prepare('UPDATE chat_sessions SET messageCount = 0, updatedAt = ? WHERE id = ?')
+        .run(Date.now(), targetSessionId)
+    })
+
+    transaction(sessionId)
+    return { ...current, messageCount: 0, updatedAt: Date.now() }
+  }
+
   async deleteSession(sessionId: string): Promise<void> {
     const transaction = this.db.transaction((targetSessionId: string) => {
       this.db.prepare('DELETE FROM session_memories WHERE sessionId = ?').run(targetSessionId)

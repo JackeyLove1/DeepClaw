@@ -18,7 +18,8 @@ export const TOOL_PRIORITIES: Record<string, number> = {
   memory: 51,
   get_time: 50,
   todo: 50,
-  cronjob: 45
+  cronjob: 45,
+  sub_agent: 48
 }
 
 /**
