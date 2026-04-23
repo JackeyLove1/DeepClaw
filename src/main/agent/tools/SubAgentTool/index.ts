@@ -2,36 +2,89 @@ import { randomUUID } from 'node:crypto'
 
 import { getToolPriority } from '../priorities'
 import { defineTool, lazySchema, toolExecuteResultSchema } from '../schema'
-import { subAgentInputSchema } from './input'
 import type { Tool } from '../types'
+import { subAgentInputSchema } from './input'
 
 // Lazy-import AnthropicChatRuntime inside execute() to avoid circular dependency:
 // SubAgentTool -> agent-loop -> tools/index -> SubAgentTool
 
 const SUB_AGENT_TOOL_NAME = 'sub_agent'
+const DEFAULT_SUB_AGENT_MAX_TOKENS = 4096
+
+type ResolvedChildTools = {
+  tools: Tool[]
+  requestedCount: number
+  invalidToolNames: string[]
+  blockedToolNames: string[]
+}
+
+const normalizeAllowedTools = (allowedTools?: string[]): string[] => {
+  if (!allowedTools || allowedTools.length === 0) {
+    return []
+  }
+
+  return [...new Set(allowedTools.map((tool) => tool.trim()).filter(Boolean))]
+}
 
 /**
  * Resolve child tools using lazy imports to break the circular dependency
  * between SubAgentTool and tools/index.ts (which registers SubAgentTool).
  */
-const resolveChildTools = async (allowedTools?: string[]): Promise<Tool[]> => {
-  // Lazy import — deferred until execute(), after all modules are loaded.
+const resolveChildTools = async (allowedTools?: string[]): Promise<ResolvedChildTools> => {
   const { createReadOnlyTools, createTools } = await import('../index')
+  const normalizedAllowedTools = normalizeAllowedTools(allowedTools)
 
-  if (!allowedTools || allowedTools.length === 0) {
-    return createReadOnlyTools()
+  if (normalizedAllowedTools.length === 0) {
+    return {
+      tools: createReadOnlyTools(),
+      requestedCount: 0,
+      invalidToolNames: [],
+      blockedToolNames: []
+    }
   }
 
   const allTools = createTools()
-  const whitelist = new Set(allowedTools)
-  return allTools.filter(
-    (tool) => whitelist.has(tool.name) && tool.name !== SUB_AGENT_TOOL_NAME
+  const allToolNames = new Set(allTools.map((tool) => tool.name))
+  const blockedToolNames = normalizedAllowedTools.filter((name) => name === SUB_AGENT_TOOL_NAME)
+  const allowedToolSet = new Set(
+    normalizedAllowedTools.filter((name) => name !== SUB_AGENT_TOOL_NAME)
   )
+  const invalidToolNames = [...allowedToolSet].filter((name) => !allToolNames.has(name))
+  const tools = allTools.filter((tool) => allowedToolSet.has(tool.name))
+
+  return {
+    tools,
+    requestedCount: normalizedAllowedTools.length,
+    invalidToolNames,
+    blockedToolNames
+  }
 }
 
 const extractFinalText = (textBuffer: string): string => {
   const trimmed = textBuffer.trim()
   return trimmed.length > 0 ? trimmed : 'Sub-agent completed with no output.'
+}
+
+const buildNoToolsMessage = (resolved: ResolvedChildTools): string => {
+  const details: string[] = []
+
+  if (resolved.requestedCount === 0) {
+    return 'Error: no tools available for the sub-agent.'
+  }
+
+  if (resolved.invalidToolNames.length > 0) {
+    details.push(`unknown tools: ${resolved.invalidToolNames.join(', ')}`)
+  }
+
+  if (resolved.blockedToolNames.length > 0) {
+    details.push(`blocked tools: ${resolved.blockedToolNames.join(', ')}`)
+  }
+
+  if (details.length === 0) {
+    details.push('whitelist resolved to zero usable tools')
+  }
+
+  return `Error: no tools available for the sub-agent (${details.join('; ')}).`
 }
 
 export function createSubAgentTool(): Tool {
@@ -52,18 +105,23 @@ export function createSubAgentTool(): Tool {
     inputSchema: subAgentInputSchema,
     outputSchema: lazySchema(() => toolExecuteResultSchema),
     execute: async (_toolCallId, params) => {
-      const { task, allowed_tools, max_tokens: _maxTokens } = params
+      const { task, allowed_tools, max_tokens, task_id: _taskId } = params
 
-      // Lazy import to break circular dependency chain.
       const { AnthropicChatRuntime } = await import('../../agent-loop')
 
       const childSessionId = `sub_${randomUUID()}`
-      const childTools = await resolveChildTools(allowed_tools)
+      const resolvedChildTools = await resolveChildTools(allowed_tools)
+      const childTools = resolvedChildTools.tools
 
       if (childTools.length === 0) {
+        const message = buildNoToolsMessage(resolvedChildTools)
         return {
-          content: [{ type: 'text', text: 'Error: no tools available for the sub-agent.' }],
-          details: { summary: 'Sub-agent has no available tools.' }
+          content: [{ type: 'text', text: message }],
+          details: {
+            summary: 'Sub-agent has no available tools.',
+            invalidToolNames: resolvedChildTools.invalidToolNames,
+            blockedToolNames: resolvedChildTools.blockedToolNames
+          }
         }
       }
 
@@ -72,34 +130,35 @@ export function createSubAgentTool(): Tool {
       })
 
       let textBuffer = ''
-      let lastEvent: string | undefined
+      let lastErrorMessage: string | undefined
 
       for await (const event of runtime.runTurn({
         sessionId: childSessionId,
         userText: task,
-        hasUserContent: true
+        hasUserContent: true,
+        maxTokens: max_tokens ?? DEFAULT_SUB_AGENT_MAX_TOKENS
       })) {
         if (event.type === 'assistant.delta') {
-          const delta = (event as { delta?: string }).delta
-          if (delta) {
-            textBuffer += delta
+          if (event.delta) {
+            textBuffer += event.delta
           }
         }
+
         if (event.type === 'assistant.completed') {
-          const completedText = (event as { text?: string }).text
-          if (completedText) {
-            textBuffer = completedText
+          if (event.text) {
+            textBuffer = event.text
           }
         }
+
         if (event.type === 'session.error') {
-          lastEvent = (event as { error?: string }).error
+          lastErrorMessage = event.message
         }
       }
 
-      if (lastEvent && textBuffer.trim().length === 0) {
+      if (lastErrorMessage && textBuffer.trim().length === 0) {
         return {
-          content: [{ type: 'text', text: `Sub-agent error: ${lastEvent}` }],
-          details: { summary: `Sub-agent failed: ${lastEvent}` }
+          content: [{ type: 'text', text: `Sub-agent error: ${lastErrorMessage}` }],
+          details: { summary: `Sub-agent failed: ${lastErrorMessage}` }
         }
       }
 

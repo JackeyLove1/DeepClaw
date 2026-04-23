@@ -54,8 +54,13 @@ export function sortToolsByUsagePriority(
  * Safe defaults for the chat runtime: time + read-only file inspection.
  * (No `write_file` / `patch` — add those via `createTools` or custom wiring.)
  */
-export function createReadOnlyTools(): Tool[] {
-  return sortToolsByUsagePriority([createGetTimeTool(), createReadFileTool(), createGrepTool()])
+export function createReadOnlyTools(
+  options: Pick<CreateToolsOptions, 'budgetConfig'> = {}
+): Tool[] {
+  const baseTools = [createGetTimeTool(), createReadFileTool(), createGrepTool()]
+  const config = options.budgetConfig ?? DEFAULT_BUDGET
+  const withPersistence = baseTools.map((tool) => withResultPersistence(tool, config))
+  return sortToolsByUsagePriority(withPersistence)
 }
 
 const toolFactories: ToolFactory[] = [

@@ -672,4 +672,85 @@ describe('AnthropicChatRuntime', () => {
     expect(toolCompleted?.retryCount).toBe(2)
     expect(toolCompleted?.validationStatus).toBe('skipped')
   })
+
+  it('uses caller-provided maxTokens for streaming requests', async () => {
+    process.env.ANTHROPIC_API_KEY = 'test-key'
+    process.env.NOTEMARK_MODEL_PROVIDER = 'anthropic'
+    process.env.NOTEMARK_MODEL = 'claude-sonnet-4-5'
+
+    messagesCreateMock.mockImplementation(async (params: { stream?: boolean }) => {
+      if (!params.stream) {
+        return {
+          content: [{ type: 'text', text: 'pong' }]
+        }
+      }
+
+      return toStream([
+        {
+          type: 'content_block_start',
+          index: 0,
+          content_block: { type: 'text', text: '' }
+        },
+        {
+          type: 'content_block_delta',
+          index: 0,
+          delta: { type: 'text_delta', text: 'configured' }
+        }
+      ])
+    })
+
+    const runtime = new AnthropicChatRuntime()
+
+    for await (const _event of runtime.runTurn({
+      sessionId: 's_max_tokens',
+      userText: 'use custom max tokens',
+      maxTokens: 333,
+      history: []
+    })) {
+      // exhaust stream
+    }
+
+    const request = messagesCreateMock.mock.calls[0]?.[0] as { max_tokens?: number }
+    expect(request.max_tokens).toBe(333)
+  })
+
+  it('defaults streaming requests to 2048 tokens when maxTokens is omitted', async () => {
+    process.env.ANTHROPIC_API_KEY = 'test-key'
+    process.env.NOTEMARK_MODEL_PROVIDER = 'anthropic'
+    process.env.NOTEMARK_MODEL = 'claude-sonnet-4-5'
+
+    messagesCreateMock.mockImplementation(async (params: { stream?: boolean }) => {
+      if (!params.stream) {
+        return {
+          content: [{ type: 'text', text: 'pong' }]
+        }
+      }
+
+      return toStream([
+        {
+          type: 'content_block_start',
+          index: 0,
+          content_block: { type: 'text', text: '' }
+        },
+        {
+          type: 'content_block_delta',
+          index: 0,
+          delta: { type: 'text_delta', text: 'default' }
+        }
+      ])
+    })
+
+    const runtime = new AnthropicChatRuntime()
+
+    for await (const _event of runtime.runTurn({
+      sessionId: 's_default_max_tokens',
+      userText: 'use default max tokens',
+      history: []
+    })) {
+      // exhaust stream
+    }
+
+    const request = messagesCreateMock.mock.calls[0]?.[0] as { max_tokens?: number }
+    expect(request.max_tokens).toBe(2048)
+  })
 })

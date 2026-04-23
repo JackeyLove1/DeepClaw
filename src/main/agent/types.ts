@@ -24,6 +24,7 @@ export type RunTurnArgs = {
   sessionId: string
   userText: string
   hasUserContent?: boolean
+  maxTokens?: number
   selectedSkills?: string[]
   persistentMemory?: string | null
   sessionMemory?: string | null

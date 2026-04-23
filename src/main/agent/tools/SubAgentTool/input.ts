@@ -5,6 +5,10 @@ import { lazySchema } from '../schema'
 export const subAgentInputSchema = lazySchema(() =>
   z.strictObject({
     task: z.string().describe('The task or question for the sub-agent to work on.'),
+    task_id: z
+      .string()
+      .optional()
+      .describe('Optional logical task id injected by the parent runtime.'),
     allowed_tools: z
       .array(z.string())
       .optional()

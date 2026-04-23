@@ -321,6 +321,7 @@ export class AnthropicChatRuntime implements ChatRuntime {
     sessionId,
     userText,
     hasUserContent = Boolean(String(userText ?? '').trim()),
+    maxTokens,
     selectedSkills = [],
     persistentMemory = null,
     sessionMemory = null,
@@ -375,7 +376,7 @@ export class AnthropicChatRuntime implements ChatRuntime {
       const stream = await client.messages.create(
         {
           model: config.model,
-          max_tokens: 2048,
+          max_tokens: maxTokens ?? 2048,
           system: this.getSystemPrompt(persistentMemory, sessionMemory, selectedSkills),
           tools: anthropicTools,
           messages,
