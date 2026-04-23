@@ -417,7 +417,7 @@ export const TasksPage = () => {
                   type="button"
                   onClick={() => void handleSave()}
                   disabled={isSaving}
-                  className="rounded-2xl bg-[var(--ink-main)] text-white hover:bg-[#2c2c34]"
+                  className="rounded-2xl bg-[var(--ink-main)] text-[var(--primary-ink)] hover:opacity-90"
                 >
                   {isSaving ? (
                     <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />

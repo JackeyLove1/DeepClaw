@@ -74,7 +74,7 @@ export const CanvasPage = ({
               onClick={() => onViewportChange('desktop')}
               className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[12px] font-medium transition ${
                 viewport === 'desktop'
-                  ? 'bg-[var(--ink-main)] text-white'
+                  ? 'bg-[var(--ink-main)] text-[var(--primary-ink)]'
                   : 'bg-white text-[var(--ink-subtle)] hover:bg-[#f1f1f4]'
               }`}
             >
@@ -86,7 +86,7 @@ export const CanvasPage = ({
               onClick={() => onViewportChange('mobile')}
               className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[12px] font-medium transition ${
                 viewport === 'mobile'
-                  ? 'bg-[var(--ink-main)] text-white'
+                  ? 'bg-[var(--ink-main)] text-[var(--primary-ink)]'
                   : 'bg-white text-[var(--ink-subtle)] hover:bg-[#f1f1f4]'
               }`}
             >

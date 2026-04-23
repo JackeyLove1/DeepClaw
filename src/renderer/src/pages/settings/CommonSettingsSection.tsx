@@ -1,7 +1,10 @@
 import type { AiChannelConfig, AiChannelSettings } from '@shared/types'
-import { Check, Eye, EyeOff, LoaderCircle, Plus, Save, Trash2 } from 'lucide-react'
+import { Check, Eye, EyeOff, LoaderCircle, Moon, Plus, Save, Sun, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+import { toast } from 'sonner'
+import { Switch } from '../../components/ui'
 import { useI18n } from '../../i18n'
+import { useMainPanelTheme } from '../../theme'
 
 type SaveState = 'idle' | 'saved' | 'error'
 type TestState = 'idle' | 'success' | 'error'
@@ -28,6 +31,7 @@ const selectInitialChannelId = (settings: AiChannelSettings): string | null =>
 
 export const CommonSettingsSection = () => {
   const { t } = useI18n()
+  const { isLoadingMainPanelTheme, mainPanelTheme, setMainPanelTheme } = useMainPanelTheme()
   const [settings, setSettings] = useState<AiChannelSettings>({ channels: [], activeChannelId: null })
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null)
   const [showApiKey, setShowApiKey] = useState(false)
@@ -56,6 +60,12 @@ export const CommonSettingsSection = () => {
     () => !isLoading && !isTesting && isChannelComplete(selectedChannel),
     [isLoading, isTesting, selectedChannel]
   )
+
+  const handleMainPanelThemeChange = (checked: boolean) => {
+    void setMainPanelTheme(checked ? 'dark' : 'light').catch((error) => {
+      toast.error(error instanceof Error ? error.message : t('settings.appearance.saveFailed'))
+    })
+  }
 
   useEffect(() => {
     let disposed = false
@@ -204,6 +214,42 @@ export const CommonSettingsSection = () => {
 
   return (
     <>
+      <div className="mb-6 rounded-3xl border border-[var(--border-soft)] bg-white px-8 py-6 shadow-[0_14px_38px_rgba(15,15,20,0.05)]">
+        <div className="flex items-center justify-between gap-5">
+          <div className="flex min-w-0 items-center gap-4">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#f8f8fb] text-[var(--ink-main)]">
+              {mainPanelTheme === 'dark' ? (
+                <Moon className="h-5 w-5" />
+              ) : (
+                <Sun className="h-5 w-5" />
+              )}
+            </span>
+            <div className="min-w-0">
+              <h2 className="text-[22px] font-semibold text-[var(--ink-main)]">
+                {t('settings.appearance.title')}
+              </h2>
+              <p className="mt-2 text-[14px] leading-6 text-[var(--ink-faint)]">
+                {t('settings.appearance.description')}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-3">
+            <span className="text-[13px] font-medium text-[var(--ink-soft)]">
+              {mainPanelTheme === 'dark'
+                ? t('settings.appearance.dark')
+                : t('settings.appearance.light')}
+            </span>
+            <Switch
+              checked={mainPanelTheme === 'dark'}
+              disabled={isLoadingMainPanelTheme}
+              onCheckedChange={handleMainPanelThemeChange}
+              aria-label={t('settings.appearance.toggleMainPanelDark')}
+            />
+          </div>
+        </div>
+      </div>
+
       <div className="rounded-3xl border border-[var(--border-soft)] bg-white px-8 py-7 shadow-[0_14px_38px_rgba(15,15,20,0.05)]">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -301,7 +347,7 @@ export const CommonSettingsSection = () => {
                       }
                       className={`inline-flex h-10 items-center rounded-xl px-4 text-[13px] font-medium transition ${
                         settings.activeChannelId === selectedChannel.id
-                          ? 'bg-[#111214] text-white'
+                          ? 'bg-[var(--ink-main)] text-[var(--primary-ink)]'
                           : 'border border-[var(--border-soft)] bg-white text-[var(--ink-main)] hover:bg-[#f6f6fb]'
                       }`}
                     >
@@ -450,7 +496,7 @@ export const CommonSettingsSection = () => {
                 type="button"
                 onClick={handleSave}
                 disabled={!canSave}
-                className="inline-flex h-10 items-center gap-2 rounded-xl bg-[var(--ink-main)] px-5 text-[14px] font-medium text-white transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:bg-[#c3c3cf]"
+                className="inline-flex h-10 items-center gap-2 rounded-xl bg-[var(--ink-main)] px-5 text-[14px] font-medium text-[var(--primary-ink)] transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:bg-[#c3c3cf]"
               >
                 {isSaving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                 <span>

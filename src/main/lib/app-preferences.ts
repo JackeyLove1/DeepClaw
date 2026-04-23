@@ -1,13 +1,15 @@
 import { promises as fs } from 'node:fs'
 import { dirname } from 'node:path'
-import type { AppPreferences, LocaleCode } from '@shared/types'
+import type { AppPreferences, LocaleCode, MainPanelTheme } from '@shared/types'
 import { resolveAppPreferencesFilePath } from '../agent/utils'
 
 const preferencesPath = resolveAppPreferencesFilePath()
 const DEFAULT_LOCALE: LocaleCode = 'zh-CN'
+const DEFAULT_MAIN_PANEL_THEME: MainPanelTheme = 'light'
 
 const DEFAULT_PREFERENCES: AppPreferences = {
-  locale: DEFAULT_LOCALE
+  locale: DEFAULT_LOCALE,
+  mainPanelTheme: DEFAULT_MAIN_PANEL_THEME
 }
 
 const ensureFile = async (filePath: string, initialContents: string): Promise<void> => {
@@ -28,10 +30,19 @@ const normalizeLocale = (value: unknown): LocaleCode => {
   return DEFAULT_LOCALE
 }
 
+const normalizeMainPanelTheme = (value: unknown): MainPanelTheme => {
+  if (value === 'light' || value === 'dark') {
+    return value
+  }
+
+  return DEFAULT_MAIN_PANEL_THEME
+}
+
 const normalizePreferences = (
   preferences: Partial<AppPreferences> | null | undefined
 ): AppPreferences => ({
-  locale: normalizeLocale(preferences?.locale)
+  locale: normalizeLocale(preferences?.locale),
+  mainPanelTheme: normalizeMainPanelTheme(preferences?.mainPanelTheme)
 })
 
 const readPreferencesFile = async (): Promise<AppPreferences> => {

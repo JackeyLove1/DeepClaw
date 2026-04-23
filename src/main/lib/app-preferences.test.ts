@@ -36,7 +36,10 @@ describe('app preferences', () => {
   it('returns Chinese preferences by default', async () => {
     const { getAppPreferences } = await importModule()
 
-    await expect(getAppPreferences()).resolves.toEqual({ locale: 'zh-CN' })
+    await expect(getAppPreferences()).resolves.toEqual({
+      locale: 'zh-CN',
+      mainPanelTheme: 'light'
+    })
   })
 
   it('persists an English locale preference', async () => {
@@ -45,10 +48,24 @@ describe('app preferences', () => {
     const preferences = await saveAppPreferences({ locale: 'en-US' })
     const persisted = JSON.parse(await readFile(mockAppPreferencesFilePath, 'utf8')) as {
       locale: string
+      mainPanelTheme: string
     }
 
-    expect(preferences).toEqual({ locale: 'en-US' })
-    expect(persisted).toEqual({ locale: 'en-US' })
+    expect(preferences).toEqual({ locale: 'en-US', mainPanelTheme: 'light' })
+    expect(persisted).toEqual({ locale: 'en-US', mainPanelTheme: 'light' })
+  })
+
+  it('persists a dark main panel theme preference', async () => {
+    const { saveAppPreferences } = await importModule()
+
+    const preferences = await saveAppPreferences({ mainPanelTheme: 'dark' })
+    const persisted = JSON.parse(await readFile(mockAppPreferencesFilePath, 'utf8')) as {
+      locale: string
+      mainPanelTheme: string
+    }
+
+    expect(preferences).toEqual({ locale: 'zh-CN', mainPanelTheme: 'dark' })
+    expect(persisted).toEqual({ locale: 'zh-CN', mainPanelTheme: 'dark' })
   })
 
   it('normalizes invalid saved locale values back to Chinese', async () => {
@@ -60,14 +77,45 @@ describe('app preferences', () => {
 
     const { getAppPreferences } = await importModule()
 
-    await expect(getAppPreferences()).resolves.toEqual({ locale: 'zh-CN' })
+    await expect(getAppPreferences()).resolves.toEqual({
+      locale: 'zh-CN',
+      mainPanelTheme: 'light'
+    })
+  })
+
+  it('normalizes invalid saved main panel theme values back to light', async () => {
+    await writeFile(
+      mockAppPreferencesFilePath,
+      `${JSON.stringify({ locale: 'en-US', mainPanelTheme: 'system' }, null, 2)}\n`,
+      'utf8'
+    )
+
+    const { getAppPreferences } = await importModule()
+
+    await expect(getAppPreferences()).resolves.toEqual({
+      locale: 'en-US',
+      mainPanelTheme: 'light'
+    })
   })
 
   it('keeps the current locale when saving unrelated partial preferences', async () => {
     const { saveAppPreferences } = await importModule()
 
     await saveAppPreferences({ locale: 'en-US' })
-    await expect(saveAppPreferences({})).resolves.toEqual({ locale: 'en-US' })
+    await expect(saveAppPreferences({})).resolves.toEqual({
+      locale: 'en-US',
+      mainPanelTheme: 'light'
+    })
+  })
+
+  it('keeps the current theme when saving unrelated partial preferences', async () => {
+    const { saveAppPreferences } = await importModule()
+
+    await saveAppPreferences({ mainPanelTheme: 'dark' })
+    await expect(saveAppPreferences({ locale: 'en-US' })).resolves.toEqual({
+      locale: 'en-US',
+      mainPanelTheme: 'dark'
+    })
   })
 
   it('recovers from malformed JSON with Chinese preferences', async () => {
@@ -75,6 +123,9 @@ describe('app preferences', () => {
 
     const { getAppPreferences } = await importModule()
 
-    await expect(getAppPreferences()).resolves.toEqual({ locale: 'zh-CN' })
+    await expect(getAppPreferences()).resolves.toEqual({
+      locale: 'zh-CN',
+      mainPanelTheme: 'light'
+    })
   })
 })

@@ -1,28 +1,29 @@
 import {
-  Check,
-  ChevronDown,
-  CircleCheckBig,
-  CircleHelp,
-  Languages,
-  MessageCircleMore,
-  MonitorSmartphone,
-  QrCode,
-  Settings,
-  Sparkles
-} from 'lucide-react'
-import type { ReactNode } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
-import appIcon from '../assets/icon.png'
-import * as DraggableTopBarModule from '../components/DraggableTopBar'
+    AlarmClockCheck,
+    Check,
+    ChevronDown,
+    CircleHelp,
+    Languages,
+    MessageCircleMore,
+    MonitorSmartphone,
+    QrCode,
+    Settings,
+    Sparkles
+} from 'lucide-react';
+import type { ReactNode } from 'react';
+import { NavLink, Outlet } from 'react-router-dom';
+import appIcon from '../assets/icon.png';
+import * as DraggableTopBarModule from '../components/DraggableTopBar';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger
-} from '../components/ui/dropdown-menu'
-import { useI18n, type LocaleCode } from '../i18n'
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger
+} from '../components/ui/dropdown-menu';
+import { useI18n, type LocaleCode } from '../i18n';
+import { useMainPanelTheme } from '../theme';
 
 const DraggableTopBar = DraggableTopBarModule.DraggableTopBar ?? (() => null)
 
@@ -61,6 +62,7 @@ const availableLocales: LocaleCode[] = ['zh-CN', 'en-US']
 
 export const AppShell = () => {
   const { locale, localeLabels, setLocale, t } = useI18n()
+  const { mainPanelTheme } = useMainPanelTheme()
 
   return (
     <>
@@ -86,7 +88,7 @@ export const AppShell = () => {
                 <NavRailLink
                   label={t('nav.tasks')}
                   to="/tasks"
-                  icon={<CircleCheckBig className={navIconClassName} />}
+                  icon={<AlarmClockCheck className={navIconClassName} />}
                 />
                 <NavRailLink
                   label={t('nav.channels')}
@@ -147,7 +149,10 @@ export const AppShell = () => {
             </div>
           </aside>
 
-          <div className="col-span-2 flex min-w-0 overflow-hidden">
+          <div
+            className="col-span-2 flex min-w-0 overflow-hidden"
+            data-main-panel-theme={mainPanelTheme}
+          >
             <Outlet />
           </div>
         </div>

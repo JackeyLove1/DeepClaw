@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { AppRouter } from './router'
 import { Toaster } from 'sonner'
 import { I18nProvider } from './i18n'
+import { MainPanelThemeProvider } from './theme'
 
 const ScriptEventLogger = (): null => {
   useEffect(() => {
@@ -42,9 +43,11 @@ const ScriptEventLogger = (): null => {
 
 const App = () => (
   <I18nProvider>
-    <ScriptEventLogger />
-    <AppRouter />
-    <Toaster richColors position="top-center" />
+    <MainPanelThemeProvider>
+      <ScriptEventLogger />
+      <AppRouter />
+      <Toaster richColors position="top-center" />
+    </MainPanelThemeProvider>
   </I18nProvider>
 )
 

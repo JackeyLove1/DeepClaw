@@ -19,6 +19,7 @@ import {
     Link2,
     LoaderCircle,
     MessageSquare,
+    MessageSquareText,
     MoreHorizontal,
     PanelRightOpen,
     Pencil,
@@ -42,7 +43,6 @@ import {
     type Ref
 } from 'react';
 import { toast } from 'sonner';
-import { useI18n, type TranslationKey } from '../i18n';
 import {
     buildFeedbackKey,
     copyAssistantMessage,
@@ -80,6 +80,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger
 } from '../components/ui/dropdown-menu';
+import { useI18n, type TranslationKey } from '../i18n';
 import {
     CanvasPage,
     type CanvasArtifactView,
@@ -513,7 +514,7 @@ const SessionRow = ({
         }`}
       >
         {isActive ? (
-          <span className="text-[15px] leading-none">🦞</span>
+          <MessageSquareText className="h-4 w-4" />
         ) : (
           <MessageSquare className="h-4 w-4" />
         )}

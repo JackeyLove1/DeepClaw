@@ -290,7 +290,7 @@ export const ChannelsPage = () => {
                 type="button"
                 onClick={() => void handleStartQr()}
                 disabled={isStartingQr || isWaitingQr}
-                className="rounded-2xl bg-[var(--ink-main)] text-white hover:bg-[#2c2c34]"
+                className="rounded-2xl bg-[var(--ink-main)] text-[var(--primary-ink)] hover:opacity-90"
               >
                 {isStartingQr ? (
                   <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />

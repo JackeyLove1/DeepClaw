@@ -157,9 +157,11 @@ export interface ThirdPartyApiKeySettings {
 }
 
 export type LocaleCode = 'zh-CN' | 'en-US'
+export type MainPanelTheme = 'light' | 'dark'
 
 export interface AppPreferences {
   locale: LocaleCode
+  mainPanelTheme: MainPanelTheme
 }
 
 export interface ConnectionCheckResult {

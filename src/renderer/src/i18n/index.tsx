@@ -40,7 +40,8 @@ const interpolate = (template: string, params?: TranslationParams): string => {
 }
 
 const normalizePreferences = (preferences: AppPreferences | null | undefined): AppPreferences => ({
-  locale: preferences?.locale === 'en-US' ? 'en-US' : DEFAULT_LOCALE
+  locale: preferences?.locale === 'en-US' ? 'en-US' : DEFAULT_LOCALE,
+  mainPanelTheme: preferences?.mainPanelTheme === 'dark' ? 'dark' : 'light'
 })
 
 export const I18nProvider = ({ children }: { children: ReactNode }): JSX.Element => {

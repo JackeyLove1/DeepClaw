@@ -292,7 +292,7 @@ export const SkillsPage = () => {
                 onClick={() => setSelectedCategoryId(cat.id)}
                 className={`whitespace-nowrap px-4 py-2 rounded-xl text-[13px] font-medium transition-all duration-200 ${
                   selectedCategoryId === cat.id
-                    ? 'bg-[var(--ink-main)] text-white'
+                    ? 'bg-[var(--ink-main)] text-[var(--primary-ink)]'
                     : 'bg-[#f4f4f8] text-[var(--ink-faint)] hover:bg-[#e8e8f0]'
                 }`}
               >
@@ -322,7 +322,7 @@ export const SkillsPage = () => {
           <Button
             onClick={() => void handleSearch(searchQuery)}
             disabled={isLoading}
-            className="h-11 px-5 rounded-[8px] bg-[var(--ink-main)] text-white hover:bg-[#2c2c34] transition-colors"
+            className="h-11 px-5 rounded-[8px] bg-[var(--ink-main)] text-[var(--primary-ink)] transition-colors hover:opacity-90"
           >
             {isLoading ? (
               <LoaderCircle className="h-4 w-4 animate-spin" />

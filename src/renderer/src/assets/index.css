@@ -16,6 +16,7 @@
     --ink-soft: #6b6b6b;
     --ink-faint: #a1a1a1;
     --ink-subtle: #3d3d3d;
+    --primary-ink: #ffffff;
 
     /* Subtle borders */
     --border-soft: rgba(0, 0, 0, 0.08);
@@ -26,9 +27,149 @@
     --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.04);
     --shadow-float: 0 4px 24px rgba(0, 0, 0, 0.08);
 
+    --background: 0 0% 100%;
+    --foreground: 0 0% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+    --primary: 0 0% 10%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 14% 96%;
+    --secondary-foreground: 0 0% 10%;
+    --muted: 240 14% 96%;
+    --muted-foreground: 0 0% 43%;
+    --accent: 240 14% 96%;
+    --accent-foreground: 0 0% 10%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 10% 88%;
+    --input: 240 10% 88%;
+    --ring: 0 0% 10%;
+    --radius: 0.5rem;
+
     --font-brand-en: 'MyriadPro-Regular', 'MyriadPro-Light', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     --font-brand-zh: '汉仪旗黑-55S', '汉仪旗黑-40S', 'Microsoft YaHei', 'Noto Sans SC', 'Source Han Sans SC', sans-serif;
     --font-brand-sans: var(--font-brand-en), var(--font-brand-zh);
+  }
+
+  [data-main-panel-theme='light'] {
+    color-scheme: light;
+  }
+
+  [data-main-panel-theme='dark'] {
+    color-scheme: dark;
+    --content-bg: #111214;
+    --ink-main: #f4f4f5;
+    --ink-soft: #c4c4cc;
+    --ink-faint: #8f9099;
+    --ink-subtle: #d5d5dc;
+    --primary-ink: #111214;
+    --border-soft: rgba(255, 255, 255, 0.1);
+    --border-medium: rgba(255, 255, 255, 0.16);
+    --shadow-card: 0 12px 34px rgba(0, 0, 0, 0.24);
+    --shadow-float: 0 18px 48px rgba(0, 0, 0, 0.35);
+    --background: 220 9% 10%;
+    --foreground: 240 8% 96%;
+    --card: 220 8% 13%;
+    --card-foreground: 240 8% 96%;
+    --popover: 220 8% 13%;
+    --popover-foreground: 240 8% 96%;
+    --primary: 240 8% 96%;
+    --primary-foreground: 220 9% 10%;
+    --secondary: 220 8% 17%;
+    --secondary-foreground: 240 8% 96%;
+    --muted: 220 8% 17%;
+    --muted-foreground: 240 6% 64%;
+    --accent: 220 8% 19%;
+    --accent-foreground: 240 8% 96%;
+    --destructive: 0 62% 48%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 220 8% 24%;
+    --input: 220 8% 24%;
+    --ring: 240 8% 82%;
+  }
+
+  [data-main-panel-theme='dark'] :is(
+    .bg-white,
+    .bg-white\/90,
+    .bg-white\/80,
+    .bg-white\/75
+  ) {
+    background-color: #17181c !important;
+  }
+
+  [data-main-panel-theme='dark'] :is(
+    .bg-\[\#fbfbfe\],
+    .bg-\[\#fafafc\],
+    .bg-\[\#fafafe\],
+    .bg-\[\#fcfcff\],
+    .bg-\[\#f8f8fb\],
+    .bg-\[\#f8f8fc\],
+    .bg-\[\#f6f6fb\],
+    .bg-\[\#f5f5fa\],
+    .bg-\[\#f4f4f8\],
+    .bg-\[\#f4f4f7\],
+    .bg-\[\#f3f3f6\],
+    .bg-\[\#f2f2f2\],
+    .bg-\[\#efefef\],
+    .bg-\[\#e7e7e7\],
+    .bg-\[\#e4e4e4\],
+    .bg-\[\#eef0f8\],
+    .bg-\[\#ececf2\],
+    .bg-\[\#ebebf0\],
+    .bg-\[\#dfdfe8\]
+  ) {
+    background-color: #202127 !important;
+  }
+
+  [data-main-panel-theme='dark'] :is(
+    .hover\:bg-white:hover,
+    .hover\:bg-white\/90:hover,
+    .hover\:bg-\[\#f8f8fc\]:hover,
+    .hover\:bg-\[\#f6f6fb\]:hover,
+    .hover\:bg-\[\#f5f5fa\]:hover,
+    .hover\:bg-\[\#f3f3f6\]:hover,
+    .hover\:bg-\[\#efeff5\]:hover,
+    .hover\:bg-\[\#ececec\]:hover,
+    .hover\:bg-\[\#ececf2\]:hover
+  ) {
+    background-color: #292a31 !important;
+  }
+
+  [data-main-panel-theme='dark'] :is(
+    .border-\[\#dddddd\],
+    .border-\[\#d9d9d9\],
+    .border-\[\#d8d8e3\],
+    .border-\[\#e7e8ef\]
+  ) {
+    border-color: rgba(255, 255, 255, 0.12) !important;
+  }
+
+  [data-main-panel-theme='dark'] :is(
+    .text-\[\#1f1f1f\],
+    .text-\[\#2a2a2a\],
+    .text-\[\#2c2c34\],
+    .text-notion-text
+  ) {
+    color: var(--ink-main) !important;
+  }
+
+  [data-main-panel-theme='dark'] :is(
+    .text-\[\#6b6b7a\],
+    .text-\[\#7b7b7b\],
+    .text-\[\#8b8b8b\],
+    .text-\[\#9ca0ad\]
+  ) {
+    color: var(--ink-faint) !important;
+  }
+
+  [data-main-panel-theme='dark'] .placeholder\:text-\[\#8b8b8b\]::placeholder {
+    color: var(--ink-faint) !important;
+  }
+
+  [data-main-panel-theme='dark'] :is(input, textarea, select) {
+    caret-color: var(--ink-main);
   }
 
   #root {
