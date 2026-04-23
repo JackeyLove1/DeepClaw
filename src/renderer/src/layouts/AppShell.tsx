@@ -30,9 +30,9 @@ const DraggableTopBar = DraggableTopBarModule.DraggableTopBar ?? (() => null)
 const navIconClassName = 'h-4 w-4 stroke-2 transition-all group-aria-[current=page]:stroke-[2.7]'
 const utilityIconClassName = 'h-4 w-4 stroke-2 transition-all group-active:stroke-[2.7]'
 const utilityButtonClassName =
-  'group flex h-9 w-9 items-center justify-center rounded-2xl border border-[var(--border-soft)] bg-white text-[var(--ink-subtle)] shadow-[0_4px_12px_rgba(0,0,0,0.04)] transition-all hover:bg-[#ececf2] hover:text-[var(--ink-main)] hover:shadow-[0_6px_16px_rgba(0,0,0,0.08)] active:bg-[#dfdfe8] active:text-[var(--ink-main)]'
+  'group flex h-9 w-9 items-center justify-center rounded-2xl border border-[var(--border-soft)] bg-[var(--sidebar-control-bg)] text-[var(--ink-subtle)] shadow-[0_4px_12px_rgba(0,0,0,0.04)] transition-all hover:bg-[var(--sidebar-control-hover-bg)] hover:text-[var(--ink-main)] hover:shadow-[0_6px_16px_rgba(0,0,0,0.08)] active:bg-[var(--sidebar-control-active-bg)] active:text-[var(--ink-main)]'
 const utilityLinkClassName =
-  'group flex h-9 w-9 items-center justify-center rounded-2xl border border-[var(--border-soft)] bg-white text-[var(--ink-subtle)] shadow-[0_4px_12px_rgba(0,0,0,0.04)] transition-all hover:bg-[#ececf2] hover:text-[var(--ink-main)] hover:shadow-[0_6px_16px_rgba(0,0,0,0.08)] active:bg-[#dfdfe8] active:text-[var(--ink-main)] aria-[current=page]:bg-[#ebebf0] aria-[current=page]:text-[var(--ink-main)]'
+  'group flex h-9 w-9 items-center justify-center rounded-2xl border border-[var(--border-soft)] bg-[var(--sidebar-control-bg)] text-[var(--ink-subtle)] shadow-[0_4px_12px_rgba(0,0,0,0.04)] transition-all hover:bg-[var(--sidebar-control-hover-bg)] hover:text-[var(--ink-main)] hover:shadow-[0_6px_16px_rgba(0,0,0,0.08)] active:bg-[var(--sidebar-control-active-bg)] active:text-[var(--ink-main)] aria-[current=page]:bg-[var(--sidebar-control-active-bg)] aria-[current=page]:text-[var(--ink-main)]'
 
 interface NavRailLinkProps {
   label: string
@@ -46,12 +46,12 @@ const NavRailLink = ({ label, to, icon }: NavRailLinkProps) => (
     className={({ isActive }) =>
       `group flex flex-col items-center gap-0.5 rounded-2xl px-2 py-2 text-[11px] tracking-wider transition-all ${
         isActive
-          ? 'bg-[#f4f4f8] text-[var(--ink-main)] shadow-[0_6px_18px_rgba(0,0,0,0.08)]'
-          : 'text-[var(--ink-faint)] hover:bg-[#f6f6f9] hover:text-[var(--ink-main)]'
+          ? 'bg-[var(--sidebar-nav-active-bg)] text-[var(--ink-main)] shadow-[0_6px_18px_rgba(0,0,0,0.08)]'
+          : 'text-[var(--ink-faint)] hover:bg-[var(--sidebar-nav-hover-bg)] hover:text-[var(--ink-main)]'
       }`
     }
   >
-    <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-transparent bg-white shadow-[0_3px_10px_rgba(0,0,0,0.05)] transition-all group-hover:bg-[#ececf2] group-active:bg-[#e4e4eb] group-aria-[current=page]:bg-[#ebebf0]">
+    <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-transparent bg-[var(--sidebar-icon-bg)] shadow-[0_3px_10px_rgba(0,0,0,0.05)] transition-all group-hover:bg-[var(--sidebar-icon-hover-bg)] group-active:bg-[var(--sidebar-icon-active-bg)] group-aria-[current=page]:bg-[var(--sidebar-icon-active-bg)]">
       {icon}
     </span>
     <span>{label}</span>
@@ -69,7 +69,10 @@ export const AppShell = () => {
       <DraggableTopBar />
 
       <main className="h-screen overflow-hidden bg-[var(--app-bg)] px-4 pb-4 pt-10 text-[var(--ink-main)]">
-        <div className="notemark-shell grid h-full overflow-hidden rounded-3xl border border-[var(--border-soft)] bg-[var(--shell-bg)] shadow-[var(--shadow-shell)]">
+        <div
+          className="notemark-shell grid h-full overflow-hidden rounded-3xl border border-[var(--border-soft)] bg-[var(--shell-bg)] shadow-[var(--shadow-shell)]"
+          data-main-panel-theme={mainPanelTheme}
+        >
           <aside className="flex h-full flex-col justify-between border-r border-[var(--border-soft)] bg-[var(--rail-bg)] px-3 py-4 backdrop-blur-xl">
             <div className="space-y-4">
               <button
@@ -149,10 +152,7 @@ export const AppShell = () => {
             </div>
           </aside>
 
-          <div
-            className="col-span-2 flex min-w-0 overflow-hidden"
-            data-main-panel-theme={mainPanelTheme}
-          >
+          <div className="col-span-2 flex min-w-0 overflow-hidden">
             <Outlet />
           </div>
         </div>

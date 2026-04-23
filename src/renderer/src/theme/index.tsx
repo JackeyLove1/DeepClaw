@@ -55,6 +55,10 @@ export const MainPanelThemeProvider = ({ children }: { children: ReactNode }): J
     }
   }, [])
 
+  useEffect(() => {
+    document.documentElement.dataset.mainPanelTheme = mainPanelTheme
+  }, [mainPanelTheme])
+
   const setMainPanelTheme = useCallback(async (theme: MainPanelTheme) => {
     const normalizedTheme = theme === 'dark' ? 'dark' : DEFAULT_MAIN_PANEL_THEME
     const previousTheme = mainPanelTheme
@@ -94,4 +98,3 @@ export const useMainPanelTheme = (): MainPanelThemeContextValue => {
 
   return value
 }
-

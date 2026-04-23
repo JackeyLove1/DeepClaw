@@ -10,6 +10,20 @@
     --rail-bg: rgba(255, 255, 255, 0.6);
     --sidebar-bg: rgba(255, 255, 255, 0.75);
     --content-bg: #ffffff;
+    --sidebar-control-bg: #ffffff;
+    --sidebar-control-hover-bg: #ececf2;
+    --sidebar-control-active-bg: #ebebf0;
+    --sidebar-nav-active-bg: #f4f4f8;
+    --sidebar-nav-hover-bg: #f6f6f9;
+    --sidebar-icon-bg: #ffffff;
+    --sidebar-icon-hover-bg: #ececf2;
+    --sidebar-icon-active-bg: #e4e4eb;
+    --composer-bg: #f7f7f9;
+    --composer-control-bg: #ececf1;
+    --composer-control-hover-bg: #e4e4eb;
+    --composer-icon-bg: #ffffff;
+    --composer-send-bg: #1f1f23;
+    --composer-send-hover-bg: #2b2b31;
 
     /* Ink colors - Gray scale */
     --ink-main: #1a1a1a;
@@ -59,7 +73,25 @@
 
   [data-main-panel-theme='dark'] {
     color-scheme: dark;
+    --app-bg: #0d0e10;
+    --shell-bg: rgba(18, 19, 23, 0.94);
+    --rail-bg: rgba(21, 22, 26, 0.9);
+    --sidebar-bg: rgba(23, 24, 28, 0.92);
     --content-bg: #111214;
+    --sidebar-control-bg: #1b1c21;
+    --sidebar-control-hover-bg: #25262d;
+    --sidebar-control-active-bg: #2c2d35;
+    --sidebar-nav-active-bg: #22242b;
+    --sidebar-nav-hover-bg: #202127;
+    --sidebar-icon-bg: #18191e;
+    --sidebar-icon-hover-bg: #25262d;
+    --sidebar-icon-active-bg: #2c2d35;
+    --composer-bg: #18191e;
+    --composer-control-bg: #23242b;
+    --composer-control-hover-bg: #2b2c34;
+    --composer-icon-bg: #17181c;
+    --composer-send-bg: #f4f4f5;
+    --composer-send-hover-bg: #dcdce2;
     --ink-main: #f4f4f5;
     --ink-soft: #c4c4cc;
     --ink-faint: #8f9099;
@@ -67,6 +99,7 @@
     --primary-ink: #111214;
     --border-soft: rgba(255, 255, 255, 0.1);
     --border-medium: rgba(255, 255, 255, 0.16);
+    --shadow-shell: 0 12px 44px rgba(0, 0, 0, 0.32);
     --shadow-card: 0 12px 34px rgba(0, 0, 0, 0.24);
     --shadow-float: 0 18px 48px rgba(0, 0, 0, 0.35);
     --background: 220 9% 10%;
@@ -106,7 +139,9 @@
     .bg-\[\#fcfcff\],
     .bg-\[\#f8f8fb\],
     .bg-\[\#f8f8fc\],
+    .bg-\[\#f7f7f9\],
     .bg-\[\#f6f6fb\],
+    .bg-\[\#f6f6f9\],
     .bg-\[\#f5f5fa\],
     .bg-\[\#f4f4f8\],
     .bg-\[\#f4f4f7\],
@@ -116,9 +151,16 @@
     .bg-\[\#e7e7e7\],
     .bg-\[\#e4e4e4\],
     .bg-\[\#eef0f8\],
+    .bg-\[\#ececf1\],
     .bg-\[\#ececf2\],
     .bg-\[\#ebebf0\],
-    .bg-\[\#dfdfe8\]
+    .bg-\[\#e4e4eb\],
+    .bg-\[\#dfdfe8\],
+    .bg-\[\#f0f1f4\],
+    .bg-\[\#eef1ff\],
+    .bg-\[\#edf2ff\],
+    .bg-\[\#f7f7fa\],
+    .bg-\[\#e8e8ee\]
   ) {
     background-color: #202127 !important;
   }
@@ -130,9 +172,12 @@
     .hover\:bg-\[\#f6f6fb\]:hover,
     .hover\:bg-\[\#f5f5fa\]:hover,
     .hover\:bg-\[\#f3f3f6\]:hover,
+    .hover\:bg-\[\#f3f3f7\]:hover,
     .hover\:bg-\[\#efeff5\]:hover,
     .hover\:bg-\[\#ececec\]:hover,
-    .hover\:bg-\[\#ececf2\]:hover
+    .hover\:bg-\[\#ececf2\]:hover,
+    .hover\:bg-\[\#e4e4eb\]:hover,
+    .hover\:bg-\[\#f7f7fa\]:hover
   ) {
     background-color: #292a31 !important;
   }
@@ -141,7 +186,11 @@
     .border-\[\#dddddd\],
     .border-\[\#d9d9d9\],
     .border-\[\#d8d8e3\],
-    .border-\[\#e7e8ef\]
+    .border-\[\#dddde3\],
+    .border-\[\#ececf0\],
+    .border-\[\#e7e8ef\],
+    .border-\[\#f0f1f4\],
+    .border-\[\#d8dbe7\]
   ) {
     border-color: rgba(255, 255, 255, 0.12) !important;
   }
@@ -149,22 +198,41 @@
   [data-main-panel-theme='dark'] :is(
     .text-\[\#1f1f1f\],
     .text-\[\#2a2a2a\],
+    .text-\[\#32343b\],
     .text-\[\#2c2c34\],
+    .text-\[\#23242a\],
     .text-notion-text
   ) {
     color: var(--ink-main) !important;
   }
 
   [data-main-panel-theme='dark'] :is(
+    .text-\[\#4e505a\],
     .text-\[\#6b6b7a\],
+    .text-\[\#737683\],
     .text-\[\#7b7b7b\],
+    .text-\[\#7f828f\],
+    .text-\[\#8a8d99\],
     .text-\[\#8b8b8b\],
-    .text-\[\#9ca0ad\]
+    .text-\[\#8c8f9c\],
+    .text-\[\#8f919c\],
+    .text-\[\#9a9cab\],
+    .text-\[\#9b9ca5\],
+    .text-\[\#9ca0ad\],
+    .text-\[\#b8bac3\]
   ) {
     color: var(--ink-faint) !important;
   }
 
-  [data-main-panel-theme='dark'] .placeholder\:text-\[\#8b8b8b\]::placeholder {
+  [data-main-panel-theme='dark'] :is(.text-\[\#5f626f\]) {
+    color: var(--ink-soft) !important;
+  }
+
+  [data-main-panel-theme='dark'] :is(
+    .placeholder\:text-\[\#8b8b8b\],
+    .placeholder\:text-\[\#9a9cab\],
+    .placeholder\:text-\[\#9b9ca5\]
+  )::placeholder {
     color: var(--ink-faint) !important;
   }
 

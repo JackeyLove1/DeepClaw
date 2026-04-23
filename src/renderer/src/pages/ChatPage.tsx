@@ -879,7 +879,7 @@ const InputBar = ({
   }, [dedupedSkills, skillSearchQuery])
 
   return (
-    <div className="rounded-[28px] border border-[#ececf0] bg-[#f7f7f9] px-5 py-4 shadow-[0_10px_30px_rgba(15,15,20,0.06)]">
+    <div className="rounded-[28px] border border-[var(--border-soft)] bg-[var(--composer-bg)] px-5 py-4 shadow-[0_10px_30px_rgba(15,15,20,0.06)]">
       {pendingImages.length > 0 ? (
         <UserAttachmentGrid
           attachments={pendingImages.map((image) => ({
@@ -935,9 +935,9 @@ const InputBar = ({
               <button
                 type="button"
                 disabled={isModelSwitcherDisabled}
-                className="inline-flex h-9 items-center gap-2 rounded-full bg-[#ececf1] px-2.5 pr-3 text-[12.5px] font-medium text-[#4e505a] transition hover:bg-[#e4e4eb] hover:text-[var(--ink-main)] disabled:cursor-not-allowed disabled:text-[#9ca0ad]"
+                className="inline-flex h-9 items-center gap-2 rounded-full bg-[var(--composer-control-bg)] px-2.5 pr-3 text-[12.5px] font-medium text-[#4e505a] transition hover:bg-[var(--composer-control-hover-bg)] hover:text-[var(--ink-main)] disabled:cursor-not-allowed disabled:text-[#9ca0ad]"
               >
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-[#8f919c]">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--composer-icon-bg)] text-[#8f919c]">
                   <Zap className="h-4 w-4" />
                 </span>
                 <span className="max-w-[220px] truncate">
@@ -992,9 +992,9 @@ const InputBar = ({
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#ececf1] px-3.5 text-[12.5px] font-medium text-[#4e505a] transition hover:bg-[#e4e4eb] hover:text-[var(--ink-main)]"
+                className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[var(--composer-control-bg)] px-3.5 text-[12.5px] font-medium text-[#4e505a] transition hover:bg-[var(--composer-control-hover-bg)] hover:text-[var(--ink-main)]"
               >
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-[#8f919c]">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--composer-icon-bg)] text-[#8f919c]">
                   <Sparkles className="h-4 w-4" />
                 </span>
                 {selectedSkillIds.length > 0
@@ -1078,9 +1078,9 @@ const InputBar = ({
           <button
             type="button"
             onClick={onPickPromptFile}
-            className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#ececf1] px-3.5 text-[12.5px] font-medium text-[#4e505a] transition hover:bg-[#e4e4eb] hover:text-[var(--ink-main)]"
+            className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[var(--composer-control-bg)] px-3.5 text-[12.5px] font-medium text-[#4e505a] transition hover:bg-[var(--composer-control-hover-bg)] hover:text-[var(--ink-main)]"
           >
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-[#8f919c]">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--composer-icon-bg)] text-[#8f919c]">
               {/* <Upload className="h-4 w-4" /> */}
               <Link2 className="h-4 w-4" />
             </span>
@@ -1101,7 +1101,7 @@ const InputBar = ({
               type="button"
               onClick={onCancel}
               disabled={isCancelling}
-              className="inline-flex h-10 items-center gap-2 rounded-full border border-[#dddde3] bg-white px-4 text-[13px] font-medium text-[var(--ink-soft)] transition hover:bg-[#f3f3f7] disabled:opacity-50"
+              className="inline-flex h-10 items-center gap-2 rounded-full border border-[var(--border-soft)] bg-[var(--composer-icon-bg)] px-4 text-[13px] font-medium text-[var(--ink-soft)] transition hover:bg-[var(--composer-control-hover-bg)] disabled:opacity-50"
             >
               <Square className="h-3.5 w-3.5 fill-current" strokeWidth={0} />
               {isCancelling ? t('chat.stopping') : t('chat.stop')}
@@ -1116,7 +1116,7 @@ const InputBar = ({
               isRunning ||
               !currentSessionId
             }
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#1f1f23] text-white transition hover:bg-[#2b2b31] disabled:cursor-not-allowed disabled:bg-[#e8e8ee] disabled:text-[#b8bac3]"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[var(--composer-send-bg)] text-[var(--primary-ink)] transition hover:bg-[var(--composer-send-hover-bg)] disabled:cursor-not-allowed disabled:bg-[var(--composer-control-bg)] disabled:text-[#b8bac3]"
             aria-label={t('chat.sendMessage')}
           >
             <Send className="h-4 w-4" />
