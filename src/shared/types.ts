@@ -59,6 +59,7 @@ export type ToolInstallTargetId =
   | 'ripgrep'
   | 'git'
   | 'pnpm'
+  | 'claude-code'
 
 export type ToolInstallStatus = 'installed' | 'missing' | 'running' | 'failed' | 'unknown'
 

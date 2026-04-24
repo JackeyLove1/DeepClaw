@@ -26,6 +26,7 @@ type ToolTargetDefinition = {
   name: string
   description: string
   platforms: PlatformId[]
+  installGuidance?: Partial<Record<PlatformId, string[]>>
   statusChecks: Array<{
     command: string
     args: string[]
@@ -132,6 +133,17 @@ const TOOL_TARGETS: ToolTargetDefinition[] = [
     description: 'Fast package manager for Node.js projects.',
     platforms: ['win32', 'darwin'],
     statusChecks: [{ command: 'pnpm', args: ['--version'], parseVersion: parseSemver }]
+  },
+  {
+    id: 'claude-code',
+    name: 'Claude Code',
+    description: 'Anthropic command-line coding agent for terminal-based development workflows.',
+    platforms: ['win32', 'darwin'],
+    installGuidance: {
+      win32: ['Run: winget install Anthropic.ClaudeCode'],
+      darwin: ['Run: curl -fsSL https://claude.ai/install.sh | bash']
+    },
+    statusChecks: [{ command: 'claude', args: ['--version'], parseVersion: parseSemver }]
   }
 ]
 
@@ -241,6 +253,9 @@ const buildInstallPrompt = (target: ToolTargetDefinition): string => {
     '- Diagnose and repair common install failures, including PATH refresh issues.',
     '- Do not modify this application source code.',
     '- Finish only after a verification command succeeds, or clearly state the blocker.',
+    '',
+    'Target-specific install command:',
+    ...(target.installGuidance?.[process.platform as PlatformId] ?? ['No target-specific command configured.']),
     '',
     'Platform guidance:',
     getPlatformNotes()

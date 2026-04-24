@@ -41,7 +41,8 @@ const TARGET_ICON: Record<ToolInstallTargetId, string> = {
   'playwright-browsers': 'PW',
   ripgrep: 'RG',
   git: 'GT',
-  pnpm: 'PN'
+  pnpm: 'PN',
+  'claude-code': 'CC'
 }
 
 const formatPlatform = (platform: string): string => {

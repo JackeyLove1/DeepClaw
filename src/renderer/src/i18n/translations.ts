@@ -316,6 +316,8 @@ export const translations = {
     'tools.target.git.description': '版本控制命令行工具。',
     'tools.target.pnpm.name': 'pnpm',
     'tools.target.pnpm.description': 'Node.js 项目的快速包管理器。',
+    'tools.target.claude-code.name': 'Claude Code',
+    'tools.target.claude-code.description': 'Anthropic 的命令行编码代理，用于终端开发工作流。',
     'mcp.title': 'MCP',
     'mcp.description': '管理 MCP stdio 连接。正常 {ok}/{total}。',
     'mcp.empty': '暂无 MCP 连接。',
@@ -763,6 +765,9 @@ export const translations = {
     'tools.target.git.description': 'Version control command-line tools.',
     'tools.target.pnpm.name': 'pnpm',
     'tools.target.pnpm.description': 'Fast package manager for Node.js projects.',
+    'tools.target.claude-code.name': 'Claude Code',
+    'tools.target.claude-code.description':
+      'Anthropic command-line coding agent for terminal-based development workflows.',
     'mcp.title': 'MCP',
     'mcp.description': 'Manage MCP stdio connections. OK {ok}/{total}.',
     'mcp.empty': 'No MCP connections yet.',
