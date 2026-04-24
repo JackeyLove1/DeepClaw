@@ -144,4 +144,77 @@ describe('runtime text utils', () => {
       await unlink(imagePath).catch(() => undefined)
     }
   })
+
+  it('replays hidden provider transcripts only when requested', async () => {
+    const history: ChatEvent[] = [
+      {
+        type: 'user.message',
+        eventId: 'e-user',
+        sessionId: 's1',
+        timestamp: 1,
+        messageId: 'u1',
+        text: 'Solve this'
+      },
+      {
+        type: 'assistant.completed',
+        eventId: 'e-assistant',
+        sessionId: 's1',
+        timestamp: 2,
+        messageId: 'a1',
+        text: 'Answer only',
+        durationMs: 10,
+        reasoningText: 'private reasoning',
+        providerTranscript: [
+          {
+            role: 'assistant',
+            content: [
+              {
+                type: 'thinking',
+                thinking: 'private reasoning',
+                signature: 'sig-1'
+              },
+              {
+                type: 'text',
+                text: 'Answer only'
+              }
+            ]
+          }
+        ]
+      }
+    ]
+
+    await expect(toAnthropicMessages(history)).resolves.toEqual([
+      {
+        role: 'user',
+        content: 'Solve this'
+      },
+      {
+        role: 'assistant',
+        content: 'Answer only'
+      }
+    ])
+
+    await expect(
+      toAnthropicMessages(history, { includeProviderTranscript: true })
+    ).resolves.toEqual([
+      {
+        role: 'user',
+        content: 'Solve this'
+      },
+      {
+        role: 'assistant',
+        content: [
+          {
+            type: 'thinking',
+            thinking: 'private reasoning',
+            signature: 'sig-1'
+          },
+          {
+            type: 'text',
+            text: 'Answer only'
+          }
+        ]
+      }
+    ])
+  })
 })

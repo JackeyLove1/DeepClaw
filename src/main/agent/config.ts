@@ -5,6 +5,9 @@ type RuntimeConfigValidation = { ok: true; config: RuntimeConfig } | { ok: false
 
 const getBaseUrl = (): string | undefined => process.env.ANTHROPIC_BASE_URL?.trim() || undefined
 
+export const isDeepSeekModel = (model: string): boolean =>
+  model.toLowerCase().includes('deepseek')
+
 export const validateRuntimeConfig = (): RuntimeConfigValidation => {
   const provider = process.env.NOTEMARK_MODEL_PROVIDER?.trim() || 'anthropic'
   const model = process.env.NOTEMARK_MODEL?.trim() || ''

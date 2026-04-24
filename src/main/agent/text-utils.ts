@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises'
-import type { ChatEvent } from '@shared/models'
+import type { ChatEvent, ProviderTranscriptMessage } from '@shared/models'
 import type {
   ImageBlockParam,
   MessageParam,
@@ -90,7 +90,26 @@ const createUserContentBlocks = async (
   return [...attachmentBlocks, { type: 'text', text }]
 }
 
-export const toAnthropicMessages = async (history: ChatEvent[]): Promise<MessageParam[]> => {
+type AnthropicMessageSerializationOptions = {
+  includeProviderTranscript?: boolean
+}
+
+const isProviderTranscriptMessage = (value: unknown): value is ProviderTranscriptMessage => {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+
+  const message = value as ProviderTranscriptMessage
+  return (
+    (message.role === 'user' || message.role === 'assistant') &&
+    (typeof message.content === 'string' || Array.isArray(message.content))
+  )
+}
+
+export const toAnthropicMessages = async (
+  history: ChatEvent[],
+  options: AnthropicMessageSerializationOptions = {}
+): Promise<MessageParam[]> => {
   if (!Array.isArray(history)) return []
 
   const messages: MessageParam[] = []
@@ -122,6 +141,13 @@ export const toAnthropicMessages = async (history: ChatEvent[]): Promise<Message
     }
 
     if (event.type === 'assistant.completed') {
+      if (options.includeProviderTranscript && Array.isArray(event.providerTranscript)) {
+        messages.push(
+          ...(event.providerTranscript.filter(isProviderTranscriptMessage) as MessageParam[])
+        )
+        continue
+      }
+
       messages.push({
         role: 'assistant',
         content: event.text

@@ -123,12 +123,19 @@ export type AssistantApiUsage = {
   timestamp: number
 }
 
+export type ProviderTranscriptMessage = {
+  role: 'user' | 'assistant'
+  content: unknown
+}
+
 export type AssistantCompletedEvent = ChatEventBase & {
   type: 'assistant.completed'
   messageId: string
   text: string
   durationMs: number
   apiUsages?: AssistantApiUsage[]
+  reasoningText?: string
+  providerTranscript?: ProviderTranscriptMessage[]
 }
 
 export type SessionTitleUpdatedEvent = ChatEventBase & {

@@ -2,13 +2,21 @@ import { randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import Anthropic from '@anthropic-ai/sdk'
 import type {
+  ContentBlockParam,
   ImageBlockParam,
   MessageParam,
   RawMessageStreamEvent,
+  RedactedThinkingBlockParam,
   TextBlockParam,
+  ThinkingBlockParam,
   ToolResultBlockParam
 } from '@anthropic-ai/sdk/resources/messages'
-import type { ChatCanvasArtifact, ChatEvent, ChatImageAttachment } from '@shared/models'
+import type {
+  ChatCanvasArtifact,
+  ChatEvent,
+  ChatImageAttachment,
+  ProviderTranscriptMessage
+} from '@shared/models'
 import { ChatSessionStore } from '../chat/session-store'
 import {
   findInstalledSkillByFilePath,
@@ -16,7 +24,7 @@ import {
   loadInstalledSkillsFromDir,
   type InstalledSkill
 } from './skills/loadSkillsDir'
-import { getAnthropicApiKey, resolveRuntimeConfig } from './config'
+import { getAnthropicApiKey, isDeepSeekModel, resolveRuntimeConfig } from './config'
 import {
   clampText,
   clampTextPreserveLayout,
@@ -56,6 +64,39 @@ const EMPTY_USAGE: UsageSnapshot = {
   cacheCreationTokens: 0,
   cacheReadTokens: 0
 }
+
+const DEFAULT_MAX_TOKENS = 2048
+const DEEPSEEK_DEFAULT_MAX_TOKENS = 8192
+const DEEPSEEK_REASONING_BUDGET_TOKENS = 1024
+
+const getEffectiveMaxTokens = (requestedMaxTokens: number | undefined, model: string): number => {
+  if (!isDeepSeekModel(model)) {
+    return requestedMaxTokens ?? DEFAULT_MAX_TOKENS
+  }
+
+  return Math.max(requestedMaxTokens ?? DEEPSEEK_DEFAULT_MAX_TOKENS, DEFAULT_MAX_TOKENS)
+}
+
+const getDeepSeekReasoningParams = (model: string): Record<string, unknown> =>
+  isDeepSeekModel(model)
+    ? {
+        thinking: {
+          type: 'enabled',
+          budget_tokens: DEEPSEEK_REASONING_BUDGET_TOKENS
+        },
+        output_config: {
+          effort: 'max'
+        }
+      }
+    : {}
+
+const getNonReasoningParams = (model: string): Record<string, unknown> =>
+  isDeepSeekModel(model) ? { thinking: { type: 'disabled' } } : {}
+
+const toProviderTranscriptMessage = (message: MessageParam): ProviderTranscriptMessage => ({
+  role: message.role,
+  content: message.content
+})
 
 const formatInstalledSkillsSection = (installedSkills: readonly InstalledSkill[]): string => {
   if (installedSkills.length === 0) {
@@ -279,6 +320,7 @@ export class AnthropicChatRuntime implements ChatRuntime {
     const response = await client.messages.create({
       model: config.model,
       max_tokens: 24,
+      ...getNonReasoningParams(config.model),
       system: buildSystemPrompt(this.installedSkills),
       messages: [{ role: 'user', content: 'Reply with exactly "pong".' }]
     })
@@ -341,12 +383,17 @@ export class AnthropicChatRuntime implements ChatRuntime {
       description: tool.description,
       input_schema: tool.inputSchema
     }))
-    const messages: MessageParam[] = await toAnthropicMessages(history)
+    const includeProviderTranscript = isDeepSeekModel(config.model)
+    const messages: MessageParam[] = await toAnthropicMessages(history, {
+      includeProviderTranscript
+    })
+    const providerTranscriptStartIndex = messages.length
 
     const assistantMessageId = `assistant_${randomUUID()}`
     const toolGroupId = `tool_group_${randomUUID()}`
     const startedAt = Date.now()
     let textBuffer = ''
+    let reasoningBuffer = ''
     let toolGroupStarted = false
     const usedSkillIds = new Set<string>()
     const apiUsages: NonNullable<Extract<ChatEvent, { type: 'assistant.completed' }>['apiUsages']> =
@@ -371,12 +418,16 @@ export class AnthropicChatRuntime implements ChatRuntime {
       const toolUses = new Map<number, AnthropicToolUse>()
       const toolInputJson = new Map<number, string>()
       const textByIndex = new Map<number, string>()
+      const thinkingByIndex = new Map<number, string>()
+      const thinkingSignatureByIndex = new Map<number, string>()
+      const redactedThinkingByIndex = new Map<number, string>()
       let usageForRound = EMPTY_USAGE
 
       const stream = await client.messages.create(
         {
           model: config.model,
-          max_tokens: maxTokens ?? 2048,
+          max_tokens: getEffectiveMaxTokens(maxTokens, config.model),
+          ...getDeepSeekReasoningParams(config.model),
           system: this.getSystemPrompt(persistentMemory, sessionMemory, selectedSkills),
           tools: anthropicTools,
           messages,
@@ -407,6 +458,22 @@ export class AnthropicChatRuntime implements ChatRuntime {
           continue
         }
 
+        if (event.type === 'content_block_start' && event.content_block.type === 'thinking') {
+          thinkingByIndex.set(event.index, event.content_block.thinking ?? '')
+          if (event.content_block.signature) {
+            thinkingSignatureByIndex.set(event.index, event.content_block.signature)
+          }
+          continue
+        }
+
+        if (
+          event.type === 'content_block_start' &&
+          event.content_block.type === 'redacted_thinking'
+        ) {
+          redactedThinkingByIndex.set(event.index, event.content_block.data ?? '')
+          continue
+        }
+
         if (event.type === 'content_block_start' && event.content_block.type === 'tool_use') {
           toolUses.set(event.index, {
             id: event.content_block.id,
@@ -430,6 +497,21 @@ export class AnthropicChatRuntime implements ChatRuntime {
               delta
             })
           }
+          continue
+        }
+
+        if (event.type === 'content_block_delta' && event.delta.type === 'thinking_delta') {
+          const delta = event.delta.thinking ?? ''
+          reasoningBuffer += delta
+          thinkingByIndex.set(event.index, `${thinkingByIndex.get(event.index) ?? ''}${delta}`)
+          continue
+        }
+
+        if (event.type === 'content_block_delta' && event.delta.type === 'signature_delta') {
+          thinkingSignatureByIndex.set(
+            event.index,
+            `${thinkingSignatureByIndex.get(event.index) ?? ''}${event.delta.signature ?? ''}`
+          )
           continue
         }
 
@@ -458,15 +540,34 @@ export class AnthropicChatRuntime implements ChatRuntime {
         })
       }
 
-      const assistantContent: Array<
-        | { type: 'text'; text: string }
-        | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }
-      > = []
+      const assistantContent: ContentBlockParam[] = []
       const toolCalls: AnthropicToolUse[] = []
 
-      for (const index of [...new Set([...textByIndex.keys(), ...toolUses.keys()])].sort(
-        (a, b) => a - b
-      )) {
+      for (const index of [
+        ...new Set([
+          ...thinkingByIndex.keys(),
+          ...redactedThinkingByIndex.keys(),
+          ...textByIndex.keys(),
+          ...toolUses.keys()
+        ])
+      ].sort((a, b) => a - b)) {
+        const thinking = thinkingByIndex.get(index)
+        if (typeof thinking === 'string' && thinking) {
+          assistantContent.push({
+            type: 'thinking',
+            thinking,
+            signature: thinkingSignatureByIndex.get(index) ?? ''
+          } satisfies ThinkingBlockParam)
+        }
+
+        const redactedThinking = redactedThinkingByIndex.get(index)
+        if (typeof redactedThinking === 'string' && redactedThinking) {
+          assistantContent.push({
+            type: 'redacted_thinking',
+            data: redactedThinking
+          } satisfies RedactedThinkingBlockParam)
+        }
+
         const text = textByIndex.get(index)
         if (typeof text === 'string' && text) {
           assistantContent.push({ type: 'text', text })
@@ -670,7 +771,15 @@ export class AnthropicChatRuntime implements ChatRuntime {
       messageId: assistantMessageId,
       text: finalText,
       durationMs: Date.now() - startedAt,
-      apiUsages
+      apiUsages,
+      ...(includeProviderTranscript
+        ? {
+            reasoningText: reasoningBuffer.trim() || undefined,
+            providerTranscript: messages
+              .slice(providerTranscriptStartIndex)
+              .map(toProviderTranscriptMessage)
+          }
+        : {})
     })
   }
 
@@ -683,6 +792,7 @@ export class AnthropicChatRuntime implements ChatRuntime {
       const response = await client.messages.create({
         model: config.model,
         max_tokens: 32,
+        ...getNonReasoningParams(config.model),
         system: buildSystemPrompt(this.installedSkills),
         messages: [
           {

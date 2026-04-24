@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import type { ChatEvent } from '@shared/models'
 import { ChatSessionStore } from '../../chat/session-store'
-import { getAnthropicApiKey, resolveRuntimeConfig } from '../config'
+import { getAnthropicApiKey, isDeepSeekModel, resolveRuntimeConfig } from '../config'
 import { clampText, clampTextPreserveLayout } from '../text-utils'
 import type { SessionMemoryCompactor } from './types'
 
@@ -244,6 +244,7 @@ ${transcript}`,
       {
         model: config.model,
         max_tokens: MAX_SUMMARY_TOKENS,
+        ...(isDeepSeekModel(config.model) ? { thinking: { type: 'disabled' as const } } : {}),
         system: SESSION_MEMORY_INSTRUCTIONS,
         messages: [{ role: 'user', content: prompt }]
       },

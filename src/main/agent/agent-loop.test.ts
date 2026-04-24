@@ -815,4 +815,251 @@ describe('AnthropicChatRuntime', () => {
     const request = messagesCreateMock.mock.calls[0]?.[0] as { max_tokens?: number }
     expect(request.max_tokens).toBe(2048)
   })
+
+  it('enables hidden reasoning params and uses larger default max tokens for DeepSeek models', async () => {
+    process.env.ANTHROPIC_API_KEY = 'test-key'
+    process.env.NOTEMARK_MODEL_PROVIDER = 'anthropic'
+    process.env.NOTEMARK_MODEL = 'deepseek-reasoner'
+
+    messagesCreateMock.mockImplementation(async (params: { stream?: boolean }) => {
+      if (!params.stream) {
+        return {
+          content: [{ type: 'text', text: 'pong' }]
+        }
+      }
+
+      return toStream([
+        {
+          type: 'content_block_start',
+          index: 0,
+          content_block: { type: 'text', text: '' }
+        },
+        {
+          type: 'content_block_delta',
+          index: 0,
+          delta: { type: 'text_delta', text: 'ready' }
+        }
+      ])
+    })
+
+    const runtime = new AnthropicChatRuntime({
+      toolsFactory: () => []
+    })
+
+    for await (const _event of runtime.runTurn({
+      sessionId: 's_deepseek_params',
+      userText: 'hi',
+      history: []
+    })) {
+      // exhaust stream
+    }
+
+    const request = messagesCreateMock.mock.calls[0]?.[0] as {
+      max_tokens?: number
+      thinking?: unknown
+      output_config?: unknown
+    }
+    expect(request.max_tokens).toBe(8192)
+    expect(request.thinking).toEqual({
+      type: 'enabled',
+      budget_tokens: 1024
+    })
+    expect(request.output_config).toEqual({
+      effort: 'max'
+    })
+  })
+
+  it('captures DeepSeek thinking blocks without emitting them as visible assistant text', async () => {
+    process.env.ANTHROPIC_API_KEY = 'test-key'
+    process.env.NOTEMARK_MODEL_PROVIDER = 'anthropic'
+    process.env.NOTEMARK_MODEL = 'deepseek-chat'
+
+    messagesCreateMock.mockImplementation(async (params: { stream?: boolean }) => {
+      if (!params.stream) {
+        return {
+          content: [{ type: 'text', text: 'pong' }]
+        }
+      }
+
+      return toStream([
+        {
+          type: 'content_block_start',
+          index: 0,
+          content_block: { type: 'thinking', thinking: '' }
+        },
+        {
+          type: 'content_block_delta',
+          index: 0,
+          delta: { type: 'thinking_delta', thinking: 'private ' }
+        },
+        {
+          type: 'content_block_delta',
+          index: 0,
+          delta: { type: 'thinking_delta', thinking: 'reasoning' }
+        },
+        {
+          type: 'content_block_delta',
+          index: 0,
+          delta: { type: 'signature_delta', signature: 'sig-1' }
+        },
+        {
+          type: 'content_block_start',
+          index: 1,
+          content_block: { type: 'text', text: '' }
+        },
+        {
+          type: 'content_block_delta',
+          index: 1,
+          delta: { type: 'text_delta', text: 'final answer' }
+        }
+      ])
+    })
+
+    const runtime = new AnthropicChatRuntime({
+      toolsFactory: () => []
+    })
+
+    const events: ChatEvent[] = []
+    for await (const event of runtime.runTurn({
+      sessionId: 's_deepseek_reasoning',
+      userText: 'reason',
+      history: []
+    })) {
+      events.push(event)
+    }
+
+    expect(events.filter((event) => event.type === 'assistant.delta')).toHaveLength(1)
+    const completed = events.at(-1) as Extract<ChatEvent, { type: 'assistant.completed' }>
+    expect(completed.text).toBe('final answer')
+    expect(completed.reasoningText).toBe('private reasoning')
+    expect(completed.providerTranscript).toEqual([
+      {
+        role: 'assistant',
+        content: [
+          {
+            type: 'thinking',
+            thinking: 'private reasoning',
+            signature: 'sig-1'
+          },
+          {
+            type: 'text',
+            text: 'final answer'
+          }
+        ]
+      }
+    ])
+  })
+
+  it('keeps DeepSeek thinking blocks in tool-use continuation messages', async () => {
+    process.env.ANTHROPIC_API_KEY = 'test-key'
+    process.env.NOTEMARK_MODEL_PROVIDER = 'anthropic'
+    process.env.NOTEMARK_MODEL = 'deepseek-reasoner'
+
+    let streamRound = 0
+    messagesCreateMock.mockImplementation(async (params: { stream?: boolean }) => {
+      if (!params.stream) {
+        return {
+          content: [{ type: 'text', text: 'pong' }]
+        }
+      }
+
+      streamRound += 1
+      if (streamRound === 1) {
+        return toStream([
+          {
+            type: 'content_block_start',
+            index: 0,
+            content_block: { type: 'thinking', thinking: '' }
+          },
+          {
+            type: 'content_block_delta',
+            index: 0,
+            delta: { type: 'thinking_delta', thinking: 'need tool' }
+          },
+          {
+            type: 'content_block_delta',
+            index: 0,
+            delta: { type: 'signature_delta', signature: 'sig-tool' }
+          },
+          {
+            type: 'content_block_start',
+            index: 1,
+            content_block: {
+              type: 'tool_use',
+              id: 'tool_deepseek_1',
+              name: 'lookup',
+              input: { query: 'x' }
+            }
+          }
+        ])
+      }
+
+      return toStream([
+        {
+          type: 'content_block_start',
+          index: 0,
+          content_block: { type: 'text', text: '' }
+        },
+        {
+          type: 'content_block_delta',
+          index: 0,
+          delta: { type: 'text_delta', text: 'done' }
+        }
+      ])
+    })
+
+    const runtime = new AnthropicChatRuntime({
+      toolsFactory: () => [
+        {
+          name: 'lookup',
+          label: 'Lookup',
+          description: 'Lookup data',
+          inputSchema: { type: 'object' },
+          execute: async () => ({
+            content: [{ type: 'text', text: 'tool output' }],
+            details: { summary: 'tool output' }
+          })
+        }
+      ]
+    })
+
+    for await (const _event of runtime.runTurn({
+      sessionId: 's_deepseek_tool',
+      userText: 'use tool',
+      history: []
+    })) {
+      // exhaust stream
+    }
+
+    const secondCallArgs = messagesCreateMock.mock.calls[1]?.[0] as {
+      messages?: Array<{ role: string; content: unknown }>
+    }
+    expect(secondCallArgs.messages).toMatchObject([
+      {
+        role: 'assistant',
+        content: [
+          {
+            type: 'thinking',
+            thinking: 'need tool',
+            signature: 'sig-tool'
+          },
+          {
+            type: 'tool_use',
+            id: 'tool_deepseek_1',
+            name: 'lookup'
+          }
+        ]
+      },
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'tool_result',
+            tool_use_id: 'tool_deepseek_1',
+            content: 'tool output'
+          }
+        ]
+      }
+    ])
+  })
 })
