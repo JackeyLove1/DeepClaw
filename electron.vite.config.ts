@@ -1,10 +1,14 @@
 import react from '@vitejs/plugin-react'
-import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
+import { defineConfig } from 'electron-vite'
 import { resolve } from 'path'
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()],
+    build: {
+      rollupOptions: {
+        external: ['better-sqlite3']
+      }
+    },
     resolve: {
       alias: {
         '@/lib': resolve('src/main/lib'),
@@ -12,9 +16,7 @@ export default defineConfig({
       }
     }
   },
-  preload: {
-    plugins: [externalizeDepsPlugin()]
-  },
+  preload: {},
   renderer: {
     assetsInclude: 'src/renderer/assets/**',
     resolve: {

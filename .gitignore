@@ -119,3 +119,4 @@ AGENTS.md
 .codex/
 .agents/
 *.yml
+.playwright*
