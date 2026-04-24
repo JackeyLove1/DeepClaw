@@ -118,3 +118,4 @@ CLAUDE.md
 AGENTS.md
 .codex/
 .agents/
+*.yml
