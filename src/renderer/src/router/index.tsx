@@ -4,7 +4,9 @@ import { ChatPage } from '../pages/ChatPage'
 import { ChannelsPage } from '../pages/ChannelsPage'
 import { SettingsPage } from '../pages/SettingsPage'
 import { SkillsPage } from '../pages/SkillsPage'
+import { McpPage } from '../pages/McpPage'
 import { TasksPage } from '../pages/TasksPage'
+import { ToolsPage } from '../pages/ToolsPage'
 
 export const AppRouter = () => {
   return (
@@ -15,6 +17,8 @@ export const AppRouter = () => {
         <Route path="/channels" element={<ChannelsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/skills" element={<SkillsPage />} />
+        <Route path="/tools" element={<ToolsPage />} />
+        <Route path="/mcp" element={<McpPage />} />
         <Route path="*" element={<Navigate to="/chat" replace />} />
       </Route>
     </Routes>

@@ -1,6 +1,6 @@
 # ================================================================
 # Ensure-Dependencies.ps1
-# Silently installs Node.js LTS, Python 3.12, ripgrep, and the
+# Silently installs Node.js LTS, Python 3, ripgrep, and the
 # Python Playwright Chromium environment if they are missing.
 # Exit code: 0 = success, 1 = at least one install/check failed.
 # ================================================================
@@ -18,8 +18,8 @@ $packages = @(
         Commands    = @('node')
     },
     [pscustomobject]@{
-        DisplayName = 'Python 3.12'
-        PackageId   = 'Python.Python.3.12'
+        DisplayName = 'Python 3'
+        PackageId   = 'Python.Python.3'
         Commands    = @('python', 'py')
     },
     [pscustomobject]@{
@@ -108,6 +108,18 @@ function Ensure-PythonPip {
     return $LASTEXITCODE -eq 0
 }
 
+function Test-PythonWithPip {
+    param([string]$PythonCommand)
+
+    & $PythonCommand --version *> $null
+    if ($LASTEXITCODE -ne 0) {
+        return $false
+    }
+
+    & $PythonCommand -m pip --version *> $null
+    return $LASTEXITCODE -eq 0
+}
+
 function Ensure-PlaywrightChromium {
     param([string]$PythonCommand)
 
@@ -149,6 +161,14 @@ $installFailed = $false
 
 foreach ($pkg in $packages) {
     Write-Host "`n[$($pkg.DisplayName)]" -ForegroundColor Cyan
+
+    if ($pkg.DisplayName -eq 'Python 3') {
+        $pythonCommand = Get-PythonCommand
+        if ($pythonCommand -and (Test-PythonWithPip -PythonCommand $pythonCommand)) {
+            Write-Host '  Existing Python and pip found, skipping install.' -ForegroundColor DarkGray
+            continue
+        }
+    }
 
     if (Test-AnyCommand -Names $pkg.Commands) {
         Write-Host '  Already exists, skipping install.' -ForegroundColor DarkGray

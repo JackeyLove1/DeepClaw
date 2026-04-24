@@ -61,6 +61,14 @@
       "esbuild"
     ]
   },
+  "build": {
+    "extraResources": [
+      {
+        "from": "src/main/agent/mcp.json",
+        "to": "mcp.json"
+      }
+    ]
+  },
   "devDependencies": {
     "@electron-toolkit/eslint-config-prettier": "^1.0.1",
     "@electron-toolkit/eslint-config-ts": "^1.0.0",

@@ -1,29 +1,29 @@
 import {
-    AlarmClockCheck,
-    Check,
-    ChevronDown,
-    CircleHelp,
-    Languages,
-    MessageCircleMore,
-    MonitorSmartphone,
-    QrCode,
-    Settings,
-    Sparkles
-} from 'lucide-react';
-import type { ReactNode } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
-import appIcon from '../assets/icon.png';
-import * as DraggableTopBarModule from '../components/DraggableTopBar';
+  AlarmClockCheck,
+  Check,
+  ChevronDown,
+  Languages,
+  MessageCircleMore,
+  Network,
+  QrCode,
+  Settings,
+  Sparkles,
+  Wrench
+} from 'lucide-react'
+import type { ReactNode } from 'react'
+import { NavLink, Outlet } from 'react-router-dom'
+import appIcon from '../assets/icon.png'
+import * as DraggableTopBarModule from '../components/DraggableTopBar'
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger
-} from '../components/ui/dropdown-menu';
-import { useI18n, type LocaleCode } from '../i18n';
-import { useMainPanelTheme } from '../theme';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from '../components/ui/dropdown-menu'
+import { useI18n, type LocaleCode } from '../i18n'
+import { useMainPanelTheme } from '../theme'
 
 const DraggableTopBar = DraggableTopBarModule.DraggableTopBar ?? (() => null)
 
@@ -103,6 +103,16 @@ export const AppShell = () => {
                   to="/skills"
                   icon={<Sparkles className={navIconClassName} />}
                 />
+                <NavRailLink
+                  label={t('nav.tools')}
+                  to="/tools"
+                  icon={<Wrench className={navIconClassName} />}
+                />
+                <NavRailLink
+                  label={t('nav.mcp')}
+                  to="/mcp"
+                  icon={<Network className={navIconClassName} />}
+                />
               </div>
             </div>
 
@@ -140,13 +150,14 @@ export const AppShell = () => {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-              <button type="button" className={utilityButtonClassName} aria-label={t('nav.help')}>
+              {/* <button type="button" className={utilityButtonClassName} aria-label={t('nav.help')}>
                 <CircleHelp className={utilityIconClassName} />
-              </button>
-              <button type="button" className={utilityButtonClassName} aria-label={t('nav.device')}>
-                <MonitorSmartphone className={utilityIconClassName} />
-              </button>
-              <NavLink to="/settings" className={utilityLinkClassName} aria-label={t('nav.settings')}>
+              </button> */}
+              <NavLink
+                to="/settings"
+                className={utilityLinkClassName}
+                aria-label={t('nav.settings')}
+              >
                 <Settings className={utilityIconClassName} />
               </NavLink>
             </div>

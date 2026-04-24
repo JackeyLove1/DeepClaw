@@ -1,58 +1,66 @@
 import type {
-    CancelRun,
-    ClearSessionMessages,
-    CreateCronJob,
-    CreateNote,
-    CreateSession,
-    DeleteNote,
-    DeleteSession,
-    DisconnectWeixinGatewayAccount,
-    GetAppPreferences,
-    GetAiChannelSettings,
-    GetNotes,
-    GetThirdPartyApiKeySettings,
-    GetUsageOverview,
-    GetWeixinGatewayHealth,
-    InstallSkill,
-    ListCronJobs,
-    ListCronRuns,
-    ListInstalledSkills,
-    ListSessions,
-    ListSkillUsageRecords,
-    ListSkills,
-    ListToolCallRecords,
-    ListToolStats,
-    ListUsageRecords,
-    ListWeixinGatewayAccounts,
-    OpenSession,
-    PauseCronJob,
-    PickPromptFilePath,
-    ReadCanvasArtifactHtml,
-    ReadClipboardImage,
-    ReadNote,
-    RemoveCronJob,
-    ResolveChatAttachmentDataUrl,
-    ResumeCronJob,
-    RunCronJob,
-    SaveAiChannelSettings,
-    SaveAppPreferences,
-    SaveThirdPartyApiKeySettings,
-    SearchSessions,
-    SearchSkills,
-    SendMessage,
-    SetActiveAiChannel,
-    StartWeixinQrLogin,
-    SubscribeChatEvents,
-    TestAiChannelConnection,
-    UpdateCronJob,
-    UpdateSessionTitle,
-    WaitWeixinQrLogin,
-    WindowClose,
-    WindowIsMaximized,
-    WindowMinimize,
-    WindowToggleMaximize,
-    WriteNote
-} from '@shared/types';
+  CancelRun,
+  ClearSessionMessages,
+  CreateCronJob,
+  CreateNote,
+  CreateSession,
+  DeleteNote,
+  DeleteSession,
+  DisconnectWeixinGatewayAccount,
+  GetAppPreferences,
+  GetAiChannelSettings,
+  GetNotes,
+  GetThirdPartyApiKeySettings,
+  GetUsageOverview,
+  GetWeixinGatewayHealth,
+  InstallSkill,
+  ListCronJobs,
+  ListCronRuns,
+  ListInstalledSkills,
+  ListMcpConnections,
+  ListSessions,
+  ListSkillUsageRecords,
+  ListSkills,
+  ListToolCallRecords,
+  ListToolInstallTargets,
+  ListToolStats,
+  ListUsageRecords,
+  ListWeixinGatewayAccounts,
+  OpenSession,
+  PauseCronJob,
+  PickPromptFilePath,
+  ReadCanvasArtifactHtml,
+  ReadClipboardImage,
+  ReadNote,
+  RemoveCronJob,
+  RemoveMcpConnection,
+  ResolveChatAttachmentDataUrl,
+  ResumeCronJob,
+  RunCronJob,
+  CancelToolInstall,
+  SaveAiChannelSettings,
+  SaveAppPreferences,
+  SaveMcpConnection,
+  SaveThirdPartyApiKeySettings,
+  SearchSessions,
+  SearchSkills,
+  SendMessage,
+  SetActiveAiChannel,
+  StartToolInstall,
+  StartWeixinQrLogin,
+  SubscribeChatEvents,
+  SubscribeToolInstallEvents,
+  TestAiChannelConnection,
+  TestMcpConnections,
+  UpdateCronJob,
+  UpdateSessionTitle,
+  WaitWeixinQrLogin,
+  WindowClose,
+  WindowIsMaximized,
+  WindowMinimize,
+  WindowToggleMaximize,
+  WriteNote
+} from '@shared/types'
 
 declare global {
   interface Window {
@@ -111,8 +119,16 @@ declare global {
       resumeCronJob: ResumeCronJob
       removeCronJob: RemoveCronJob
       runCronJob: RunCronJob
+      listToolInstallTargets: ListToolInstallTargets
+      startToolInstall: StartToolInstall
+      cancelToolInstall: CancelToolInstall
+      listMcpConnections: ListMcpConnections
+      saveMcpConnection: SaveMcpConnection
+      removeMcpConnection: RemoveMcpConnection
+      testMcpConnections: TestMcpConnections
+      subscribeToolInstallEvents: SubscribeToolInstallEvents
     }
   }
 }
 
-export {};
+export {}

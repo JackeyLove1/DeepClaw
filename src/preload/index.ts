@@ -1,61 +1,70 @@
-import type { ChatEvent } from '@shared/models';
+import type { ChatEvent } from '@shared/models'
 import type {
-    CancelRun,
-    ClearSessionMessages,
-    CreateCronJob,
-    CreateNote,
-    CreateSession,
-    DeleteNote,
-    DeleteSession,
-    DisconnectWeixinGatewayAccount,
-    GetAppPreferences,
-    GetAiChannelSettings,
-    GetNotes,
-    GetThirdPartyApiKeySettings,
-    GetUsageOverview,
-    GetWeixinGatewayHealth,
-    InstallSkill,
-    ListCronJobs,
-    ListCronRuns,
-    ListInstalledSkills,
-    ListSessions,
-    ListSkills,
-    ListSkillUsageRecords,
-    ListToolCallRecords,
-    ListToolStats,
-    ListUsageRecords,
-    ListWeixinGatewayAccounts,
-    OpenSession,
-    PauseCronJob,
-    PickPromptFilePath,
-    ReadCanvasArtifactHtml,
-    ReadClipboardImage,
-    ReadNote,
-    RemoveCronJob,
-    ResolveChatAttachmentDataUrl,
-    ResumeCronJob,
-    RunCronJob,
-    SaveAiChannelSettings,
-    SaveAppPreferences,
-    SaveThirdPartyApiKeySettings,
-    SearchSessions,
-    SearchSkills,
-    SendMessage,
-    SetActiveAiChannel,
-    StartWeixinQrLogin,
-    SubscribeChatEvents,
-    TestAiChannelConnection,
-    Unsubscribe,
-    UpdateCronJob,
-    UpdateSessionTitle,
-    WaitWeixinQrLogin,
-    WindowClose,
-    WindowIsMaximized,
-    WindowMinimize,
-    WindowToggleMaximize,
-    WriteNote
-} from '@shared/types';
-import { contextBridge, ipcRenderer } from 'electron';
+  CancelRun,
+  ClearSessionMessages,
+  CreateCronJob,
+  CreateNote,
+  CreateSession,
+  DeleteNote,
+  DeleteSession,
+  DisconnectWeixinGatewayAccount,
+  GetAppPreferences,
+  GetAiChannelSettings,
+  GetNotes,
+  GetThirdPartyApiKeySettings,
+  GetUsageOverview,
+  GetWeixinGatewayHealth,
+  InstallSkill,
+  ListCronJobs,
+  ListCronRuns,
+  ListInstalledSkills,
+  ListMcpConnections,
+  ListSessions,
+  ListSkills,
+  ListSkillUsageRecords,
+  ListToolCallRecords,
+  ToolInstallEvent,
+  ListToolInstallTargets,
+  ListToolStats,
+  ListUsageRecords,
+  ListWeixinGatewayAccounts,
+  OpenSession,
+  PauseCronJob,
+  PickPromptFilePath,
+  ReadCanvasArtifactHtml,
+  ReadClipboardImage,
+  ReadNote,
+  RemoveCronJob,
+  RemoveMcpConnection,
+  ResolveChatAttachmentDataUrl,
+  ResumeCronJob,
+  RunCronJob,
+  SaveAiChannelSettings,
+  SaveAppPreferences,
+  SaveMcpConnection,
+  SaveThirdPartyApiKeySettings,
+  SearchSessions,
+  SearchSkills,
+  SendMessage,
+  SetActiveAiChannel,
+  StartToolInstall,
+  StartWeixinQrLogin,
+  SubscribeChatEvents,
+  SubscribeToolInstallEvents,
+  TestAiChannelConnection,
+  TestMcpConnections,
+  CancelToolInstall,
+  Unsubscribe,
+  UpdateCronJob,
+  UpdateSessionTitle,
+  WaitWeixinQrLogin,
+  WindowClose,
+  WindowIsMaximized,
+  WindowMinimize,
+  WindowToggleMaximize,
+  WriteNote
+} from '@shared/types'
+import { contextBridge, ipcRenderer } from 'electron'
 
 if (!process.contextIsolated) {
   throw new Error('contextIsolation must be enabled in the BrowserWindow')
@@ -96,6 +105,18 @@ const subscribeChatEvents: SubscribeChatEvents = (sessionId, listener) => {
 
   return () => {
     ipcRenderer.removeListener('chat:event', wrapped)
+  }
+}
+
+const subscribeToolInstallEvents: SubscribeToolInstallEvents = (listener) => {
+  const wrapped = (_event: Electron.IpcRendererEvent, payload: ToolInstallEvent): void => {
+    listener(payload)
+  }
+
+  ipcRenderer.on('tools:installEvent', wrapped)
+
+  return () => {
+    ipcRenderer.removeListener('tools:installEvent', wrapped)
   }
 }
 
@@ -219,7 +240,22 @@ try {
     removeCronJob: (...args: Parameters<RemoveCronJob>) =>
       invoke<Awaited<ReturnType<RemoveCronJob>>>('cron:removeJob', ...args),
     runCronJob: (...args: Parameters<RunCronJob>) =>
-      invoke<Awaited<ReturnType<RunCronJob>>>('cron:runJob', ...args)
+      invoke<Awaited<ReturnType<RunCronJob>>>('cron:runJob', ...args),
+    listToolInstallTargets: (...args: Parameters<ListToolInstallTargets>) =>
+      invoke<Awaited<ReturnType<ListToolInstallTargets>>>('tools:listInstallTargets', ...args),
+    startToolInstall: (...args: Parameters<StartToolInstall>) =>
+      invoke<Awaited<ReturnType<StartToolInstall>>>('tools:startInstall', ...args),
+    cancelToolInstall: (...args: Parameters<CancelToolInstall>) =>
+      invoke<Awaited<ReturnType<CancelToolInstall>>>('tools:cancelInstall', ...args),
+    listMcpConnections: (...args: Parameters<ListMcpConnections>) =>
+      invoke<Awaited<ReturnType<ListMcpConnections>>>('mcp:listConnections', ...args),
+    saveMcpConnection: (...args: Parameters<SaveMcpConnection>) =>
+      invoke<Awaited<ReturnType<SaveMcpConnection>>>('mcp:saveConnection', ...args),
+    removeMcpConnection: (...args: Parameters<RemoveMcpConnection>) =>
+      invoke<Awaited<ReturnType<RemoveMcpConnection>>>('mcp:removeConnection', ...args),
+    testMcpConnections: (...args: Parameters<TestMcpConnections>) =>
+      invoke<Awaited<ReturnType<TestMcpConnections>>>('mcp:testConnections', ...args),
+    subscribeToolInstallEvents
   })
 } catch (error) {
   console.error(error)

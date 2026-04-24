@@ -1,12 +1,12 @@
 import type {
-    ChatCanvasArtifact,
-    ChatEvent,
-    ChatImageAttachment,
-    NoteContent,
-    NoteInfo,
-    SessionMeta,
-    SessionSnapshot
-} from './models';
+  ChatCanvasArtifact,
+  ChatEvent,
+  ChatImageAttachment,
+  NoteContent,
+  NoteInfo,
+  SessionMeta,
+  SessionSnapshot
+} from './models'
 
 export type GetNotes = () => Promise<NoteInfo[]>
 export type ReadNote = (title: NoteInfo['title']) => Promise<NoteContent>
@@ -51,6 +51,113 @@ export type ReadCanvasArtifactHtml = (
   artifact: Pick<ChatCanvasArtifact, 'filePath'>
 ) => Promise<string>
 export type CancelRun = (sessionId: string) => Promise<void>
+
+export type ToolInstallTargetId =
+  | 'nodejs-lts'
+  | 'python'
+  | 'playwright-browsers'
+  | 'ripgrep'
+  | 'git'
+  | 'pnpm'
+
+export type ToolInstallStatus = 'installed' | 'missing' | 'running' | 'failed' | 'unknown'
+
+export interface ToolInstallTarget {
+  id: ToolInstallTargetId
+  name: string
+  description: string
+  platforms: Array<'win32' | 'darwin'>
+  status: ToolInstallStatus
+  version: string | null
+  lastCheckedAt: number
+  lastRunId: string | null
+  lastError: string | null
+}
+
+export type ToolInstallEvent =
+  | {
+      type: 'start'
+      runId: string
+      targetId: ToolInstallTargetId
+      targetName: string
+      timestamp: number
+    }
+  | {
+      type: 'log'
+      runId: string
+      targetId: ToolInstallTargetId
+      message: string
+      timestamp: number
+    }
+  | {
+      type: 'tool'
+      runId: string
+      targetId: ToolInstallTargetId
+      toolName: string
+      summary: string
+      isError: boolean
+      timestamp: number
+    }
+  | {
+      type: 'finish'
+      runId: string
+      targetId: ToolInstallTargetId
+      status: Exclude<ToolInstallStatus, 'running'>
+      message: string
+      timestamp: number
+    }
+  | {
+      type: 'error'
+      runId: string
+      targetId: ToolInstallTargetId
+      message: string
+      timestamp: number
+    }
+
+export type ToolInstallListener = (event: ToolInstallEvent) => void
+export type ListToolInstallTargets = () => Promise<ToolInstallTarget[]>
+export type StartToolInstall = (targetId: ToolInstallTargetId) => Promise<{ runId: string }>
+export type CancelToolInstall = (runId: string) => Promise<void>
+export type SubscribeToolInstallEvents = (listener: ToolInstallListener) => Unsubscribe
+
+export interface McpServerConfig {
+  command: string
+  args?: string[]
+  env?: Record<string, string>
+  cwd?: string
+  disabled?: boolean
+}
+
+export interface McpConnection {
+  name: string
+  config: McpServerConfig
+}
+
+export interface McpConnectionSettings {
+  filePath: string
+  servers: McpConnection[]
+}
+
+export interface SaveMcpConnectionInput {
+  originalName?: string | null
+  name: string
+  config: McpServerConfig
+}
+
+export interface McpConnectionStatus {
+  name: string
+  status: 'ok' | 'disabled' | 'error' | 'checking'
+  latencyMs: number | null
+  toolCount: number
+  tools: string[]
+  error: string | null
+  checkedAt: number | null
+}
+
+export type ListMcpConnections = () => Promise<McpConnectionSettings>
+export type SaveMcpConnection = (input: SaveMcpConnectionInput) => Promise<McpConnectionSettings>
+export type RemoveMcpConnection = (name: string) => Promise<McpConnectionSettings>
+export type TestMcpConnections = () => Promise<McpConnectionStatus[]>
 
 export type CronScheduleKind = 'delay' | 'interval' | 'cron' | 'datetime'
 export type CronJobState = 'scheduled' | 'paused' | 'running' | 'completed'
@@ -299,9 +406,7 @@ export type SaveThirdPartyApiKeySettings = (
   settings: ThirdPartyApiKeySettings
 ) => Promise<ThirdPartyApiKeySettings>
 export type GetAppPreferences = () => Promise<AppPreferences>
-export type SaveAppPreferences = (
-  preferences: Partial<AppPreferences>
-) => Promise<AppPreferences>
+export type SaveAppPreferences = (preferences: Partial<AppPreferences>) => Promise<AppPreferences>
 export type ListWeixinGatewayAccounts = () => Promise<WeixinGatewayAccount[]>
 export type StartWeixinQrLogin = (input?: {
   accountId?: string
@@ -357,7 +462,13 @@ export type SearchSkills = (
 export type InstallSkill = (
   slug: string,
   options?: InstallSkillOptions
-) => Promise<{ success: boolean; slug: string; targetDir: string; version?: string; error?: string }>
+) => Promise<{
+  success: boolean
+  slug: string
+  targetDir: string
+  version?: string
+  error?: string
+}>
 export interface SkillHubCnSkill {
   category: string
   created_at: number

@@ -146,7 +146,7 @@ if ! command_exists_any brew; then
 fi
 
 declare -a PACKAGES=(
-    "Python 3|python@3.12|python3 python py"
+    "Python 3|python|python3 python py"
     "ripgrep|ripgrep|rg"
 )
 

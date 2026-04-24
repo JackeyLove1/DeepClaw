@@ -1,90 +1,103 @@
-import { electronApp, is, optimizer } from '@electron-toolkit/utils';
+import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import type {
-    ClipboardImagePayload,
-    CreateCronJob,
-    CreateNote,
-    DeleteNote,
-    DisconnectWeixinGatewayAccount,
-    GetAppPreferences,
-    GetAiChannelSettings,
-    GetNotes,
-    GetThirdPartyApiKeySettings,
-    GetUsageOverview,
-    GetWeixinGatewayHealth,
-    ListCronJobs,
-    ListCronRuns,
-    ListInstalledSkills,
-    ListSkillUsageRecords,
-    ListToolCallRecords,
-    ListToolStats,
-    ListUsageRecords,
-    ListWeixinGatewayAccounts,
-    PauseCronJob,
-    PickPromptFilePath,
-    ReadCanvasArtifactHtml,
-    ReadNote,
-    RemoveCronJob,
-    ResumeCronJob,
-    RunCronJob,
-    SaveAiChannelSettings,
-    SaveAppPreferences,
-    SaveThirdPartyApiKeySettings,
-    SendMessage,
-    SetActiveAiChannel,
-    StartWeixinQrLogin,
-    TestAiChannelConnection,
-    UpdateCronJob,
-    WaitWeixinQrLogin,
-    WriteNote
-} from '@shared/types';
-import { BrowserWindow, app, clipboard, dialog, ipcMain, powerMonitor, shell } from 'electron';
-import { readFile } from 'node:fs/promises';
-import { join, relative, resolve } from 'node:path';
-import icon from '../../resources/icon.png?asset';
-import { CronScheduler, CronService, setCronService } from './agent/cron';
+  ClipboardImagePayload,
+  CreateCronJob,
+  CreateNote,
+  DeleteNote,
+  DisconnectWeixinGatewayAccount,
+  GetAppPreferences,
+  GetAiChannelSettings,
+  GetNotes,
+  GetThirdPartyApiKeySettings,
+  GetUsageOverview,
+  GetWeixinGatewayHealth,
+  ListCronJobs,
+  ListCronRuns,
+  ListInstalledSkills,
+  ListMcpConnections,
+  ListSkillUsageRecords,
+  ListToolCallRecords,
+  ListToolInstallTargets,
+  ListToolStats,
+  ListUsageRecords,
+  ListWeixinGatewayAccounts,
+  PauseCronJob,
+  PickPromptFilePath,
+  ReadCanvasArtifactHtml,
+  ReadNote,
+  RemoveCronJob,
+  RemoveMcpConnection,
+  ResumeCronJob,
+  RunCronJob,
+  SaveAiChannelSettings,
+  SaveAppPreferences,
+  SaveMcpConnection,
+  SaveThirdPartyApiKeySettings,
+  SendMessage,
+  SetActiveAiChannel,
+  StartToolInstall,
+  StartWeixinQrLogin,
+  TestMcpConnections,
+  TestAiChannelConnection,
+  CancelToolInstall,
+  UpdateCronJob,
+  WaitWeixinQrLogin,
+  WriteNote
+} from '@shared/types'
+import { BrowserWindow, app, clipboard, dialog, ipcMain, powerMonitor, shell } from 'electron'
+import { readFile } from 'node:fs/promises'
+import { join, relative, resolve } from 'node:path'
+import icon from '../../resources/icon.png?asset'
+import { CronScheduler, CronService, setCronService } from './agent/cron'
 import {
-    WeixinChannelAdapter,
-    createAgentGatewayOrchestrator,
-    type AgentGatewayOrchestrator
-} from './agent/gateway';
+  WeixinChannelAdapter,
+  createAgentGatewayOrchestrator,
+  type AgentGatewayOrchestrator
+} from './agent/gateway'
 import {
-    seedBundledMcpConfig,
-} from './agent/mcp/index';
+  listMcpConnections,
+  removeMcpConnection,
+  saveMcpConnection,
+  seedBundledMcpConfig,
+  testMcpConnections
+} from './agent/mcp/index'
 import {
-    loadInstalledSkillsFromDir,
-    seedBundledSkillsIntoUserDir
-} from './agent/skills/loadSkillsDir';
-import { readCanvasArtifactHtml } from './chat/canvas-artifacts';
-import { ChatSupervisor } from './chat/supervisor';
-import { createNote, deleteNote, getNotes, readNote, writeNote } from './lib';
+  loadInstalledSkillsFromDir,
+  seedBundledSkillsIntoUserDir
+} from './agent/skills/loadSkillsDir'
+import { readCanvasArtifactHtml } from './chat/canvas-artifacts'
+import { ChatSupervisor } from './chat/supervisor'
+import { createNote, deleteNote, getNotes, readNote, writeNote } from './lib'
 import {
-    getAiChannelSettings,
-    hydrateAiChannelSettings,
-    saveAiChannelSettings,
-    setActiveAiChannel,
-    testAiChannelConnection
-} from './lib/ai-channel-settings';
-import { getAppPreferences, saveAppPreferences } from './lib/app-preferences';
-import { initDatabase } from './lib/database';
-import { runPreInstallScript } from './lib/script-runner';
+  getAiChannelSettings,
+  hydrateAiChannelSettings,
+  saveAiChannelSettings,
+  setActiveAiChannel,
+  testAiChannelConnection
+} from './lib/ai-channel-settings'
+import { getAppPreferences, saveAppPreferences } from './lib/app-preferences'
+import { initDatabase } from './lib/database'
+import { runPreInstallScript } from './lib/script-runner'
 import {
-    getThirdPartyApiKeySettings,
-    hydrateThirdPartyApiKeySettings,
-    saveThirdPartyApiKeySettings
-} from './lib/third-party-api-settings';
+  getThirdPartyApiKeySettings,
+  hydrateThirdPartyApiKeySettings,
+  saveThirdPartyApiKeySettings
+} from './lib/third-party-api-settings'
+import { ToolInstallerService } from './lib/tool-installer'
 import {
-    listWeixinGatewayAccounts,
-    removeWeixinGatewayAccount,
-    startWeixinQrLogin,
-    upsertWeixinGatewayAccount,
-    waitWeixinQrLogin
-} from './lib/weixin-channel-settings';
+  listWeixinGatewayAccounts,
+  removeWeixinGatewayAccount,
+  startWeixinQrLogin,
+  upsertWeixinGatewayAccount,
+  waitWeixinQrLogin
+} from './lib/weixin-channel-settings'
 
 let mainWindow: BrowserWindow | null = null
 let chatSupervisor: ChatSupervisor | null = null
 let cronService: CronService | null = null
 let cronScheduler: CronScheduler | null = null
 let agentGateway: AgentGatewayOrchestrator | null = null
+let toolInstallerService: ToolInstallerService | null = null
 
 const toErrorText = (error: unknown): string => {
   if (error instanceof Error) {
@@ -376,9 +389,7 @@ function registerChatIpc(): void {
       const locale = await getMainLocale()
       const result = await dialog.showOpenDialog(mainWindow, {
         title:
-          locale === 'en-US'
-            ? 'Choose a file to attach to the prompt'
-            : '选择要附加到提示词的文件',
+          locale === 'en-US' ? 'Choose a file to attach to the prompt' : '选择要附加到提示词的文件',
         properties: ['openFile']
       })
 
@@ -439,7 +450,12 @@ function registerChatIpc(): void {
   )
   ipcMain.handle(
     'chat:listSkills',
-    async (_event, page?: number, pageSize?: number, options?: { category?: string; keyword?: string; sortBy?: string; order?: string }) => {
+    async (
+      _event,
+      page?: number,
+      pageSize?: number,
+      options?: { category?: string; keyword?: string; sortBy?: string; order?: string }
+    ) => {
       const { listSkills } = await import('./agent/utils/skillhub')
       return listSkills(page, pageSize, options)
     }
@@ -466,8 +482,7 @@ function registerSettingsIpc(): void {
   )
   ipcMain.handle(
     'settings:saveThirdPartyApiKeys',
-    (_, ...args: Parameters<SaveThirdPartyApiKeySettings>) =>
-      saveThirdPartyApiKeySettings(...args)
+    (_, ...args: Parameters<SaveThirdPartyApiKeySettings>) => saveThirdPartyApiKeySettings(...args)
   )
   ipcMain.handle('settings:getAppPreferences', (_, ...args: Parameters<GetAppPreferences>) =>
     getAppPreferences(...args)
@@ -511,8 +526,9 @@ function registerSettingsIpc(): void {
 }
 
 function registerWeixinChannelIpc(): void {
-  ipcMain.handle('weixin:listAccounts', async (_, ..._args: Parameters<ListWeixinGatewayAccounts>) =>
-    listWeixinGatewayAccounts()
+  ipcMain.handle(
+    'weixin:listAccounts',
+    async (_, ..._args: Parameters<ListWeixinGatewayAccounts>) => listWeixinGatewayAccounts()
   )
   ipcMain.handle('weixin:qrStart', async (_, ...args: Parameters<StartWeixinQrLogin>) =>
     startWeixinQrLogin(args[0])
@@ -612,6 +628,37 @@ function registerCronIpc(): void {
   })
   ipcMain.handle('cron:runJob', (_, ...args: Parameters<RunCronJob>) =>
     cronService?.runJob(...args)
+  )
+}
+
+function registerToolInstallerIpc(): void {
+  if (!toolInstallerService) {
+    throw new Error('Tool installer service is not initialized.')
+  }
+
+  ipcMain.handle('tools:listInstallTargets', (_, ..._args: Parameters<ListToolInstallTargets>) =>
+    toolInstallerService?.listTargets()
+  )
+  ipcMain.handle('tools:startInstall', (_, ...args: Parameters<StartToolInstall>) =>
+    toolInstallerService?.startInstall(...args)
+  )
+  ipcMain.handle('tools:cancelInstall', async (_, ...args: Parameters<CancelToolInstall>) => {
+    await toolInstallerService?.cancelInstall(...args)
+  })
+}
+
+function registerMcpIpc(): void {
+  ipcMain.handle('mcp:listConnections', (_, ..._args: Parameters<ListMcpConnections>) =>
+    listMcpConnections()
+  )
+  ipcMain.handle('mcp:saveConnection', (_, ...args: Parameters<SaveMcpConnection>) =>
+    saveMcpConnection(...args)
+  )
+  ipcMain.handle('mcp:removeConnection', (_, ...args: Parameters<RemoveMcpConnection>) =>
+    removeMcpConnection(...args)
+  )
+  ipcMain.handle('mcp:testConnections', (_, ..._args: Parameters<TestMcpConnections>) =>
+    testMcpConnections()
   )
 }
 
@@ -733,6 +780,15 @@ app.whenReady().then(async () => {
     registerSettingsIpc()
     registerWeixinChannelIpc()
     registerCronIpc()
+    registerMcpIpc()
+    toolInstallerService = new ToolInstallerService((event) => {
+      for (const window of BrowserWindow.getAllWindows()) {
+        if (!window.isDestroyed()) {
+          window.webContents.send('tools:installEvent', event)
+        }
+      }
+    })
+    registerToolInstallerIpc()
 
     if (mainWindow && !mainWindow.isDestroyed()) {
       runPreInstallScript(mainWindow)
