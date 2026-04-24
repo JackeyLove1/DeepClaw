@@ -31,7 +31,7 @@ const normalizeAllowedTools = (allowedTools?: string[]): string[] => {
  * between SubAgentTool and tools/index.ts (which registers SubAgentTool).
  */
 const resolveChildTools = async (allowedTools?: string[]): Promise<ResolvedChildTools> => {
-  const { createReadOnlyTools, createTools } = await import('../index')
+  const { createReadOnlyTools, createToolsAsync } = await import('../index')
   const normalizedAllowedTools = normalizeAllowedTools(allowedTools)
 
   if (normalizedAllowedTools.length === 0) {
@@ -43,7 +43,7 @@ const resolveChildTools = async (allowedTools?: string[]): Promise<ResolvedChild
     }
   }
 
-  const allTools = createTools()
+  const allTools = await createToolsAsync()
   const allToolNames = new Set(allTools.map((tool) => tool.name))
   const blockedToolNames = normalizedAllowedTools.filter((name) => name === SUB_AGENT_TOOL_NAME)
   const allowedToolSet = new Set(

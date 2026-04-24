@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@latest",
+        "--caps=network,storage,testing,vision,pdf,devtools"
+      ]
+    }
+  }
+}

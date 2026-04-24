@@ -35,6 +35,10 @@ export function resolveEnvFilePath(): string {
   return resolveDeepClawPath('.env')
 }
 
+export function resolveMcpConfigPath(): string {
+  return resolveDeepClawPath('mcp.json')
+}
+
 export function resolveAiChannelsFilePath(): string {
   return resolveDeepClawPath('ai-channels.json')
 }

@@ -8,6 +8,7 @@ export {
   resolveEnvFilePath,
   resolveLogsDir,
   resolveMemoriesDir,
+  resolveMcpConfigPath,
   resolveSkillsDir,
   resolveThirdPartyApiKeysFilePath,
   resolveTmpDir

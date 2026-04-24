@@ -48,6 +48,9 @@ import {
     type AgentGatewayOrchestrator
 } from './agent/gateway';
 import {
+    seedBundledMcpConfig,
+} from './agent/mcp/index';
+import {
     loadInstalledSkillsFromDir,
     seedBundledSkillsIntoUserDir
 } from './agent/skills/loadSkillsDir';
@@ -634,6 +637,15 @@ app.whenReady().then(async () => {
       )
     } else {
       console.warn('[skills] bundled default skills directory was not found; skipping skill seed')
+    }
+    const mcpSeedResult = seedBundledMcpConfig()
+    if (mcpSeedResult.sourcePath) {
+      console.info(
+        `[mcp] bundled config ${mcpSeedResult.copied ? 'seeded' : 'available'} from ${mcpSeedResult.sourcePath} ` +
+          `to ${mcpSeedResult.userPath}`
+      )
+    } else {
+      console.warn('[mcp] bundled default MCP config was not found; skipping MCP seed')
     }
     void hydrateAiChannelSettings().catch((error: unknown) => {
       console.error('Failed to hydrate active AI channel settings', error)

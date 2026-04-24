@@ -59,6 +59,68 @@ afterEach(() => {
 })
 
 describe('AnthropicChatRuntime', () => {
+  it('awaits async tool discovery before invoking Anthropic', async () => {
+    process.env.ANTHROPIC_API_KEY = 'test-key'
+    process.env.NOTEMARK_MODEL_PROVIDER = 'anthropic'
+    process.env.NOTEMARK_MODEL = 'claude-sonnet-4-5'
+
+    messagesCreateMock.mockImplementation(async (params: { stream?: boolean; tools?: unknown[] }) => {
+      if (!params.stream) {
+        return {
+          content: [{ type: 'text', text: 'pong' }]
+        }
+      }
+
+      expect(params.tools).toMatchObject([
+        expect.objectContaining({
+          name: 'async_tool'
+        })
+      ])
+
+      return toStream([
+        {
+          type: 'content_block_start',
+          index: 0,
+          content_block: { type: 'text', text: '' }
+        },
+        {
+          type: 'content_block_delta',
+          index: 0,
+          delta: { type: 'text_delta', text: 'ready' }
+        }
+      ])
+    })
+
+    const runtime = new AnthropicChatRuntime({
+      toolsFactory: async () => [
+        {
+          name: 'async_tool',
+          label: 'Async Tool',
+          description: 'Loaded asynchronously',
+          inputSchema: { type: 'object' },
+          execute: async () => ({
+            content: [{ type: 'text', text: 'ok' }],
+            details: { summary: 'ok' }
+          })
+        }
+      ]
+    })
+
+    const events: ChatEvent[] = []
+    for await (const event of runtime.runTurn({
+      sessionId: 's_async_tools',
+      userText: 'hi',
+      history: []
+    })) {
+      events.push(event)
+    }
+
+    expect(events.at(-1)).toMatchObject({
+      type: 'assistant.completed',
+      text: 'ready'
+    })
+  })
+
   it('maps streaming tool-use rounds to chat events', async () => {
     process.env.ANTHROPIC_API_KEY = 'test-key'
     process.env.NOTEMARK_MODEL_PROVIDER = 'anthropic'

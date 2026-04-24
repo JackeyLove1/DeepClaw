@@ -26,7 +26,7 @@ import {
   toAnthropicMessages
 } from './text-utils'
 import { executeToolWithFaultTolerance } from './tools/fault-tolerance'
-import { createTools, notifyOtherToolCall, type Tool } from './tools'
+import { createToolsAsync, notifyOtherToolCall, type Tool } from './tools'
 import type { ToolExecuteResult } from './tools'
 import type { ChatRuntime, ConnectionTestResult, GenerateTitleArgs, RunTurnArgs } from './types'
 
@@ -47,7 +47,7 @@ type UsageSnapshot = {
 type AnthropicChatRuntimeOptions = {
   usageStore?: ChatSessionStore
   installedSkills?: InstalledSkill[]
-  toolsFactory?: () => Tool[]
+  toolsFactory?: () => Tool[] | Promise<Tool[]>
 }
 
 const EMPTY_USAGE: UsageSnapshot = {
@@ -238,12 +238,12 @@ export class AnthropicChatRuntime implements ChatRuntime {
 
   private readonly installedSkills: InstalledSkill[]
 
-  private readonly toolsFactory: () => Tool[]
+  private readonly toolsFactory: () => Tool[] | Promise<Tool[]>
 
   constructor(options: AnthropicChatRuntimeOptions = {}) {
     this.usageStore = options.usageStore ?? new ChatSessionStore()
     this.installedSkills = options.installedSkills ?? loadInstalledSkillsFromDir()
-    this.toolsFactory = options.toolsFactory ?? (() => createTools())
+    this.toolsFactory = options.toolsFactory ?? (() => createToolsAsync())
   }
 
   private createClient(): Anthropic {
@@ -334,7 +334,7 @@ export class AnthropicChatRuntime implements ChatRuntime {
 
     const client = this.createClient()
     const config = resolveRuntimeConfig()
-    const runtimeTools = this.toolsFactory()
+    const runtimeTools = await this.toolsFactory()
     const toolsByName = new Map(runtimeTools.map((tool) => [tool.name, tool]))
     const anthropicTools = runtimeTools.map((tool) => ({
       name: tool.name,

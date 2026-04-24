@@ -1,5 +1,6 @@
 import { createBashTool, type BashToolOptions } from './BashTool'
 import { ChatSessionStore } from '../../chat/session-store'
+import { createMcpTools } from '../mcp/index'
 import { resolvePlatformShellKind } from '../utils'
 import { createCanvasTool } from './CanvasTool'
 import { createCronTool } from './CronTool'
@@ -63,6 +64,13 @@ export function createReadOnlyTools(
   return sortToolsByUsagePriority(withPersistence)
 }
 
+const instantiateBaseTools = (options: CreateToolsOptions = {}): Tool[] => [
+  ...toolFactories.map((factory) => factory()),
+  ...(hasTavilyApiKey() ? [createWebTool()] : []),
+  ...(options.includeCronTool === false ? [] : [createCronTool()]),
+  createPlatformShellTool(options.platform, options.shellTool)
+]
+
 const toolFactories: ToolFactory[] = [
   createGetTimeTool,
   createMemoryTool,
@@ -112,13 +120,21 @@ export function createPlatformShellTool(
  */
 export function createTools(options: CreateToolsOptions = {}): Tool[] {
   const config = options.budgetConfig ?? DEFAULT_BUDGET
-  const baseTools = [
-    ...toolFactories.map((factory) => factory()),
-    ...(hasTavilyApiKey() ? [createWebTool()] : []),
-    ...(options.includeCronTool === false ? [] : [createCronTool()]),
-    createPlatformShellTool(options.platform, options.shellTool)
-  ]
+  const baseTools = instantiateBaseTools(options)
   const withPersistence = baseTools.map((tool) => withResultPersistence(tool, config))
+  return sortToolsByUsagePriority(withPersistence)
+}
+
+export async function createToolsAsync(options: CreateToolsOptions = {}): Promise<Tool[]> {
+  const config = options.budgetConfig ?? DEFAULT_BUDGET
+  const baseTools = instantiateBaseTools(options)
+  const mcpTools = await createMcpTools().catch((error) => {
+    console.warn('[mcp] failed to create MCP tools:', error)
+    return [] as Tool[]
+  })
+  const withPersistence = [...baseTools, ...mcpTools].map((tool) =>
+    withResultPersistence(tool, config)
+  )
   return sortToolsByUsagePriority(withPersistence)
 }
 

@@ -5,7 +5,7 @@ import type { Tool } from '../types'
 const runTurnMock = vi.hoisted(() => vi.fn())
 const runtimeCtorMock = vi.hoisted(() => vi.fn())
 const createReadOnlyToolsMock = vi.hoisted(() => vi.fn())
-const createToolsMock = vi.hoisted(() => vi.fn())
+const createToolsAsyncMock = vi.hoisted(() => vi.fn())
 
 vi.mock('../../agent-loop', () => ({
   AnthropicChatRuntime: class AnthropicChatRuntimeMock {
@@ -21,7 +21,7 @@ vi.mock('../../agent-loop', () => ({
 
 vi.mock('../index', () => ({
   createReadOnlyTools: createReadOnlyToolsMock,
-  createTools: createToolsMock
+  createToolsAsync: createToolsAsyncMock
 }))
 
 import { createSubAgentTool } from './index'
@@ -50,10 +50,10 @@ describe('SubAgentTool', () => {
     runTurnMock.mockReset()
     runtimeCtorMock.mockReset()
     createReadOnlyToolsMock.mockReset()
-    createToolsMock.mockReset()
+    createToolsAsyncMock.mockReset()
 
     createReadOnlyToolsMock.mockReturnValue([createToolStub('get_time')])
-    createToolsMock.mockReturnValue([
+    createToolsAsyncMock.mockResolvedValue([
       createToolStub('get_time'),
       createToolStub('grep'),
       createToolStub('sub_agent')
